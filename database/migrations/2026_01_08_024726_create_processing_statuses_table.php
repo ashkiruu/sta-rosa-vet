@@ -8,7 +8,7 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('processing_statuses', function (Blueprint $table) {
-            $table->integer('CertificateType_ID')->primary();
+            $table->integer('CertificateType_ID')->primary()->unsigned();
             $table->string('Certificate_Name', 255);
             $table->text('Description')->nullable();
             $table->timestamps(); // optional, adds created_at and updated_at

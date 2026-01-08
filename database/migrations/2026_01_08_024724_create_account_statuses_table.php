@@ -8,7 +8,7 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('account_statuses', function (Blueprint $table) {
-            $table->integer('Account_Status_ID')->primary();
+            $table->integer('Account_Status_ID')->primary()->unsigned();
             $table->string('Account_Status_Name', 255);
             $table->text('Description')->nullable();
             $table->timestamps();

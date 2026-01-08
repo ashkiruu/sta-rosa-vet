@@ -8,7 +8,7 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('barangays', function (Blueprint $table) {
-            $table->integer('Barangay_ID')->primary(); // custom primary key
+            $table->integer('Barangay_ID')->primary()->unsigned(); // custom primary key
             $table->string('Barangay_Name', 255);
             $table->timestamps(); // optional, adds created_at and updated_at
         });

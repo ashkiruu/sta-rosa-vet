@@ -8,7 +8,7 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('report_types', function (Blueprint $table) {
-            $table->integer('ReportType_ID')->primary();
+            $table->integer('ReportType_ID')->primary()->unsigned();
             $table->string('Report_Name', 255);
             $table->text('Description')->nullable();
             $table->timestamps(); // optional, adds created_at and updated_at
