@@ -2,19 +2,16 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
-    // Set custom primary key
-    protected $primaryKey = 'User_ID';
-    public $incrementing = true;
+    protected $primaryKey = 'User_ID'; // Crucial for your schema
 
-    // Allow mass assignment
     protected $fillable = [
         'Username',
         'Password',
@@ -30,40 +27,14 @@ class User extends Authenticatable
         'Registration_Date'
     ];
 
-    // Hide sensitive data
-    protected $hidden = [
-        'Password',
-        'remember_token',
-    ];
+    protected $hidden = ['Password', 'remember_token'];
 
-    // Cast attributes
-    protected function casts(): array
-    {
-        return [
-            'Registration_Date' => 'datetime',
-            'Password' => 'hashed',
-        ];
-    }
+    // Auth Overrides for your custom columns
+    public function getAuthPassword() { return $this->Password; }
+    public function getAuthIdentifierName() { return 'Email'; }
 
-    // CRITICAL: Override Laravel's default column names
-    public function getAuthPassword()
-    {
-        return $this->Password;
-    }
-
-    public function getEmailForPasswordReset()
-    {
-        return $this->Email;
-    }
-
-    // Tell Laravel which column is the email (for login)
-    public function getAuthIdentifierName()
-    {
-        return 'User_ID';
-    }
-
-    public function getAuthIdentifier()
-    {
-        return $this->User_ID;
+    // Relationships
+    public function barangay() {
+        return $this->belongsTo(Barangay::class, 'Barangay_ID', 'Barangay_ID');
     }
 }
