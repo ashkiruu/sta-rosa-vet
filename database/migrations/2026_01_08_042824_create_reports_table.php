@@ -8,7 +8,7 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('reports', function (Blueprint $table) {
-            $table->integer('Report_ID')->primary()->unsigned();
+            $table->increments('Report_ID'); // Changed to auto-increment
             $table->integer('Certificate_ID')->unsigned();
             $table->integer('Pet_ID')->unsigned();
             $table->integer('User_ID')->unsigned();

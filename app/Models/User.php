@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -10,8 +9,9 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
-    protected $primaryKey = 'User_ID'; // Crucial for your schema
-
+    protected $primaryKey = 'User_ID';
+    public $incrementing = true;
+    
     protected $fillable = [
         'Username',
         'Password',
@@ -30,11 +30,26 @@ class User extends Authenticatable
     protected $hidden = ['Password', 'remember_token'];
 
     // Auth Overrides for your custom columns
-    public function getAuthPassword() { return $this->Password; }
-    public function getAuthIdentifierName() { return 'Email'; }
+    public function getAuthPassword() 
+    { 
+        return $this->Password; 
+    }
+    
+    // This tells Laravel which column is the PRIMARY KEY (for session storage)
+    public function getAuthIdentifierName() 
+    { 
+        return 'User_ID'; 
+    }
+    
+    // This returns the actual ID value
+    public function getAuthIdentifier() 
+    { 
+        return $this->User_ID; 
+    }
 
     // Relationships
-    public function barangay() {
+    public function barangay() 
+    {
         return $this->belongsTo(Barangay::class, 'Barangay_ID', 'Barangay_ID');
     }
 }
