@@ -11,6 +11,8 @@ class User extends Authenticatable
     use HasFactory, Notifiable;
 
     protected $primaryKey = 'User_ID'; // Crucial for your schema
+    public $incrementing = true;  // <--- VERY IMPORTANT
+    protected $keyType = 'int';
 
     protected $fillable = [
         'Username',
@@ -31,7 +33,7 @@ class User extends Authenticatable
 
     // Auth Overrides for your custom columns
     public function getAuthPassword() { return $this->Password; }
-    public function getAuthIdentifierName() { return 'Email'; }
+    public function getAuthIdentifierName() { return 'User_ID'; }
 
     // Relationships
     public function barangay() {

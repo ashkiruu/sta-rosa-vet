@@ -28,3 +28,9 @@ Route::post('register/step-1', [RegisterController::class, 'postStep1'])->name('
 
 Route::get('/register/step2', [RegisterController::class, 'step2'])->name('register.step2');
 Route::post('/register/step2', [RegisterController::class, 'postStep2'])->name('register.step2.post');
+
+
+// Registration Step 3
+
+Route::get('/register/step3', [RegisterController::class, 'step3'])->name('register.step3');
+Route::post('/register/step3', [RegisterController::class, 'postStep3'])->name('register.step3.post');
