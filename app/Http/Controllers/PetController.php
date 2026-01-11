@@ -22,16 +22,15 @@ class PetController extends Controller
     }
 
     public function store(Request $request)
-    {
-        $request->validate([
-            'Pet_Name' => 'required|string|max:255',
-            'Sex' => 'required|in:Male,Female',
-            'Age' => 'required|integer|min:0',
-            'Species_ID' => 'required|exists:species,Species_ID',
-            'other_species' => 'nullable|string|max:255',
-            'medical_history' => 'nullable|string|max:1000',
-            'pet_photo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-        ]);
+{
+    $request->validate([
+        'Pet_Name' => 'required|string|max:255',
+        'Sex' => 'required|in:Male,Female',
+        'Age' => 'required|integer|min:0',
+        'Species_ID' => 'required',
+        'other_species' => 'required_if:Species_ID,0|nullable|string|max:255',
+        'medical_history' => 'nullable|string|max:1000',
+    ]);
 
         $photoPath = null;
         if ($request->hasFile('pet_photo')) {
