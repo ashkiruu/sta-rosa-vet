@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\PetController;
 use App\Http\Controllers\AppointmentController;
+use App\Http\Controllers\NotificationController;
 
 
 
@@ -50,6 +51,12 @@ Route::middleware('auth')->group(function () {
     
     Route::get('/appointments/{id}', [AppointmentController::class, 'show'])->name('appointments.show');
     Route::post('/appointments/{id}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
+
+    Route::get('/notifications/view/{id}', [NotificationController::class, 'viewAppointment'])
+    ->name('notifications.viewAppointment');
+
+    Route::post('/notifications/mark-all-seen', [NotificationController::class, 'markAllSeen'])
+    ->name('notifications.markAllSeen');
 });
 
 // Admin-Only Routes
