@@ -32,7 +32,7 @@ class User extends Authenticatable
 
     // Auth Overrides for your custom columns
     public function getAuthPassword() { return $this->Password; }
-    public function getAuthIdentifierName() { return 'Email'; }
+    public function getAuthIdentifierName() { return 'User_ID'; }
 
     // Relationships
     public function barangay() 
