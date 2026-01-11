@@ -8,7 +8,7 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('verification_statuses', function (Blueprint $table) {
-            $table->integer('Verification_Status_ID')->primary()->unsigned();
+            $table->increments('Verification_Status_ID'); // Changed to auto-increment
             $table->string('Verification_Status_Name', 255);
             $table->text('Description')->nullable();
             $table->timestamps();

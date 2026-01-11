@@ -18,9 +18,9 @@ class UserSeeder extends Seeder
 
         // Create verification status if it doesn't exist
         DB::table('verification_statuses')->insertOrIgnore([
-            'Verification_Status_ID' => 1,
-            'Verification_Status_Name' => 'Verified',
-            'Description' => 'User is verified',
+            'Verification_Status_ID' => 2,
+            'Verification_Status_Name' => 'Pending',
+            'Description' => 'Awaiting admin verification',
             'created_at' => now(),
             'updated_at' => now(),
         ]);

@@ -1,34 +1,48 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\PetController;
+use App\Http\Controllers\AppointmentController;
 
 Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+// Registration Routes
+Route::get('/register', [RegisterController::class, 'step1'])->name('register.step1');
+Route::post('/register', [RegisterController::class, 'register']);
 
+// Authentication Routes
+Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
+Route::post('/login', [LoginController::class, 'login']);
+Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+
+// Protected Routes
 Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::get('/dashboard', function () {
+        return view('dashboard');
+    })->name('dashboard');
+
+    // Pet Management Routes
+    Route::get('/pets', [PetController::class, 'index'])->name('pets.index');
+    Route::get('/pets/create', [PetController::class, 'create'])->name('pets.create');
+    Route::post('/pets', [PetController::class, 'store'])->name('pets.store');
+    Route::get('/pets/{id}', [PetController::class, 'show'])->name('pets.show');
+    Route::delete('/pets/{id}', [PetController::class, 'destroy'])->name('pets.destroy');
+
+    // Appointments
+    Route::get('/appointments', [AppointmentController::class, 'index'])->name('appointments.index');
+    Route::get('/appointments/create', [AppointmentController::class, 'create'])->name('appointments.create');
+    Route::post('/appointments', [AppointmentController::class, 'store'])->name('appointments.store');
+    
+    Route::post('/appointments/preview', [AppointmentController::class, 'preview'])->name('appointments.preview');
+    Route::post('/appointments/confirm', [AppointmentController::class, 'confirm'])->name('appointments.confirm');
+    
+    Route::get('/appointments/{id}', [AppointmentController::class, 'show'])->name('appointments.show');
+    Route::post('/appointments/{id}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
 });
-
-require __DIR__.'/auth.php';
-
-// Registration Step 1
-Route::get('register/step-1', [RegisterController::class, 'step1'])->name('register.step1');
-Route::post('register/step-1', [RegisterController::class, 'postStep1'])->name('register.step1.post');
-
-// Registration Step 2
-
-Route::get('/register/step2', [RegisterController::class, 'step2'])->name('register.step2');
-Route::post('/register/step2', [RegisterController::class, 'postStep2'])->name('register.step2.post');
-
 
 // Registration Step 3
 

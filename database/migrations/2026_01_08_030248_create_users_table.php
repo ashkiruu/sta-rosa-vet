@@ -8,7 +8,7 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
-            $table->integer('User_ID')->primary()->unsigned(); // custom primary key
+            $table->increments('User_ID'); // custom primary key
             $table->integer('Barangay_ID')->unsigned();
             $table->integer('Verification_Status_ID')->unsigned();
             $table->integer('Account_Status_ID')->unsigned();

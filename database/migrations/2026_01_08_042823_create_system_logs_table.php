@@ -8,7 +8,7 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('system_logs', function (Blueprint $table) {
-            $table->integer('Log_ID')->primary()->unsigned();
+            $table->increments('Log_ID'); // Changed to auto-increment
             $table->integer('User_ID')->unsigned();
             $table->string('Action', 255);
             $table->dateTime('Timestamp');

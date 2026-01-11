@@ -8,7 +8,7 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('ml_ocr_processing', function (Blueprint $table) {
-            $table->integer('OCR_ID')->primary()->unsigned();
+            $table->increments('OCR_ID'); // Changed to auto-increment
             $table->integer('User_ID')->unsigned();
             $table->integer('CertificateType_ID')->unsigned();
             $table->string('Document_Image_Path', 255);
@@ -20,7 +20,7 @@ return new class extends Migration {
             $table->timestamps();
 
             $table->foreign('User_ID')->references('User_ID')->on('users');
-            $table->foreign('CertificateType_ID')->references('CertificateType_ID')->on('processing_statuses');
+            $table->foreign('CertificateType_ID')->references('CertificateType_ID')->on('certificate_types');
         });
     }
 

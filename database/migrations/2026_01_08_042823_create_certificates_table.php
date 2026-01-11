@@ -8,7 +8,7 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('certificates', function (Blueprint $table) {
-            $table->integer('Certificate_ID')->primary()->unsigned();
+            $table->increments('Certificate_ID'); // Changed to auto-increment
             $table->integer('Appointment_ID')->unsigned();
             $table->integer('Pet_ID')->unsigned();
             $table->integer('Owner_ID')->unsigned();

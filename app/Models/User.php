@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -11,8 +10,6 @@ class User extends Authenticatable
     use HasFactory, Notifiable;
 
     protected $primaryKey = 'User_ID'; // Crucial for your schema
-    public $incrementing = true;  // <--- VERY IMPORTANT
-    protected $keyType = 'int';
 
     protected $fillable = [
         'Username',
@@ -33,10 +30,11 @@ class User extends Authenticatable
 
     // Auth Overrides for your custom columns
     public function getAuthPassword() { return $this->Password; }
-    public function getAuthIdentifierName() { return 'User_ID'; }
+    public function getAuthIdentifierName() { return 'Email'; }
 
     // Relationships
-    public function barangay() {
+    public function barangay() 
+    {
         return $this->belongsTo(Barangay::class, 'Barangay_ID', 'Barangay_ID');
     }
 }

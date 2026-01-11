@@ -8,10 +8,10 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('service_types', function (Blueprint $table) {
-            $table->integer('Service_ID')->primary()->unsigned();
+            $table->increments('Service_ID'); // Changed to auto-increment
             $table->string('Service_Name', 255);
             $table->text('Description')->nullable();
-            $table->timestamps(); // optional, adds created_at and updated_at
+            $table->timestamps();
         });
     }
 
