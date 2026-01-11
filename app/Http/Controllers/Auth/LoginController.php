@@ -26,7 +26,6 @@ class LoginController extends Controller
             'password' => 'required'
         ]);
 
-        // Map to your database column names
         $loginData = [
             'Email' => $credentials['email'],
             'password' => $credentials['password']
@@ -34,6 +33,12 @@ class LoginController extends Controller
 
         if (Auth::attempt($loginData, $request->filled('remember'))) {
             $request->session()->regenerate();
+
+            // FIX: Check if admin right here
+            if (Auth::user()->isAdmin()) {
+                return redirect()->route('admin.dashboard');
+            }
+
             return redirect()->intended('dashboard');
         }
 
@@ -41,7 +46,6 @@ class LoginController extends Controller
             'email' => 'The provided credentials do not match our records.',
         ])->onlyInput('email');
     }
-
     /**
      * Handle logout
      */
@@ -51,5 +55,13 @@ class LoginController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         return redirect('/');
+    }
+    protected function authenticated(Request $request, $user)
+    {
+        if ($user->isAdmin()) {
+            return redirect()->route('admin.dashboard');
+        }
+
+        return redirect()->route('dashboard');
     }
 }

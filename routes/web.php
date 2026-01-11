@@ -6,13 +6,15 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\PetController;
 use App\Http\Controllers\AppointmentController;
 
+
+
 Route::get('/', function () {
     return view('welcome');
 });
 
 // Registration Routes
-Route::get('/register', [RegisterController::class, 'step1'])->name('register.step1');
-Route::post('/register', [RegisterController::class, 'postStep1']);
+Route::get('/register/step1', [RegisterController::class, 'step1'])->name('register.step1');
+Route::post('/register/step1', [RegisterController::class, 'postStep1']);
 // Registration Step 2
 Route::get('/register/step2', [RegisterController::class, 'step2'])->name('register.step2');
 Route::post('/register/step2', [RegisterController::class, 'postStep2'])->name('register.step2.post');
@@ -48,6 +50,25 @@ Route::middleware('auth')->group(function () {
     
     Route::get('/appointments/{id}', [AppointmentController::class, 'show'])->name('appointments.show');
     Route::post('/appointments/{id}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
+});
+
+// Admin-Only Routes
+Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
+    // Admin Dashboard Overview
+    Route::get('/dashboard', [App\Http\Controllers\AdminController::class, 'dashboard'])->name('admin.dashboard');
+    Route::get('/users/{id}', [App\Http\Controllers\AdminController::class, 'showUser'])->name('admin.user.show'); 
+
+    // 1. User Verification (The OCR Review Module)
+    Route::get('/verifications', [App\Http\Controllers\AdminController::class, 'pendingVerifications'])->name('admin.verifications');
+    Route::post('/verifications/{id}/approve', [App\Http\Controllers\AdminController::class, 'approveUser'])->name('admin.user.approve');
+    Route::post('/verifications/{id}/reject', [App\Http\Controllers\AdminController::class, 'rejectUser'])->name('admin.user.reject');
+
+    // 2. Appointment Management (The Conflict Resolution Module)
+    Route::get('/appointments', [App\Http\Controllers\AdminController::class, 'appointments'])->name('admin.appointments.index');
+    Route::post('/appointments/{id}/approve', [App\Http\Controllers\AdminController::class, 'approveAppointment'])->name('admin.appointments.approve');
+    
+    // 3. Reports (The Summary Report Module)
+    Route::get('/reports', [App\Http\Controllers\AdminController::class, 'reports'])->name('admin.reports');
 });
 
 

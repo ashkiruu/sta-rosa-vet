@@ -9,8 +9,8 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
+    protected $primaryKey = 'User_ID'; // Crucial for your schema
     protected $table = 'users';
-    protected $primaryKey = 'User_ID'; //Crucial for your schema
     public $incrementing = true;
 
     protected $fillable = [
@@ -34,9 +34,20 @@ class User extends Authenticatable
     public function getAuthPassword() { return $this->Password; }
     public function getAuthIdentifierName() { return 'User_ID'; }
 
-    // Relationships
-    public function barangay() 
+    public function admin()
     {
-        return $this->belongsTo(Barangay::class, 'Barangay_ID', 'Barangay_ID');
+        // Primary key is User_ID, Foreign key in admin table is also User_ID
+        return $this->hasOne(Admin::class, 'User_ID', 'User_ID');
+    }
+
+    public function isAdmin(): bool
+    {
+        // This looks for the current user's ID in the admin table
+        return \DB::table('admins')->where('User_ID', $this->User_ID)->exists();
+    }
+    public function ocrData()
+    {
+        // A user has one entry in the ml_ocr_processing table
+        return $this->hasOne(MlOcrProcessing::class, 'User_ID', 'User_ID');
     }
 }
