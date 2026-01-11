@@ -13,6 +13,12 @@ Route::get('/', function () {
 // Registration Routes
 Route::get('/register', [RegisterController::class, 'step1'])->name('register.step1');
 Route::post('/register', [RegisterController::class, 'register']);
+// Registration Step 2
+Route::get('/register/step2', [RegisterController::class, 'step2'])->name('register.step2');
+Route::post('/register/step2', [RegisterController::class, 'postStep2'])->name('register.step2.post');
+// Registration Step 3
+Route::get('/register/step3', [RegisterController::class, 'step3'])->name('register.step3');
+Route::post('/register/step3', [RegisterController::class, 'postStep3'])->name('register.step3.post');
 
 // Authentication Routes
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
@@ -44,7 +50,4 @@ Route::middleware('auth')->group(function () {
     Route::post('/appointments/{id}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
 });
 
-// Registration Step 3
 
-Route::get('/register/step3', [RegisterController::class, 'step3'])->name('register.step3');
-Route::post('/register/step3', [RegisterController::class, 'postStep3'])->name('register.step3.post');
