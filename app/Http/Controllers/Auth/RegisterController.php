@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use App\Models\MlOcrProcessing;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rules\Password;
 
 class RegisterController extends Controller
 {
@@ -110,7 +111,7 @@ class RegisterController extends Controller
 
         try {
             $ocr = new \thiagoalessio\TesseractOCR\TesseractOCR($absolutePath);
-            // $ocr->executable('...'); // Uncomment for Windows
+            $ocr->executable('C:\Program Files\Tesseract-OCR\tesseract.exe'); // Uncomment for Windows
             $ocrText = $ocr->run();
 
             if (empty(trim($ocrText))) {
@@ -168,7 +169,7 @@ class RegisterController extends Controller
                             ($addressScore * 0.25);
             }
 
-            /* --- DEBUGGING: REMOVE THIS AFTER TESTING ---
+            /*--- DEBUGGING: REMOVE THIS AFTER TESTING ---
             dd([
                 'OCR_Text_Raw' => $ocrText,
                 'OCR_Tokens' => $ocrTokens,
@@ -266,7 +267,16 @@ class RegisterController extends Controller
     {
         $request->validate([
             'email' => 'required|email|unique:users,Email',
-            'password' => 'required|string|min:8|confirmed',
+            'password' => [
+                'required',
+                'string',
+                'confirmed',
+                Password::min(8)
+                    ->letters()      // Requires at least one letter
+                    ->mixedCase()    // Requires both uppercase and lowercase
+                    ->numbers()      // Requires at least one number
+                    ->symbols(),     // Requires at least one symbol (!, @, #, $, etc.)
+            ],
         ]);
 
         $step1 = session('register.step1');
@@ -301,7 +311,7 @@ class RegisterController extends Controller
                 'CertificateType_ID'    => 1,
                 'Document_Image_Path'   => $step2['id_file_path'],
                 // ADD strval() to ensure it's treated as a clean string
-                'Extracted_Text'        => strval($step2['raw_text']), 
+                'Extracted_Text'        => json_encode(trim(strval($step2['raw_text']))), 
                 'Parsed_Data'           => json_encode($step2['scores']), 
                 'Confidence_Score'      => $step2['confidence_score'],
                 'Address_Match_Status'  => ($step2['address_score'] >= 0.7 ? 'Matched' : 'Discrepancy'),

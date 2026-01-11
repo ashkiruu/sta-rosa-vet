@@ -12,7 +12,7 @@ Route::get('/', function () {
 
 // Registration Routes
 Route::get('/register', [RegisterController::class, 'step1'])->name('register.step1');
-Route::post('/register', [RegisterController::class, 'register']);
+Route::post('/register', [RegisterController::class, 'postStep1']);
 // Registration Step 2
 Route::get('/register/step2', [RegisterController::class, 'step2'])->name('register.step2');
 Route::post('/register/step2', [RegisterController::class, 'postStep2'])->name('register.step2.post');

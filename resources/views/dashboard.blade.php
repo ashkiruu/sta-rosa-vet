@@ -39,7 +39,7 @@
             <div class="inline-block bg-white rounded-lg px-6 py-3 shadow-md">
                 <span class="font-semibold text-lg">Verification Status: </span>
                 <span class="bg-green-500 text-white px-4 py-2 rounded-full text-sm font-semibold ml-2">
-                    @if(Auth::user()->Verification_Status_ID == 1)
+                    @if(Auth::user()->Verification_Status_ID == 2)
                         ✓ Verified
                     @else
                         Pending

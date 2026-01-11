@@ -13,19 +13,25 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        // Note: Run BarangaySeeder first to populate all 18 barangays
-        // This user will be assigned to Barangay Aplaya (ID: 1)
-
-        // Create verification status if it doesn't exist
+        // Create BOTH verification statuses
         DB::table('verification_statuses')->insertOrIgnore([
-            'Verification_Status_ID' => 2,
-            'Verification_Status_Name' => 'Pending',
-            'Description' => 'Awaiting admin verification',
-            'created_at' => now(),
-            'updated_at' => now(),
+            [
+                'Verification_Status_ID' => 1,
+                'Verification_Status_Name' => 'Pending',
+                'Description' => 'Awaiting OCR or Admin review',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'Verification_Status_ID' => 2,
+                'Verification_Status_Name' => 'Verified',
+                'Description' => 'ID matched successfully via OCR',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
         ]);
 
-        // Create account status if it doesn't exist
+        // Create account status
         DB::table('account_statuses')->insertOrIgnore([
             'Account_Status_ID' => 1,
             'Account_Status_Name' => 'Active',
@@ -34,8 +40,8 @@ class UserSeeder extends Seeder
             'updated_at' => now(),
         ]);
 
-        // Create test user
-        DB::table('users')->insert([
+        // Create test user (Juan Dela Cruz)
+        DB::table('users')->insertOrIgnore([
             'User_ID' => 1,
             'Username' => 'testuser',
             'Password' => Hash::make('password'),
@@ -52,9 +58,5 @@ class UserSeeder extends Seeder
             'created_at' => now(),
             'updated_at' => now(),
         ]);
-
-        echo "Test user created successfully!\n";
-        echo "Email: test@example.com\n";
-        echo "Password: password\n";
     }
 }

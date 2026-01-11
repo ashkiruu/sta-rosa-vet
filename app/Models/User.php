@@ -9,7 +9,9 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
-    protected $primaryKey = 'User_ID'; // Crucial for your schema
+    protected $table = 'users';
+    protected $primaryKey = 'User_ID'; //Crucial for your schema
+    public $incrementing = true;
 
     protected $fillable = [
         'Username',

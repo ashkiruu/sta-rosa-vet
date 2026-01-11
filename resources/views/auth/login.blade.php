@@ -47,3 +47,4 @@
     </div>
 </body>
 </html>
+</x-guest-layout>
