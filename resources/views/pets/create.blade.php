@@ -209,58 +209,43 @@
                         </div>
 
                         <!-- Age and Species Row -->
-                        <div class="grid grid-cols-2 gap-4 mb-4">
-                            <div>
-                                <label class="form-label">Age ( months )</label>
-                                <input 
-                                    type="number" 
-                                    name="Age" 
-                                    class="form-input" 
-                                    placeholder="23"
-                                    value="{{ old('Age') }}"
-                                    min="0"
-                                    required
-                                >
-                            </div>
-                            <div>
-                                <label class="form-label">Species</label>
-                                <select name="Species_ID" id="speciesSelect" class="form-select" required>
-                                    <option value="" disabled {{ old('Species_ID') ? '' : 'selected' }}>Select</option>
-                                    @foreach($species as $sp)
-                                        <option value="{{ $sp->Species_ID }}" {{ old('Species_ID') == $sp->Species_ID ? 'selected' : '' }}>
-                                            {{ $sp->Species_Name }}
-                                        </option>
-                                    @endforeach
-                                    <option value="other">Other</option>
-                                </select>
-                            </div>
-                        </div>
+<div class="grid grid-cols-2 gap-4 mb-4">
+    <div>
+        <label class="form-label">Age ( months )</label>
+        <input 
+            type="number" 
+            name="Age" 
+            class="form-input" 
+            placeholder="23"
+            value="{{ old('Age') }}"
+            min="0"
+            required
+        >
+    </div>
+    <div>
+        <label class="form-label">Species</label>
+        <select name="Species_ID" id="speciesSelect" class="form-select" required>
+    <option value="" disabled {{ old('Species_ID') ? '' : 'selected' }}>Select</option>
+    @foreach($species as $sp)
+        <option value="{{ $sp->Species_ID }}" {{ old('Species_ID') == $sp->Species_ID ? 'selected' : '' }}>
+            {{ $sp->Species_Name }}
+        </option>
+    @endforeach
+</select>
+    </div>
+</div>
 
-                        <!-- Other Species (conditional) -->
-                        <div class="mb-4" id="otherSpeciesDiv" style="display: none;">
-                            <label class="form-label">If other species ( <span class="italic text-gray-500">Please specify</span> )</label>
-                            <input 
-                                type="text" 
-                                name="other_species" 
-                                class="form-input" 
-                                placeholder="Enter species name"
-                                value="{{ old('other_species') }}"
-                            >
-                        </div>
-
-                        <!-- Medical History -->
-                        <div class="mb-2">
-                            <label class="form-label">Medical history ( <span class="italic text-gray-500">Write N/A if doesn't apply</span> )</label>
-                            <input 
-                                type="text" 
-                                name="medical_history" 
-                                class="form-input" 
-                                placeholder="N/A"
-                                value="{{ old('medical_history') }}"
-                            >
-                        </div>
-                    </div>
-                </div>
+<!-- Other Species (conditional) -->
+<div class="mb-4" id="otherSpeciesDiv" style="display: none;">
+    <label class="form-label">If other species ( <span class="italic text-gray-500">Please specify</span> )</label>
+    <input 
+        type="text" 
+        name="other_species" 
+        class="form-input" 
+        placeholder="Enter species name"
+        value="{{ old('other_species') }}"
+    >
+</div>
 
                 <!-- Action Buttons -->
                 <div class="flex justify-between items-center">
@@ -276,22 +261,24 @@
     </div>
 
     <script>
-        // Show/hide other species field based on selection
-        const speciesSelect = document.getElementById('speciesSelect');
-        const otherSpeciesDiv = document.getElementById('otherSpeciesDiv');
-        
-        speciesSelect.addEventListener('change', function() {
-            if (this.value === 'other') {
-                otherSpeciesDiv.style.display = 'block';
-            } else {
-                otherSpeciesDiv.style.display = 'none';
-            }
-        });
-
-        // Check on page load if "other" was previously selected
-        if (speciesSelect.value === 'other') {
+    const speciesSelect = document.getElementById('speciesSelect');
+    const otherSpeciesDiv = document.getElementById('otherSpeciesDiv');
+    
+    speciesSelect.addEventListener('change', function() {
+        // Check if selected option text is "Other"
+        const selectedText = this.options[this.selectedIndex].text;
+        if (selectedText === 'Other') {
             otherSpeciesDiv.style.display = 'block';
+        } else {
+            otherSpeciesDiv.style.display = 'none';
         }
-    </script>
+    });
+
+    // Check on page load
+    const selectedText = speciesSelect.options[speciesSelect.selectedIndex]?.text;
+    if (selectedText === 'Other') {
+        otherSpeciesDiv.style.display = 'block';
+    }
+</script>
 </body>
 </html>
