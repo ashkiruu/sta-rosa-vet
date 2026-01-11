@@ -66,6 +66,13 @@ class AppointmentController extends Controller
      */
     public function confirm(Request $request)
     {
+        // 1. BLOCK UNVERIFIED USERS FROM SAVING
+        if (!$this->isUserVerified()) {
+            return redirect()->route('dashboard')->withErrors([
+                'verification' => 'Your account is not yet verified. You can preview appointments, but you must upload a valid ID to finalize the booking.'
+            ]);
+        }  
+
         $request->validate([
             'Pet_ID' => 'required|exists:pets,Pet_ID',
             'Service_ID' => 'required|exists:service_types,Service_ID',
@@ -98,7 +105,14 @@ class AppointmentController extends Controller
      * Original store method - kept for reference, but we now use preview + confirm flow
      */
     public function store(Request $request)
-    {
+    {  
+        // 1. BLOCK UNVERIFIED USERS FROM SAVING
+        if (!$this->isUserVerified()) {
+            return redirect()->route('dashboard')->withErrors([
+                'verification' => 'Verification required to book appointments.'
+            ]);
+        }    
+        
         $request->validate([
             'Pet_ID' => 'required|exists:pets,Pet_ID',
             'Service_ID' => 'required|exists:service_types,Service_ID',
@@ -153,5 +167,14 @@ class AppointmentController extends Controller
 
         return redirect()->route('appointments.index')
             ->with('success', 'Appointment cancelled.');
+    }
+
+    /**
+     * PRIVATE HELPER: Check if user is verified
+     */
+    private function isUserVerified(): bool
+    {
+        // Status 2 = Verified (as set in your RegisterController)
+        return Auth::user()->Verification_Status_ID == 2;
     }
 }

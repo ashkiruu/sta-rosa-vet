@@ -97,8 +97,22 @@ class RegisterController extends Controller
     public function postStep2(Request $request)
     {
         $request->validate([
-            'id_file' => 'required|image|mimes:jpg,jpeg,png|max:5120',
+            'id_file' => 'nullable|image|mimes:jpg,jpeg,png|max:5120',
         ]);
+
+         // Handle the "Skip" logic
+        if (!$request->hasFile('id_file')) {
+            session(['register.step2' => [
+                'id_file_path'           => null,
+                'verification_status_id' => 3, // Set to 'Not Verified'
+                'confidence_score'       => 0,
+                'raw_text'               => '',
+                'address_score'          => 0,
+                'scores'                 => []
+            ]]);
+
+            return redirect()->route('register.step3');
+        }
 
         $step1 = session('register.step1');
         if (!$step1) {
@@ -221,8 +235,6 @@ class RegisterController extends Controller
             ],
         ]);
 
-
-            
             session(['register.step2' => [
                 'id_file_path'           => $path,
                 'verification_status_id' => $statusID,
@@ -253,6 +265,7 @@ class RegisterController extends Controller
             ]);
         }
     }
+    
     public function step3()
     {
         // Ensure previous steps exist
@@ -292,7 +305,7 @@ class RegisterController extends Controller
             // 1. Save to 'users' table
             $user = \App\Models\User::create([
                 'Barangay_ID'            => $step1['Barangay_ID'],
-                'Verification_Status_ID' => $step2['verification_status_id'],
+                'Verification_Status_ID' => $step2['verification_status_id'] ?? 3,
                 'Account_Status_ID'      => 1, // Active
                 'Username'               => $request->email,
                 'Password'               => \Illuminate\Support\Facades\Hash::make($request->password),
@@ -306,17 +319,18 @@ class RegisterController extends Controller
             ]);
 
             // 2. Save to 'ml_ocr_processing' table
-           \App\Models\MlOcrProcessing::create([
-                'User_ID'               => $user->User_ID,
-                'CertificateType_ID'    => 1,
-                'Document_Image_Path'   => $step2['id_file_path'],
-                // ADD strval() to ensure it's treated as a clean string
-                'Extracted_Text'        => json_encode(trim(strval($step2['raw_text']))), 
-                'Parsed_Data'           => json_encode($step2['scores']), 
-                'Confidence_Score'      => $step2['confidence_score'],
-                'Address_Match_Status'  => ($step2['address_score'] >= 0.7 ? 'Matched' : 'Discrepancy'),
-                'Created_Date'          => now(),
-            ]);
+           if (!empty($step2['id_file_path'])) {
+                \App\Models\MlOcrProcessing::create([
+                    'User_ID'               => $user->User_ID,
+                    'CertificateType_ID'    => 1,
+                    'Document_Image_Path'   => $step2['id_file_path'],
+                    'Extracted_Text'        => json_encode(trim(strval($step2['raw_text']))), 
+                    'Parsed_Data'           => json_encode($step2['scores']), 
+                    'Confidence_Score'      => $step2['confidence_score'],
+                    'Address_Match_Status'  => ($step2['address_score'] >= 0.7 ? 'Matched' : 'Discrepancy'),
+                    'Created_Date'          => now(),
+                ]);
+            }
 
             DB::commit();
 
@@ -330,6 +344,83 @@ class RegisterController extends Controller
             DB::rollBack();
             // This will stop the reload and show the actual error message on a white screen
             dd($e->getMessage()); 
+        }
+    }
+
+    /**
+     * Show the standalone verification form for logged-in users
+     */
+    public function showReverifyForm()
+    {
+        // If already verified, don't let them upload again
+        if (Auth::user()->Verification_Status_ID == 2) {
+            return redirect()->route('dashboard')->with('info', 'Your account is already verified.');
+        }
+        
+        // We reuse the Step 2 view but ensure the form POSTs to verify.process
+        return view('auth.register.step2')->with('isReverifying', true);
+    }
+
+    /**
+     * Process late ID upload for existing users
+     */
+    public function processReverify(Request $request)
+    {
+        $request->validate([
+            'id_file' => 'required|image|mimes:jpg,jpeg,png|max:5120',
+        ]);
+
+        $user = Auth::user();
+        
+        // Process File
+        $path = $request->file('id_file')->store('ids', 'public');
+        $absolutePath = storage_path('app/public/' . $path);
+
+        try {
+            $ocr = new TesseractOCR($absolutePath);
+            $ocr->executable('C:\Program Files\Tesseract-OCR\tesseract.exe'); 
+            $ocrText = $ocr->run();
+
+            if (empty(trim($ocrText))) {
+                Storage::disk('public')->delete($wpath);
+                return back()->withErrors(['id_file' => 'No readable text found. Please upload a clearer photo.']);
+            }
+
+            // --- Reuse your existing scoring logic ---
+            $normalizedOcr = $this->normalizeText($ocrText);
+            $ocrTokens = explode(' ', $normalizedOcr);
+
+            $firstNameScore = $this->getCompositeScore($user->First_Name, $ocrTokens);
+            $lastNameScore  = $this->getCompositeScore($user->Last_Name, $ocrTokens);
+            $addressScore   = 0.5; // Default or run your address logic here
+
+            $totalScore = ($lastNameScore * 0.40) + ($firstNameScore * 0.35) + ($addressScore * 0.25);
+            $statusID = ($totalScore >= 0.7) ? 2 : 1; 
+
+            // Update User
+            $user->update(['Verification_Status_ID' => $statusID]);
+
+            // Save to ML table
+            MlOcrProcessing::create([
+                'User_ID'               => $user->User_ID,
+                'CertificateType_ID'    => 1,
+                'Document_Image_Path'   => $path,
+                'Extracted_Text'        => json_encode(trim(strval($ocrText))), 
+                'Parsed_Data'           => json_encode(['first' => $firstNameScore, 'last' => $lastNameScore]), 
+                'Confidence_Score'      => $totalScore,
+                'Address_Match_Status'  => ($addressScore >= 0.7 ? 'Matched' : 'Discrepancy'),
+                'Created_Date'          => now(),
+            ]);
+
+            if ($statusID == 2) {
+                return redirect()->route('dashboard')->with('success', 'Verification successful! You can now book appointments.');
+            } else {
+                return redirect()->route('dashboard')->with('warning', 'ID uploaded, but details did not match perfectly. Admin will review it.');
+            }
+
+        } catch (\Exception $e) {
+            Storage::disk('public')->delete($path);
+            return back()->withErrors(['id_file' => 'Error processing ID: ' . $e->getMessage()]);
         }
     }
 }

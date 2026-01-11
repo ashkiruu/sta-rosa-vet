@@ -31,6 +31,10 @@ Route::middleware('auth')->group(function () {
         return view('dashboard');
     })->name('dashboard');
 
+    // Verify Process
+    Route::get('/verify-account', [RegisterController::class, 'showReverifyForm'])->name('verify.reverify');
+    Route::post('/verify-account', [RegisterController::class, 'processReverify'])->name('verify.process');
+
     // Pet Management Routes
     Route::get('/pets', [PetController::class, 'index'])->name('pets.index');
     Route::get('/pets/create', [PetController::class, 'create'])->name('pets.create');
