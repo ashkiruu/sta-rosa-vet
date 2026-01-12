@@ -173,7 +173,7 @@
                     <ol class="note-list list-decimal list-inside space-y-3">
                         <li>Appointment booked at City of Santa Rosa Veterinary Office is non-transferable and cannot be rescheduled.</li>
                         <li>If an applicant wishes to make any changes after obtaining their appointment, the existing appointment must first be cancelled. A new appointment can then be booked.</li>
-                        <li>Please be advised that your chosen time slot is reserved for 30 minutes.</li>
+                        <li>Please be advised that your chosen time slot is reserved for 10 minutes. Please arrive on time.</li>
                     </ol>
                     
                     <div class="mt-8">
@@ -198,7 +198,7 @@
                                 {{ \Carbon\Carbon::parse($appointmentData['Date'])->format('l, F j, Y') }}
                             </p>
                             <p class="text-gray-700 mt-1">
-                                Time: {{ \Carbon\Carbon::parse($appointmentData['Time'])->format('g:i a') }} - {{ \Carbon\Carbon::parse($appointmentData['Time'])->addMinutes(30)->format('g:i a') }}
+                                Time: {{ \Carbon\Carbon::parse($appointmentData['Time'])->format('h:i A') }}
                             </p>
                         </div>
                         

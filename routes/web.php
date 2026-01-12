@@ -52,6 +52,12 @@ Route::middleware('auth')->group(function () {
     
     Route::post('/appointments/preview', [AppointmentController::class, 'preview'])->name('appointments.preview');
     Route::post('/appointments/confirm', [AppointmentController::class, 'confirm'])->name('appointments.confirm');
+
+     Route::get('/appointments/taken-times', [AppointmentController::class, 'getTakenTimes'])
+        ->name('appointments.takenTimes');
+
+        Route::get('/appointments/fully-booked', [AppointmentController::class, 'getFullyBookedDates'])
+        ->name('appointments.fullyBooked');
     
     Route::get('/appointments/{id}', [AppointmentController::class, 'show'])->name('appointments.show');
     Route::post('/appointments/{id}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
@@ -61,6 +67,9 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/notifications/mark-all-seen', [NotificationController::class, 'markAllSeen'])
     ->name('notifications.markAllSeen');
+
+    Route::get('/appointments/taken-times', [AppointmentController::class, 'getTakenTimes'])
+    ->name('appointments.takenTimes');
 });
 
 // Admin-Only Routes

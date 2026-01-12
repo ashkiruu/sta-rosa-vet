@@ -133,31 +133,124 @@
             cursor: not-allowed;
         }
         
+        .calendar-day.weekend {
+            color: #d1d5db;
+            cursor: not-allowed;
+            background: #f9fafb;
+        }
+        
+        .calendar-day.fully-booked {
+            background: #fee2e2;
+            color: #dc2626;
+            cursor: not-allowed;
+            font-weight: 600;
+        }
+        
+        .calendar-day.fully-booked:hover {
+            background: #fee2e2;
+        }
+        
         .calendar-day.other-month {
             color: #9ca3af;
         }
         
-        .time-dropdown {
+        /* Time Dropdown Styles */
+        .time-dropdown-wrapper {
             background: #fbbf24;
             border-radius: 8px;
             padding: 12px 16px;
             height: fit-content;
         }
         
-        .time-select {
+        .time-dropdown {
+            position: relative;
             width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
-            background: white;
-            font-size: 14px;
-            color: #6b7280;
+        }
+        
+        .time-dropdown-toggle {
+            width: 100%;
+            padding: 14px 20px;
+            background: #fbbf24;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            color: #1f2937;
             cursor: pointer;
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 12px center;
-            background-size: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+        
+        .time-dropdown-toggle:hover {
+            background: #f59e0b;
+        }
+        
+        .time-dropdown-toggle svg {
+            width: 20px;
+            height: 20px;
+            transition: transform 0.2s;
+        }
+        
+        .time-dropdown-toggle.open svg {
+            transform: rotate(180deg);
+        }
+        
+        .time-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            z-index: 100;
+        }
+        
+        .time-dropdown-menu.open {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .time-slot {
+            padding: 12px 20px;
+            font-size: 14px;
+            color: #1f2937;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        
+        .time-slot:hover:not(.taken):not(.selected) {
+            background: #fef3c7;
+        }
+        
+        .time-slot.selected {
+            background: #fbbf24;
+            color: #1f2937;
+            font-weight: 600;
+        }
+        
+        .time-slot.taken {
+            background: #fee2e2;
+            color: #9ca3af;
+            cursor: not-allowed;
+            text-decoration: line-through;
+        }
+        
+        .time-slot.taken::after {
+            content: ' (Taken)';
+            font-size: 12px;
+            color: #ef4444;
+        }
+        
+        .time-slot:last-child {
+            border-bottom: none;
+            border-radius: 0 0 8px 8px;
         }
         
         .pet-section-header {
@@ -341,30 +434,38 @@
                     </div>
 
                     <!-- Time Slot Dropdown -->
-                    <div class="time-dropdown md:w-48">
-                        <select name="Time" id="Time" class="time-select" required>
-                            <option value="">Time</option>
-                            <option value="08:00">8:00 AM</option>
-                            <option value="08:30">8:30 AM</option>
-                            <option value="09:00">9:00 AM</option>
-                            <option value="09:30">9:30 AM</option>
-                            <option value="10:00">10:00 AM</option>
-                            <option value="10:30">10:30 AM</option>
-                            <option value="11:00">11:00 AM</option>
-                            <option value="11:30">11:30 AM</option>
-                            <option value="12:00">12:00 PM</option>
-                            <option value="12:30">12:30 PM</option>
-                            <option value="13:00">1:00 PM</option>
-                            <option value="13:30">1:30 PM</option>
-                            <option value="14:00">2:00 PM</option>
-                            <option value="14:30">2:30 PM</option>
-                            <option value="15:00">3:00 PM</option>
-                            <option value="15:30">3:30 PM</option>
-                            <option value="16:00">4:00 PM</option>
-                            <option value="16:30">4:30 PM</option>
-                            <option value="17:00">5:00 PM</option>
-                            <option value="17:30">5:30 PM</option>
-                        </select>
+                    <div class="time-dropdown-wrapper">
+                        <div class="time-dropdown" id="timeDropdown">
+                            <button type="button" class="time-dropdown-toggle" id="timeToggle">
+                                <span id="selectedTimeText">Time</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                            
+                            <div class="time-dropdown-menu" id="timeMenu">
+                                <div class="time-slot" data-value="08:00" data-display="08:00 AM">08:00 AM</div>
+                                <div class="time-slot" data-value="08:10" data-display="08:10 AM">08:10 AM</div>
+                                <div class="time-slot" data-value="08:20" data-display="08:20 AM">08:20 AM</div>
+                                <div class="time-slot" data-value="08:30" data-display="08:30 AM">08:30 AM</div>
+                                <div class="time-slot" data-value="08:45" data-display="08:45 AM">08:45 AM</div>
+                                <div class="time-slot" data-value="09:00" data-display="09:00 AM">09:00 AM</div>
+                                <div class="time-slot" data-value="09:10" data-display="09:10 AM">09:10 AM</div>
+                                <div class="time-slot" data-value="09:20" data-display="09:20 AM">09:20 AM</div>
+                                <div class="time-slot" data-value="09:30" data-display="09:30 AM">09:30 AM</div>
+                                <div class="time-slot" data-value="09:40" data-display="09:40 AM">09:40 AM</div>
+                                <div class="time-slot" data-value="09:50" data-display="09:50 AM">09:50 AM</div>
+                                <div class="time-slot" data-value="10:00" data-display="10:00 AM">10:00 AM</div>
+                                <div class="time-slot" data-value="10:10" data-display="10:10 AM">10:10 AM</div>
+                                <div class="time-slot" data-value="10:20" data-display="10:20 AM">10:20 AM</div>
+                                <div class="time-slot" data-value="10:30" data-display="10:30 AM">10:30 AM</div>
+                                <div class="time-slot" data-value="10:40" data-display="10:40 AM">10:40 AM</div>
+                                <div class="time-slot" data-value="10:45" data-display="10:45 AM">10:45 AM</div>
+                            </div>
+                            
+                            <!-- Hidden input for form submission -->
+                            <input type="hidden" name="Time" id="timeInput" required>
+                        </div>
                     </div>
                 </div>
 
@@ -434,9 +535,122 @@
             });
         });
 
+        // Time dropdown functionality
+        const timeToggle = document.getElementById('timeToggle');
+        const timeMenu = document.getElementById('timeMenu');
+        const timeInput = document.getElementById('timeInput');
+        const selectedTimeText = document.getElementById('selectedTimeText');
+        const timeSlots = document.querySelectorAll('.time-slot');
+
+        // Toggle dropdown
+        timeToggle.addEventListener('click', function() {
+            this.classList.toggle('open');
+            timeMenu.classList.toggle('open');
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.time-dropdown')) {
+                timeToggle.classList.remove('open');
+                timeMenu.classList.remove('open');
+            }
+        });
+
+        // Handle time slot selection
+        timeSlots.forEach(slot => {
+            slot.addEventListener('click', function() {
+                if (this.classList.contains('taken')) {
+                    return; // Don't allow selection of taken slots
+                }
+                
+                // Remove selected class from all slots
+                timeSlots.forEach(s => s.classList.remove('selected'));
+                
+                // Add selected class to clicked slot
+                this.classList.add('selected');
+                
+                // Update hidden input and display text
+                const value = this.dataset.value;
+                const display = this.dataset.display;
+                timeInput.value = value;
+                selectedTimeText.textContent = display;
+                
+                // Close dropdown
+                timeToggle.classList.remove('open');
+                timeMenu.classList.remove('open');
+            });
+        });
+
+        // Function to fetch taken times for a specific date
+        function fetchTakenTimes(date) {
+            if (!date) return;
+            
+            fetch(`/appointments/taken-times?date=${date}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Reset all slots
+                    timeSlots.forEach(slot => {
+                        slot.classList.remove('taken');
+                    });
+                    
+                    // Mark taken slots
+                    data.takenTimes.forEach(time => {
+                        const slot = document.querySelector(`.time-slot[data-value="${time}"]`);
+                        if (slot) {
+                            slot.classList.add('taken');
+                            // If this was selected, deselect it
+                            if (slot.classList.contains('selected')) {
+                                slot.classList.remove('selected');
+                                timeInput.value = '';
+                                selectedTimeText.textContent = 'Time';
+                            }
+                        }
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching taken times:', error);
+                });
+        }
+
         // Calendar functionality
         let currentDate = new Date();
         let selectedDate = null;
+        let fullyBookedDates = []; // Store dates that are fully booked
+
+        // Total number of available time slots
+        const totalTimeSlots = 17; // 08:00, 08:10, 08:20, 08:30, 08:45, 09:00, 09:10, 09:20, 09:30, 09:40, 09:50, 10:00, 10:10, 10:20, 10:30, 10:40, 10:45
+
+        // Function to check fully booked dates for the current month
+        async function checkFullyBookedDates(year, month) {
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            fullyBookedDates = [];
+            
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const dateObj = new Date(year, month, day);
+                const dayOfWeek = dateObj.getDay();
+                
+                // Skip weekends
+                if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+                
+                // Skip past dates
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                if (dateObj < today) continue;
+            }
+            
+            // Fetch all booked dates for the month from the server
+            try {
+                const response = await fetch(`/appointments/fully-booked?year=${year}&month=${month + 1}`);
+                const data = await response.json();
+                fullyBookedDates = data.fullyBookedDates || [];
+            } catch (error) {
+                console.error('Error fetching fully booked dates:', error);
+            }
+            
+            // Re-render calendar with fully booked info
+            renderCalendarDays();
+        }
 
         function renderCalendar() {
             const year = currentDate.getFullYear();
@@ -445,6 +659,14 @@
             document.getElementById('monthYear').textContent = 
                 new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
+            // Check fully booked dates for this month
+            checkFullyBookedDates(year, month);
+        }
+
+        function renderCalendarDays() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            
             const firstDay = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             const prevMonthDays = new Date(year, month, 0).getDate();
@@ -462,13 +684,18 @@
             // Current month days
             for (let day = 1; day <= daysInMonth; day++) {
                 const dateObj = new Date(year, month, day);
-                const dateStr = dateObj.toISOString().split('T')[0];
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                 const isPast = dateObj < today;
                 const isSelected = selectedDate === dateStr;
+                const dayOfWeek = dateObj.getDay();
+                const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+                const isFullyBooked = fullyBookedDates.includes(dateStr);
                 
                 let classes = 'calendar-day';
                 if (isPast) classes += ' past disabled';
-                if (isSelected) classes += ' selected';
+                if (isWeekend) classes += ' weekend disabled';
+                if (isFullyBooked && !isPast && !isWeekend) classes += ' fully-booked disabled';
+                if (isSelected && !isWeekend && !isFullyBooked) classes += ' selected';
                 
                 daysHTML += `<div class="${classes}" data-date="${dateStr}">${day}</div>`;
             }
@@ -482,13 +709,21 @@
 
             document.getElementById('calendarDays').innerHTML = daysHTML;
 
-            // Add click handlers to future dates only
+            // Add click handlers to future dates only (not disabled)
             document.querySelectorAll('.calendar-day:not(.disabled)').forEach(day => {
                 day.addEventListener('click', function() {
                     document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected'));
                     this.classList.add('selected');
                     selectedDate = this.dataset.date;
                     document.getElementById('selectedDate').value = selectedDate;
+                    
+                    // Fetch taken times when date is selected
+                    fetchTakenTimes(selectedDate);
+                    
+                    // Reset time selection when date changes
+                    timeSlots.forEach(s => s.classList.remove('selected'));
+                    timeInput.value = '';
+                    selectedTimeText.textContent = 'Time';
                 });
             });
         }
