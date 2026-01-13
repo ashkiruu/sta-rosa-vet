@@ -9,6 +9,7 @@ use App\Http\Controllers\NotificationController;
 
 
 
+
 Route::get('/', function () {
     return view('welcome');
 });
@@ -84,7 +85,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
     Route::post('/verifications/{id}/reject', [App\Http\Controllers\AdminController::class, 'rejectUser'])->name('admin.user.reject');
 
     // 2. Appointment Management (The Conflict Resolution Module)
-    Route::get('/appointments', [App\Http\Controllers\AdminController::class, 'appointments'])->name('admin.appointments.index');
+    Route::get('/appointments', [App\Http\Controllers\AdminController::class, 'appointments'])->name('admin.appointment_index');
     Route::post('/appointments/{id}/approve', [App\Http\Controllers\AdminController::class, 'approveAppointment'])->name('admin.appointments.approve');
     
     // 3. Reports (The Summary Report Module)

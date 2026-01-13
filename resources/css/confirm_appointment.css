@@ -1,0 +1,127 @@
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a1a1a;
+            min-height: 100vh;
+        }
+        
+        /* Paw print background pattern */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cellipse cx='40' cy='28' rx='6' ry='8'/%3E%3Cellipse cx='26' cy='36' rx='5' ry='6'/%3E%3Cellipse cx='54' cy='36' rx='5' ry='6'/%3E%3Cellipse cx='30' cy='50' rx='4' ry='5'/%3E%3Cellipse cx='50' cy='50' rx='4' ry='5'/%3E%3Cellipse cx='40' cy='58' rx='10' ry='8'/%3E%3C/g%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .main-card {
+            background: linear-gradient(135deg, #e8b4b8 0%, #d4a0a5 100%);
+            border-radius: 16px;
+            padding: 32px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .info-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            border: 3px solid #8B0000;
+        }
+        
+        .service-badge {
+            background: #fbbf24;
+            border-radius: 8px;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .service-dot {
+            width: 12px;
+            height: 12px;
+            background: #f97316;
+            border-radius: 50%;
+        }
+        
+        .datetime-box {
+            background: #fbbf24;
+            border-radius: 8px;
+            padding: 16px 20px;
+        }
+        
+        .pet-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+        }
+        
+        .pet-badge {
+            background: #fbbf24;
+            border-radius: 20px;
+            padding: 8px 16px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        .confirm-btn {
+            background: #dc2626;
+            color: white;
+            padding: 12px 48px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s;
+            width: 100%;
+        }
+        
+        .confirm-btn:hover {
+            background: #b91c1c;
+        }
+        
+        .back-btn {
+            background: #6b7280;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+        
+        .back-btn:hover {
+            background: #4b5563;
+        }
+        
+        .note-title {
+            color: #dc2626;
+            font-weight: 700;
+            font-size: 16px;
+            margin-bottom: 16px;
+        }
+        
+        .note-list {
+            color: #374151;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+        
+        .note-list li {
+            margin-bottom: 12px;
+        }

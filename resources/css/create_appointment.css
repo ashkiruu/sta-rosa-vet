@@ -1,0 +1,334 @@
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a1a1a;
+        }
+        
+        /* Paw print background pattern */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cellipse cx='40' cy='28' rx='6' ry='8'/%3E%3Cellipse cx='26' cy='36' rx='5' ry='6'/%3E%3Cellipse cx='54' cy='36' rx='5' ry='6'/%3E%3Cellipse cx='30' cy='50' rx='4' ry='5'/%3E%3Cellipse cx='50' cy='50' rx='4' ry='5'/%3E%3Cellipse cx='40' cy='58' rx='10' ry='8'/%3E%3C/g%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .service-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            background: transparent;
+        }
+        
+        .service-btn .radio-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 2px solid #d1d5db;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .service-btn .radio-dot::after {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: transparent;
+        }
+        
+        .service-btn.active .radio-dot {
+            border-color: #dc2626;
+        }
+        
+        .service-btn.active .radio-dot::after {
+            background: #dc2626;
+        }
+        
+        .service-btn span {
+            color: #374151;
+        }
+        
+        .calendar-container {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .calendar-nav-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #fecaca;
+            color: #dc2626;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .calendar-nav-btn:hover {
+            background: #fca5a5;
+        }
+        
+        .calendar-day-header {
+            font-size: 11px;
+            font-weight: 500;
+            color: #6b7280;
+            text-align: center;
+            padding: 4px 0;
+        }
+        
+        .calendar-day {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: #374151;
+            transition: all 0.2s;
+            margin: auto;
+        }
+        
+        .calendar-day:hover:not(.disabled):not(.past) {
+            background: #fee2e2;
+        }
+        
+        .calendar-day.selected {
+            background: #f87171;
+            color: white;
+        }
+        
+        .calendar-day.disabled,
+        .calendar-day.past {
+            color: #d1d5db;
+            cursor: not-allowed;
+        }
+        
+        .calendar-day.weekend {
+            color: #d1d5db;
+            cursor: not-allowed;
+            background: #f9fafb;
+        }
+        
+        .calendar-day.fully-booked {
+            background: #fee2e2;
+            color: #dc2626;
+            cursor: not-allowed;
+            font-weight: 600;
+        }
+        
+        .calendar-day.fully-booked:hover {
+            background: #fee2e2;
+        }
+        
+        .calendar-day.other-month {
+            color: #9ca3af;
+        }
+        
+        /* Time Dropdown Styles */
+        .time-dropdown-wrapper {
+            background: #fbbf24;
+            border-radius: 8px;
+            padding: 12px 16px;
+            height: fit-content;
+        }
+        
+        .time-dropdown {
+            position: relative;
+            width: 100%;
+        }
+        
+        .time-dropdown-toggle {
+            width: 100%;
+            padding: 14px 20px;
+            background: #fbbf24;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            color: #1f2937;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+        
+        .time-dropdown-toggle:hover {
+            background: #f59e0b;
+        }
+        
+        .time-dropdown-toggle svg {
+            width: 20px;
+            height: 20px;
+            transition: transform 0.2s;
+        }
+        
+        .time-dropdown-toggle.open svg {
+            transform: rotate(180deg);
+        }
+        
+        .time-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            z-index: 100;
+        }
+        
+        .time-dropdown-menu.open {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .time-slot {
+            padding: 12px 20px;
+            font-size: 14px;
+            color: #1f2937;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        
+        .time-slot:hover:not(.taken):not(.selected) {
+            background: #fef3c7;
+        }
+        
+        .time-slot.selected {
+            background: #fbbf24;
+            color: #1f2937;
+            font-weight: 600;
+        }
+        
+        .time-slot.taken {
+            background: #fee2e2;
+            color: #9ca3af;
+            cursor: not-allowed;
+            text-decoration: line-through;
+        }
+        
+        .time-slot.taken::after {
+            content: ' (Taken)';
+            font-size: 12px;
+            color: #ef4444;
+        }
+        
+        .time-slot:last-child {
+            border-bottom: none;
+            border-radius: 0 0 8px 8px;
+        }
+        
+        .pet-section-header {
+            background: #fbbf24;
+            color: #1f2937;
+            font-weight: 600;
+            font-size: 14px;
+            padding: 10px 16px;
+            border-radius: 8px 8px 0 0;
+        }
+        
+        .pet-section-body {
+            background: white;
+            padding: 16px;
+            border-radius: 0 0 8px 8px;
+        }
+        
+        .pet-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 500;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid #fecaca;
+            background: #fff1f2;
+            color: #991b1b;
+        }
+        
+        .pet-btn:hover {
+            background: #fee2e2;
+        }
+        
+        .pet-btn.active {
+            background: #dc2626;
+            border-color: #b91c1c;
+            color: white;
+        }
+        
+        .pet-btn .pet-icon {
+            font-size: 16px;
+        }
+        
+        .add-pet-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 500;
+            font-size: 13px;
+            cursor: pointer;
+            border: 2px solid #fecaca;
+            background: #fff1f2;
+            color: #991b1b;
+            text-decoration: none;
+        }
+        
+        .add-pet-btn:hover {
+            background: #fee2e2;
+        }
+        
+        .next-btn {
+            background: #dc2626;
+            color: white;
+            padding: 12px 40px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .next-btn:hover {
+            background: #b91c1c;
+        }
+        
+        .main-card {
+            background: linear-gradient(135deg, #fecdd3 0%, #fda4af 100%);
+            border-radius: 16px;
+            padding: 24px;
+            position: relative;
+            z-index: 1;
+        }

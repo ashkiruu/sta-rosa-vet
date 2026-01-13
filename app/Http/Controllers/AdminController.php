@@ -109,4 +109,31 @@ class AdminController extends Controller
         
         return view('admin.user_details', compact('user', 'pets'));
     }
+
+    public function appointments()
+    {
+        $appointments = Appointment::with(['user', 'pet', 'service'])
+            ->orderBy('Date', 'asc')
+            ->orderBy('Time', 'asc')
+            ->get();
+
+        // Changed from 'admin.appointments.index' to match your new file
+        return view('admin.appointment_index', compact('appointments'));
+    }
+
+    /**
+     * Approve a pending appointment.
+     */
+    public function approveAppointment($id)
+    {
+        // 1. Find the appointment
+        $appointment = \App\Models\Appointment::findOrFail($id);
+        
+        // 2. Update the status
+        $appointment->Status = 'Approved';
+        $appointment->save(); // This updates the 'updated_at' timestamp automatically
+
+        // 3. Return with a success message for the Admin UI
+        return redirect()->back()->with('success', 'Appointment for ' . $appointment->User_ID . ' has been approved!');
+    }
 }
