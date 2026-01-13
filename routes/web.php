@@ -71,6 +71,13 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/appointments/taken-times', [AppointmentController::class, 'getTakenTimes'])
     ->name('appointments.takenTimes');
+
+    // Appointment Notifications (session-based)
+Route::post('/appointments/notifications/mark-seen', [App\Http\Controllers\AppointmentController::class, 'markNotificationSeen'])
+    ->name('appointments.notifications.markSeen');
+
+Route::post('/appointments/notifications/mark-all-seen', [App\Http\Controllers\AppointmentController::class, 'markAllNotificationsSeen'])
+    ->name('appointments.notifications.markAllSeen');
 });
 
 // Admin-Only Routes
@@ -87,6 +94,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
     // 2. Appointment Management (The Conflict Resolution Module)
     Route::get('/appointments', [App\Http\Controllers\AdminController::class, 'appointments'])->name('admin.appointment_index');
     Route::post('/appointments/{id}/approve', [App\Http\Controllers\AdminController::class, 'approveAppointment'])->name('admin.appointments.approve');
+
+    Route::post('/appointments/{id}/reject', [App\Http\Controllers\AdminController::class, 'rejectAppointment'])->name('admin.appointments.reject');
+    
     
     // 3. Reports (The Summary Report Module)
     Route::get('/reports', [App\Http\Controllers\AdminController::class, 'reports'])->name('admin.reports');

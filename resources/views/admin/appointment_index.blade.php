@@ -1,5 +1,7 @@
 @extends('layouts.admin')
 
+@section('page_title', 'Appointment Management')
+
 @section('content')
 <div class="min-h-screen bg-gray-100 py-8">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -34,10 +36,10 @@
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
                                     <div class="flex-shrink-0 h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold">
-                                        {{ substr($appt->user->name, 0, 1) }}
+                                        {{ substr($appt->user->First_Name, 0, 1) }}
                                     </div>
                                     <div class="ml-4">
-                                        <div class="text-sm font-bold text-gray-900">{{ $appt->user->name }}</div>
+                                        <div class="text-sm font-bold text-gray-900">{{ $appt->user->First_Name }} {{ $appt->user->Last_Name }}</div>
                                         <div class="text-sm text-indigo-600 font-medium">🐾 {{ $appt->pet->Pet_Name }}</div>
                                     </div>
                                 </div>
@@ -60,6 +62,10 @@
                                     <span class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                         <span class="w-1.5 h-1.5 rounded-full bg-green-400"></span> Approved
                                     </span>
+                                @elseif($appt->Status == 'Completed')
+                                    <span class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span> Completed
+                                    </span>
                                 @else
                                     <span class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                         <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span> {{ $appt->Status }}
@@ -75,7 +81,7 @@
                                                 Approve
                                             </button>
                                         </form>
-                                        <form action="{{ route('admin.user.reject', $appt->Appointment_ID) }}" method="POST">
+                                        <form action="{{ route('admin.appointments.reject', $appt->Appointment_ID) }}" method="POST">
                                             @csrf
                                             <button type="submit" class="bg-white border border-red-200 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-md transition">
                                                 Decline

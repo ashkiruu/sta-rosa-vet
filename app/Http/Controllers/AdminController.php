@@ -127,7 +127,12 @@ class AdminController extends Controller
     public function approveAppointment($id)
     {
         // 1. Find the appointment
-        $appointment = \App\Models\Appointment::findOrFail($id);
+        $appointment = \App\Models\Appointment::with(['pet', 'user'])->findOrFail($id);
+
+        if ($appointment->Status !== 'Pending') {
+            return redirect()->back()->with('error', 'This appointment cannot be approved.');
+        }
+        
         
         // 2. Update the status
         $appointment->Status = 'Approved';
@@ -136,4 +141,57 @@ class AdminController extends Controller
         // 3. Return with a success message for the Admin UI
         return redirect()->back()->with('success', 'Appointment for ' . $appointment->User_ID . ' has been approved!');
     }
+
+    /**
+     * Reject/Decline a pending appointment.
+     * This will delete the appointment and free up the time slot.
+     * Stores a notification in session so user can see it was declined.
+     */
+    /**
+ * Reject/Decline a pending appointment.
+ * This will delete the appointment and free up the time slot.
+ * Stores a notification in session so user can see it was declined.
+ */
+public function rejectAppointment($id)
+{
+    $appointment = \App\Models\Appointment::with(['pet', 'user', 'service'])->findOrFail($id);
+    
+    if ($appointment->Status !== 'Pending') {
+        return redirect()->back()->with('error', 'This appointment cannot be rejected.');
+    }
+    
+    // Store info for the success message and notification before deleting
+    $petName = $appointment->pet->Pet_Name;
+    $ownerUserId = $appointment->User_ID;
+    $date = $appointment->Date->format('M d, Y');
+    $time = \Carbon\Carbon::parse($appointment->Time)->format('h:i A');
+    $serviceName = $appointment->service->Service_Name ?? 'Appointment';
+    
+    // Store declined notification for the user
+    $filePath = storage_path('app/declined_notifications.json');
+    $declinedNotifications = [];
+    
+    if (file_exists($filePath)) {
+        $declinedNotifications = json_decode(file_get_contents($filePath), true) ?? [];
+    }
+    
+    $declinedNotifications[] = [
+        'user_id' => $ownerUserId,
+        'pet_name' => $petName,
+        'date' => $date,
+        'time' => $time,
+        'service' => $serviceName,
+        'declined_at' => now()->toDateTimeString(),
+    ];
+    
+    file_put_contents($filePath, json_encode($declinedNotifications));
+    
+    // DELETE the appointment - this frees up the time slot
+    $appointment->delete();
+
+    return redirect()->back()->with('success', 
+        "Appointment for {$petName} on {$date} at {$time} has been declined and removed. The time slot is now available.");
 }
+
+}
+

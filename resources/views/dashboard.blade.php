@@ -90,16 +90,23 @@
             </div>
             
             @php
+                $userId = Auth::user()->User_ID;
+                
                 // Get recent appointments (last 7 days) as notifications
-                $recentAppointments = \App\Models\Appointment::where('User_ID', Auth::user()->User_ID)
+                $recentAppointments = \App\Models\Appointment::where('User_ID', $userId)
                     ->where('created_at', '>=', now()->subDays(7))
                     ->with(['pet', 'service'])
                     ->orderBy('created_at', 'desc')
                     ->take(10)
                     ->get();
                 
-                // Get seen notifications from session
-                $seenNotifications = session('seen_notifications', []);
+                // Get seen notifications from FILE (persistent across sessions)
+                $seenFile = storage_path('app/seen_notifications.json');
+                $allSeenNotifications = [];
+                if (file_exists($seenFile)) {
+                    $allSeenNotifications = json_decode(file_get_contents($seenFile), true) ?? [];
+                }
+                $seenNotifications = $allSeenNotifications[$userId] ?? [];
             @endphp
             
             @if($recentAppointments->count() > 0)
@@ -114,7 +121,9 @@
                 <!-- Notification Items -->
                 @foreach($recentAppointments as $appointment)
                     @php
-                        $isUnread = !in_array($appointment->Appointment_ID, $seenNotifications);
+                        // Check if this appointment's notification key is in seen list
+                        $notificationKey = 'dashboard_' . $appointment->Appointment_ID;
+                        $isUnread = !in_array($notificationKey, $seenNotifications);
                     @endphp
                     <a href="{{ route('notifications.viewAppointment', $appointment->Appointment_ID) }}" 
                        class="notification-item p-4 rounded-lg mb-3 block {{ $isUnread ? 'unread' : '' }}">
@@ -123,6 +132,8 @@
                                 <p class="text-white text-sm">
                                     @if($appointment->Status == 'Pending')
                                         You just reserved an appointment!
+                                    @elseif($appointment->Status == 'Approved')
+                                        Your appointment has been approved!
                                     @elseif($appointment->Status == 'Confirmed')
                                         Your appointment has been confirmed!
                                     @elseif($appointment->Status == 'Cancelled')
@@ -147,6 +158,8 @@
                             <div class="ml-2">
                                 @if($isUnread)
                                     <span class="w-2 h-2 bg-yellow-400 rounded-full inline-block"></span>
+                                @elseif($appointment->Status == 'Approved')
+                                    <span class="w-2 h-2 bg-green-400 rounded-full inline-block"></span>
                                 @elseif($appointment->Status == 'Confirmed')
                                     <span class="w-2 h-2 bg-green-400 rounded-full inline-block"></span>
                                 @elseif($appointment->Status == 'Cancelled')
@@ -193,14 +206,28 @@
             <div class="flex items-center gap-6">
                 <!-- Notification Bell -->
                 @php
-                    // Get seen notifications from session
-                    $seenNotifications = session('seen_notifications', []);
+                    $userId = Auth::user()->User_ID;
                     
-                    // Count unseen appointments from last 7 days
-                    $unseenCount = \App\Models\Appointment::where('User_ID', Auth::user()->User_ID)
+                    // Get seen notifications from FILE (persistent)
+                    $seenFile = storage_path('app/seen_notifications.json');
+                    $allSeenNotifications = [];
+                    if (file_exists($seenFile)) {
+                        $allSeenNotifications = json_decode(file_get_contents($seenFile), true) ?? [];
+                    }
+                    $userSeenNotifications = $allSeenNotifications[$userId] ?? [];
+                    
+                    // Get recent appointments and count unseen ones
+                    $recentAppointmentsForBadge = \App\Models\Appointment::where('User_ID', $userId)
                         ->where('created_at', '>=', now()->subDays(7))
-                        ->whereNotIn('Appointment_ID', $seenNotifications)
-                        ->count();
+                        ->get();
+                    
+                    $unseenCount = 0;
+                    foreach ($recentAppointmentsForBadge as $appt) {
+                        $notificationKey = 'dashboard_' . $appt->Appointment_ID;
+                        if (!in_array($notificationKey, $userSeenNotifications)) {
+                            $unseenCount++;
+                        }
+                    }
                 @endphp
                 <button onclick="toggleNotifications()" class="relative text-white hover:text-yellow-400 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -20,9 +20,9 @@
             <a href="{{ route('admin.verifications') }}" class="flex items-center px-6 py-3 text-gray-300 hover:bg-slate-800 hover:text-white {{ request()->routeIs('admin.verifications') ? 'bg-blue-600 text-white' : '' }}">
                 <i class="fas fa-user-check mr-3"></i> User Verification
             </a>
-            <a href="#" class="flex items-center px-6 py-3 text-gray-300 hover:bg-slate-800">
-                <i class="fas fa-calendar-alt mr-3"></i> Appointments
-            </a>
+            <a href="{{ route('admin.appointment_index') }}" class="flex items-center px-6 py-3 text-gray-300 hover:bg-slate-800 hover:text-white {{ request()->routeIs('admin.appointment_index') ? 'bg-blue-600 text-white' : '' }}">
+    <i class="fas fa-calendar-alt mr-3"></i> Appointments
+</a>
             <a href="#" class="flex items-center px-6 py-3 text-gray-300 hover:bg-slate-800">
                 <i class="fas fa-file-medical mr-3"></i> Reports
             </a>

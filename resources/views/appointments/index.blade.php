@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Appointments</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-gray-100">
@@ -23,6 +24,64 @@
     </nav>
 
     <div class="container mx-auto mt-8 px-4">
+        
+        {{-- Notifications Section --}}
+        @if(isset($notifications) && count($notifications) > 0)
+            <div class="mb-6 space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-gray-700">
+                        🔔 New Updates ({{ count($notifications) }})
+                    </h3>
+                    <form action="{{ route('appointments.notifications.markAllSeen') }}" method="POST">
+                        @csrf
+                        <button type="submit" class="text-sm text-gray-500 hover:text-red-600">
+                            Mark all as read
+                        </button>
+                    </form>
+                </div>
+                
+                @foreach($notifications as $notification)
+                    <div class="rounded-lg p-4 flex items-start gap-4 shadow-sm border
+                        {{ $notification['type'] === 'success' ? 'bg-green-50 border-green-200' : '' }}
+                        {{ $notification['type'] === 'error' ? 'bg-red-50 border-red-200' : '' }}
+                        {{ $notification['type'] === 'info' ? 'bg-blue-50 border-blue-200' : '' }}
+                    " id="notification-{{ $notification['id'] }}">
+                        <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-xl
+                            {{ $notification['type'] === 'success' ? 'bg-green-100' : '' }}
+                            {{ $notification['type'] === 'error' ? 'bg-red-100' : '' }}
+                            {{ $notification['type'] === 'info' ? 'bg-blue-100' : '' }}
+                        ">
+                            @if($notification['type'] === 'success')
+                                ✅
+                            @elseif($notification['type'] === 'error')
+                                ❌
+                            @else
+                                ℹ️
+                            @endif
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-semibold 
+                                {{ $notification['type'] === 'success' ? 'text-green-800' : '' }}
+                                {{ $notification['type'] === 'error' ? 'text-red-800' : '' }}
+                                {{ $notification['type'] === 'info' ? 'text-blue-800' : '' }}
+                            ">{{ $notification['title'] }}</h4>
+                            <p class="text-sm 
+                                {{ $notification['type'] === 'success' ? 'text-green-700' : '' }}
+                                {{ $notification['type'] === 'error' ? 'text-red-700' : '' }}
+                                {{ $notification['type'] === 'info' ? 'text-blue-700' : '' }}
+                            ">{{ $notification['message'] }}</p>
+                            <p class="text-xs text-gray-400 mt-1">{{ $notification['time'] }}</p>
+                        </div>
+                        <button type="button" 
+                                onclick="dismissNotification('{{ $notification['key'] }}', {{ $notification['id'] }})"
+                                class="text-gray-400 hover:text-gray-600 p-1">
+                            ✕
+                        </button>
+                    </div>
+                @endforeach
+            </div>
+        @endif
+
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-2xl font-bold">My Appointments</h2>
             <a href="{{ route('appointments.create') }}" class="bg-red-700 text-white px-6 py-2 rounded-lg hover:bg-red-800">
@@ -55,6 +114,7 @@
                                     <h3 class="text-xl font-bold">{{ $appointment->pet->Pet_Name }}</h3>
                                     <span class="px-3 py-1 rounded-full text-sm font-semibold
                                         {{ $appointment->Status == 'Pending' ? 'bg-yellow-200 text-yellow-800' : '' }}
+                                        {{ $appointment->Status == 'Approved' ? 'bg-green-200 text-green-800' : '' }}
                                         {{ $appointment->Status == 'Confirmed' ? 'bg-green-200 text-green-800' : '' }}
                                         {{ $appointment->Status == 'Cancelled' ? 'bg-red-200 text-red-800' : '' }}
                                         {{ $appointment->Status == 'Completed' ? 'bg-blue-200 text-blue-800' : '' }}">
@@ -82,6 +142,15 @@
                                         </div>
                                     @endif
                                 </div>
+
+                                {{-- Status Messages --}}
+                                @if($appointment->Status == 'Approved')
+                                    <div class="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                        <p class="text-sm text-green-700">
+                                            ✅ Your appointment has been approved! Please arrive 10 minutes early.
+                                        </p>
+                                    </div>
+                                @endif
                             </div>
 
                             <div class="flex gap-2">
@@ -100,5 +169,22 @@
             </div>
         @endif
     </div>
+
+    <script>
+    function dismissNotification(key, id) {
+        // Hide the notification visually
+        document.getElementById('notification-' + id).style.display = 'none';
+        
+        // Mark as seen via AJAX
+        fetch('{{ route("appointments.notifications.markSeen") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({ key: key })
+        });
+    }
+    </script>
 </body>
 </html>
