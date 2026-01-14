@@ -128,17 +128,26 @@ class AdminController extends Controller
 
     /**
      * Get clinic schedule configuration
+     * Auto-creates the file if it doesn't exist
      */
     private function getClinicSchedule()
     {
         $schedulePath = storage_path('app/clinic_schedule.json');
         
+        // Auto-create the file if it doesn't exist
         if (!file_exists($schedulePath)) {
             $defaultSchedule = [
                 'default_closed_days' => [0, 6], // Sunday and Saturday
                 'opened_dates' => [],
                 'closed_dates' => [],
             ];
+            
+            // Ensure directory exists
+            $directory = dirname($schedulePath);
+            if (!is_dir($directory)) {
+                mkdir($directory, 0755, true);
+            }
+            
             file_put_contents($schedulePath, json_encode($defaultSchedule, JSON_PRETTY_PRINT));
             return $defaultSchedule;
         }
@@ -211,7 +220,7 @@ class AdminController extends Controller
     /**
      * Reject/Decline a pending appointment.
      * This will delete the appointment and free up the time slot.
-     * Stores a notification in session so user can see it was declined.
+     * Stores a notification in file so user can see it was declined.
      */
     public function rejectAppointment($id)
     {
@@ -228,9 +237,19 @@ class AdminController extends Controller
         $time = \Carbon\Carbon::parse($appointment->Time)->format('h:i A');
         $serviceName = $appointment->service->Service_Name ?? 'Appointment';
         
-        // Store declined notification for the user (in a file or cache since sessions are per-user)
-        // We'll use a simple file-based approach
-        $declinedNotifications = json_decode(file_get_contents(storage_path('app/declined_notifications.json')), true) ?? [];
+        // Store declined notification for the user
+        $notificationPath = storage_path('app/declined_notifications.json');
+        
+        // Auto-create file if it doesn't exist
+        if (!file_exists($notificationPath)) {
+            $directory = dirname($notificationPath);
+            if (!is_dir($directory)) {
+                mkdir($directory, 0755, true);
+            }
+            file_put_contents($notificationPath, json_encode([]));
+        }
+        
+        $declinedNotifications = json_decode(file_get_contents($notificationPath), true) ?? [];
         $declinedNotifications[] = [
             'user_id' => $ownerUserId,
             'pet_name' => $petName,
@@ -239,7 +258,7 @@ class AdminController extends Controller
             'service' => $serviceName,
             'declined_at' => now()->toDateTimeString(),
         ];
-        file_put_contents(storage_path('app/declined_notifications.json'), json_encode($declinedNotifications));
+        file_put_contents($notificationPath, json_encode($declinedNotifications, JSON_PRETTY_PRINT));
         
         // Delete the appointment - this frees up the time slot
         $appointment->delete();

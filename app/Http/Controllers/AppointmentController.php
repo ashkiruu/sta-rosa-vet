@@ -129,7 +129,15 @@ class AppointmentController extends Controller
         // Load seen notifications from file
         $seenFile = storage_path('app/seen_notifications.json');
         $seenNotifications = [];
-        if (file_exists($seenFile)) {
+        
+        // Auto-create file if it doesn't exist
+        if (!file_exists($seenFile)) {
+            $directory = dirname($seenFile);
+            if (!is_dir($directory)) {
+                mkdir($directory, 0755, true);
+            }
+            file_put_contents($seenFile, json_encode([]));
+        } else {
             $seenNotifications = json_decode(file_get_contents($seenFile), true) ?? [];
         }
         
@@ -141,7 +149,7 @@ class AppointmentController extends Controller
         // Add the key if not already there
         if (!in_array($key, $seenNotifications[$userId])) {
             $seenNotifications[$userId][] = $key;
-            file_put_contents($seenFile, json_encode($seenNotifications));
+            file_put_contents($seenFile, json_encode($seenNotifications, JSON_PRETTY_PRINT));
         }
 
         return response()->json(['success' => true]);
@@ -157,7 +165,15 @@ class AppointmentController extends Controller
         // Load seen notifications from file
         $seenFile = storage_path('app/seen_notifications.json');
         $seenNotifications = [];
-        if (file_exists($seenFile)) {
+        
+        // Auto-create file if it doesn't exist
+        if (!file_exists($seenFile)) {
+            $directory = dirname($seenFile);
+            if (!is_dir($directory)) {
+                mkdir($directory, 0755, true);
+            }
+            file_put_contents($seenFile, json_encode([]));
+        } else {
             $seenNotifications = json_decode(file_get_contents($seenFile), true) ?? [];
         }
         
@@ -194,24 +210,34 @@ class AppointmentController extends Controller
         }
         
         // Save to file
-        file_put_contents($seenFile, json_encode($seenNotifications));
+        file_put_contents($seenFile, json_encode($seenNotifications, JSON_PRETTY_PRINT));
 
         return redirect()->back()->with('success', 'All notifications marked as read.');
     }
 
     /**
      * Get clinic schedule configuration
+     * Auto-creates the file if it doesn't exist
      */
     public function getClinicSchedule()
     {
         $schedulePath = storage_path('app/clinic_schedule.json');
         
+        // Auto-create the file if it doesn't exist
         if (!file_exists($schedulePath)) {
             $defaultSchedule = [
                 'default_closed_days' => [0, 6], // Sunday and Saturday
                 'opened_dates' => [],
                 'closed_dates' => [],
             ];
+            
+            // Ensure directory exists
+            $directory = dirname($schedulePath);
+            if (!is_dir($directory)) {
+                mkdir($directory, 0755, true);
+            }
+            
+            file_put_contents($schedulePath, json_encode($defaultSchedule, JSON_PRETTY_PRINT));
             return response()->json($defaultSchedule);
         }
         
