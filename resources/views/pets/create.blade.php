@@ -200,7 +200,7 @@
                             </div>
                             <div>
                                 <label class="form-label">Sex ( M or F )</label>
-                                <select name="Sex" class="form-select" required>
+                                <select name="Sex" id="sexSelect" class="form-select" required>
                                     <option value="" disabled {{ old('Sex') ? '' : 'selected' }}>Select</option>
                                     <option value="Male" {{ old('Sex') == 'Male' ? 'selected' : '' }}>M</option>
                                     <option value="Female" {{ old('Sex') == 'Female' ? 'selected' : '' }}>F</option>
@@ -209,43 +209,60 @@
                         </div>
 
                         <!-- Age and Species Row -->
-<div class="grid grid-cols-2 gap-4 mb-4">
-    <div>
-        <label class="form-label">Age ( months )</label>
-        <input 
-            type="number" 
-            name="Age" 
-            class="form-input" 
-            placeholder="23"
-            value="{{ old('Age') }}"
-            min="0"
-            required
-        >
-    </div>
-    <div>
-        <label class="form-label">Species</label>
-        <select name="Species_ID" id="speciesSelect" class="form-select" required>
-    <option value="" disabled {{ old('Species_ID') ? '' : 'selected' }}>Select</option>
-    @foreach($species as $sp)
-        <option value="{{ $sp->Species_ID }}" {{ old('Species_ID') == $sp->Species_ID ? 'selected' : '' }}>
-            {{ $sp->Species_Name }}
-        </option>
-    @endforeach
-</select>
-    </div>
-</div>
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="form-label">Age ( months )</label>
+                                <input 
+                                    type="number" 
+                                    name="Age" 
+                                    class="form-input" 
+                                    placeholder="23"
+                                    value="{{ old('Age') }}"
+                                    min="0"
+                                    required
+                                >
+                            </div>
+                            <div>
+                                <label class="form-label">Species</label>
+                                <select name="Species_ID" id="speciesSelect" class="form-select" required>
+                                    <option value="" disabled {{ old('Species_ID') ? '' : 'selected' }}>Select</option>
+                                    @foreach($species as $sp)
+                                        <option value="{{ $sp->Species_ID }}" {{ old('Species_ID') == $sp->Species_ID ? 'selected' : '' }}>
+                                            {{ $sp->Species_Name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
 
-<!-- Other Species (conditional) -->
-<div class="mb-4" id="otherSpeciesDiv" style="display: none;">
-    <label class="form-label">If other species ( <span class="italic text-gray-500">Please specify</span> )</label>
-    <input 
-        type="text" 
-        name="other_species" 
-        class="form-input" 
-        placeholder="Enter species name"
-        value="{{ old('other_species') }}"
-    >
-</div>
+                        <!-- Other Species (conditional) -->
+                        <div class="mb-4" id="otherSpeciesDiv" style="display: none;">
+                            <label class="form-label">If other species ( <span class="italic text-gray-500">Please specify</span> )</label>
+                            <input 
+                                type="text" 
+                                name="other_species" 
+                                class="form-input" 
+                                placeholder="Enter species name"
+                                value="{{ old('other_species') }}"
+                            >
+                        </div>
+
+                        <!-- Reproductive Status -->
+                        <div class="mb-4">
+                            <label class="form-label">Reproductive Status</label>
+                            <select name="Reproductive_Status" id="reproductiveStatus" class="form-select" required>
+                                <option value="" disabled {{ old('Reproductive_Status') ? '' : 'selected' }}>Select</option>
+                                <option value="Intact" {{ old('Reproductive_Status') == 'Intact' ? 'selected' : '' }}>Intact (Not neutered/spayed)</option>
+                                <option value="Neutered" id="neuteredOption" {{ old('Reproductive_Status') == 'Neutered' ? 'selected' : '' }} style="display: none;">Neutered</option>
+                                <option value="Spayed" id="spayedOption" {{ old('Reproductive_Status') == 'Spayed' ? 'selected' : '' }} style="display: none;">Spayed</option>
+                                <option value="Unknown" {{ old('Reproductive_Status') == 'Unknown' ? 'selected' : '' }}>Unknown</option> 
+                            </select>
+                            <p class="text-xs text-gray-500 mt-1" id="reproductiveHint">
+                                Select the sex first to see neutered/spayed options
+                            </p>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Action Buttons -->
                 <div class="flex justify-between items-center">
@@ -261,24 +278,66 @@
     </div>
 
     <script>
-    const speciesSelect = document.getElementById('speciesSelect');
-    const otherSpeciesDiv = document.getElementById('otherSpeciesDiv');
-    
-    speciesSelect.addEventListener('change', function() {
-        // Check if selected option text is "Other"
-        const selectedText = this.options[this.selectedIndex].text;
-        if (selectedText === 'Other') {
-            otherSpeciesDiv.style.display = 'block';
-        } else {
-            otherSpeciesDiv.style.display = 'none';
-        }
-    });
+        const speciesSelect = document.getElementById('speciesSelect');
+        const otherSpeciesDiv = document.getElementById('otherSpeciesDiv');
+        const sexSelect = document.getElementById('sexSelect');
+        const reproductiveStatus = document.getElementById('reproductiveStatus');
+        const neuteredOption = document.getElementById('neuteredOption');
+        const spayedOption = document.getElementById('spayedOption');
+        const reproductiveHint = document.getElementById('reproductiveHint');
+        
+        // Species select handler
+        speciesSelect.addEventListener('change', function() {
+            const selectedText = this.options[this.selectedIndex].text;
+            if (selectedText === 'Other') {
+                otherSpeciesDiv.style.display = 'block';
+            } else {
+                otherSpeciesDiv.style.display = 'none';
+            }
+        });
 
-    // Check on page load
-    const selectedText = speciesSelect.options[speciesSelect.selectedIndex]?.text;
-    if (selectedText === 'Other') {
-        otherSpeciesDiv.style.display = 'block';
-    }
-</script>
+        // Check species on page load
+        const selectedSpeciesText = speciesSelect.options[speciesSelect.selectedIndex]?.text;
+        if (selectedSpeciesText === 'Other') {
+            otherSpeciesDiv.style.display = 'block';
+        }
+
+        // Sex select handler - updates reproductive status options
+        sexSelect.addEventListener('change', function() {
+            const sex = this.value;
+            
+            // Reset reproductive status
+            reproductiveStatus.value = '';
+            
+            if (sex === 'Male') {
+                // Show Neutered, hide Spayed
+                neuteredOption.style.display = 'block';
+                spayedOption.style.display = 'none';
+                reproductiveHint.textContent = 'Neutered = surgically sterilized male';
+            } else if (sex === 'Female') {
+                // Show Spayed, hide Neutered
+                neuteredOption.style.display = 'none';
+                spayedOption.style.display = 'block';
+                reproductiveHint.textContent = 'Spayed = surgically sterilized female';
+            } else {
+                // Hide both
+                neuteredOption.style.display = 'none';
+                spayedOption.style.display = 'none';
+                reproductiveHint.textContent = 'Select the sex first to see neutered/spayed options';
+            }
+        });
+
+        // Check sex on page load
+        const selectedSex = sexSelect.value;
+        if (selectedSex === 'Male') {
+            neuteredOption.style.display = 'block';
+            spayedOption.style.display = 'none';
+            reproductiveHint.textContent = 'Neutered = surgically sterilized male';
+        } else if (selectedSex === 'Female') {
+            neuteredOption.style.display = 'none';
+            spayedOption.style.display = 'block';
+            reproductiveHint.textContent = 'Spayed = surgically sterilized female';
+        }
+    </script>
 </body>
 </html>

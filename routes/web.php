@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\PetController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\AdminController;
 
 
 
@@ -78,6 +79,9 @@ Route::post('/appointments/notifications/mark-seen', [App\Http\Controllers\Appoi
 
 Route::post('/appointments/notifications/mark-all-seen', [App\Http\Controllers\AppointmentController::class, 'markAllNotificationsSeen'])
     ->name('appointments.notifications.markAllSeen');
+
+    Route::get('/appointments/clinic-schedule', [AppointmentController::class, 'getClinicSchedule'])
+    ->name('appointments.clinic-schedule');
 });
 
 // Admin-Only Routes
@@ -96,7 +100,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
     Route::post('/appointments/{id}/approve', [App\Http\Controllers\AdminController::class, 'approveAppointment'])->name('admin.appointments.approve');
 
     Route::post('/appointments/{id}/reject', [App\Http\Controllers\AdminController::class, 'rejectAppointment'])->name('admin.appointments.reject');
-    
+
+    Route::post('/schedule/toggle', [\App\Http\Controllers\AdminController::class, 'toggleDateStatus'])
+    ->name('admin.schedule.toggle');
     
     // 3. Reports (The Summary Report Module)
     Route::get('/reports', [App\Http\Controllers\AdminController::class, 'reports'])->name('admin.reports');

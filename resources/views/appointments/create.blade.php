@@ -87,17 +87,32 @@
                             </button>
                         </div>
 
+                        <!-- Day Headers with Weekend Highlighting -->
                         <div class="grid grid-cols-7 gap-1 mb-2">
-                            <div class="calendar-day-header">Sun</div>
+                            <div class="calendar-day-header text-red-400">Sun</div>
                             <div class="calendar-day-header">Mon</div>
                             <div class="calendar-day-header">Tue</div>
                             <div class="calendar-day-header">Wed</div>
                             <div class="calendar-day-header">Thu</div>
                             <div class="calendar-day-header">Fri</div>
-                            <div class="calendar-day-header">Sat</div>
+                            <div class="calendar-day-header text-red-400">Sat</div>
                         </div>
 
                         <div id="calendarDays" class="grid grid-cols-7 gap-1"></div>
+                        
+                        <!-- Schedule Legend -->
+                        <div class="mt-3 pt-3 border-t border-gray-200">
+                            <div class="flex flex-wrap gap-3 text-xs">
+                                <div class="flex items-center gap-1">
+                                    <span class="w-3 h-3 rounded bg-gray-300"></span>
+                                    <span class="text-gray-500">Closed</span>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <span class="w-3 h-3 rounded bg-red-200"></span>
+                                    <span class="text-gray-500">Fully Booked</span>
+                                </div>
+                            </div>
+                        </div>
                         
                         <input type="hidden" name="Date" id="selectedDate" required>
                     </div>
@@ -185,7 +200,52 @@
     </div>
 
     <script>
-        // Service button toggle
+        // =====================================================
+        // CLINIC SCHEDULE CONFIGURATION
+        // =====================================================
+        let clinicSchedule = {
+            default_closed_days: [0, 6], // Sunday = 0, Saturday = 6
+            opened_dates: [],
+            closed_dates: []
+        };
+
+        // Fetch clinic schedule on page load
+        async function fetchClinicSchedule() {
+            try {
+                const response = await fetch('/appointments/clinic-schedule');
+                if (response.ok) {
+                    clinicSchedule = await response.json();
+                    console.log('Clinic schedule loaded:', clinicSchedule);
+                    // Re-render calendar after schedule is loaded
+                    renderCalendar();
+                }
+            } catch (error) {
+                console.error('Failed to load clinic schedule:', error);
+            }
+        }
+
+        // Check if a date is closed
+        function isDateClosed(dateStr) {
+            const date = new Date(dateStr + 'T00:00:00');
+            const dayOfWeek = date.getDay();
+            
+            // Check if explicitly opened (overrides default closed days)
+            if (clinicSchedule.opened_dates && clinicSchedule.opened_dates.includes(dateStr)) {
+                return false;
+            }
+            
+            // Check if explicitly closed
+            if (clinicSchedule.closed_dates && clinicSchedule.closed_dates.includes(dateStr)) {
+                return true;
+            }
+            
+            // Check default closed days (weekends)
+            return clinicSchedule.default_closed_days && clinicSchedule.default_closed_days.includes(dayOfWeek);
+        }
+
+        // =====================================================
+        // SERVICE BUTTON TOGGLE
+        // =====================================================
         document.querySelectorAll('.service-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 document.querySelectorAll('.service-btn').forEach(b => b.classList.remove('active'));
@@ -194,7 +254,9 @@
             });
         });
 
-        // Pet button toggle
+        // =====================================================
+        // PET BUTTON TOGGLE
+        // =====================================================
         document.querySelectorAll('.pet-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 document.querySelectorAll('.pet-btn').forEach(b => b.classList.remove('active'));
@@ -204,7 +266,9 @@
             });
         });
 
-        // Time dropdown functionality
+        // =====================================================
+        // TIME DROPDOWN FUNCTIONALITY
+        // =====================================================
         const timeToggle = document.getElementById('timeToggle');
         const timeMenu = document.getElementById('timeMenu');
         const timeInput = document.getElementById('timeInput');
@@ -250,7 +314,9 @@
             });
         });
 
-        // Function to fetch taken times for a specific date
+        // =====================================================
+        // FETCH TAKEN TIMES FOR A DATE
+        // =====================================================
         function fetchTakenTimes(date) {
             if (!date) return;
             
@@ -281,34 +347,19 @@
                 });
         }
 
-        // Calendar functionality
+        // =====================================================
+        // CALENDAR FUNCTIONALITY
+        // =====================================================
         let currentDate = new Date();
         let selectedDate = null;
-        let fullyBookedDates = []; // Store dates that are fully booked
+        let fullyBookedDates = [];
 
-        // Total number of available time slots
-        const totalTimeSlots = 17; // 08:00, 08:10, 08:20, 08:30, 08:45, 09:00, 09:10, 09:20, 09:30, 09:40, 09:50, 10:00, 10:10, 10:20, 10:30, 10:40, 10:45
+        const totalTimeSlots = 17;
 
-        // Function to check fully booked dates for the current month
+        // Check fully booked dates for the current month
         async function checkFullyBookedDates(year, month) {
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
             fullyBookedDates = [];
             
-            for (let day = 1; day <= daysInMonth; day++) {
-                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const dateObj = new Date(year, month, day);
-                const dayOfWeek = dateObj.getDay();
-                
-                // Skip weekends
-                if (dayOfWeek === 0 || dayOfWeek === 6) continue;
-                
-                // Skip past dates
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                if (dateObj < today) continue;
-            }
-            
-            // Fetch all booked dates for the month from the server
             try {
                 const response = await fetch(`/appointments/fully-booked?year=${year}&month=${month + 1}`);
                 const data = await response.json();
@@ -317,7 +368,6 @@
                 console.error('Error fetching fully booked dates:', error);
             }
             
-            // Re-render calendar with fully booked info
             renderCalendarDays();
         }
 
@@ -328,7 +378,6 @@
             document.getElementById('monthYear').textContent = 
                 new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-            // Check fully booked dates for this month
             checkFullyBookedDates(year, month);
         }
 
@@ -356,17 +405,29 @@
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                 const isPast = dateObj < today;
                 const isSelected = selectedDate === dateStr;
-                const dayOfWeek = dateObj.getDay();
-                const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
                 const isFullyBooked = fullyBookedDates.includes(dateStr);
                 
-                let classes = 'calendar-day';
-                if (isPast) classes += ' past disabled';
-                if (isWeekend) classes += ' weekend disabled';
-                if (isFullyBooked && !isPast && !isWeekend) classes += ' fully-booked disabled';
-                if (isSelected && !isWeekend && !isFullyBooked) classes += ' selected';
+                // Check if date is closed using clinic schedule
+                const isClosed = isDateClosed(dateStr);
                 
-                daysHTML += `<div class="${classes}" data-date="${dateStr}">${day}</div>`;
+                let classes = 'calendar-day';
+                let title = '';
+                
+                if (isPast) {
+                    classes += ' past disabled';
+                    title = 'Past date';
+                } else if (isClosed) {
+                    classes += ' closed disabled';
+                    title = 'Clinic closed';
+                } else if (isFullyBooked) {
+                    classes += ' fully-booked disabled';
+                    title = 'Fully booked';
+                } else if (isSelected) {
+                    classes += ' selected';
+                    title = 'Selected';
+                }
+                
+                daysHTML += `<div class="${classes}" data-date="${dateStr}" title="${title}">${day}</div>`;
             }
 
             // Next month days to fill the grid
@@ -378,7 +439,7 @@
 
             document.getElementById('calendarDays').innerHTML = daysHTML;
 
-            // Add click handlers to future dates only (not disabled)
+            // Add click handlers to non-disabled dates only
             document.querySelectorAll('.calendar-day:not(.disabled)').forEach(day => {
                 day.addEventListener('click', function() {
                     document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected'));
@@ -397,23 +458,28 @@
             });
         }
 
+        // Previous month button
         document.getElementById('prevMonth').addEventListener('click', () => {
             const today = new Date();
             const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1);
             
-            // Don't allow going to past months
             if (newDate >= new Date(today.getFullYear(), today.getMonth(), 1)) {
                 currentDate = newDate;
                 renderCalendar();
             }
         });
 
+        // Next month button
         document.getElementById('nextMonth').addEventListener('click', () => {
             currentDate.setMonth(currentDate.getMonth() + 1);
             renderCalendar();
         });
 
-        renderCalendar();
+        // =====================================================
+        // INITIALIZE
+        // =====================================================
+        // First fetch clinic schedule, then render calendar
+        fetchClinicSchedule();
     </script>
 </body>
 </html>

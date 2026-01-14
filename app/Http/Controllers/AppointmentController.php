@@ -199,6 +199,26 @@ class AppointmentController extends Controller
         return redirect()->back()->with('success', 'All notifications marked as read.');
     }
 
+    /**
+     * Get clinic schedule configuration
+     */
+    public function getClinicSchedule()
+    {
+        $schedulePath = storage_path('app/clinic_schedule.json');
+        
+        if (!file_exists($schedulePath)) {
+            $defaultSchedule = [
+                'default_closed_days' => [0, 6], // Sunday and Saturday
+                'opened_dates' => [],
+                'closed_dates' => [],
+            ];
+            return response()->json($defaultSchedule);
+        }
+        
+        $schedule = json_decode(file_get_contents($schedulePath), true);
+        return response()->json($schedule);
+    }
+
     public function create()
     {
         $pets = Pet::where('Owner_ID', Auth::user()->User_ID)->get();
@@ -238,6 +258,37 @@ class AppointmentController extends Controller
     }
 
     /**
+     * Check if a date is closed (weekend or admin-closed)
+     */
+    private function isDateClosed($date)
+    {
+        $schedulePath = storage_path('app/clinic_schedule.json');
+        
+        if (!file_exists($schedulePath)) {
+            // Default: weekends are closed
+            $dayOfWeek = \Carbon\Carbon::parse($date)->dayOfWeek;
+            return in_array($dayOfWeek, [0, 6]); // Sunday = 0, Saturday = 6
+        }
+        
+        $schedule = json_decode(file_get_contents($schedulePath), true);
+        $dateStr = \Carbon\Carbon::parse($date)->format('Y-m-d');
+        $dayOfWeek = \Carbon\Carbon::parse($date)->dayOfWeek;
+        
+        // Check if explicitly opened (overrides default closed days)
+        if (in_array($dateStr, $schedule['opened_dates'] ?? [])) {
+            return false;
+        }
+        
+        // Check if explicitly closed
+        if (in_array($dateStr, $schedule['closed_dates'] ?? [])) {
+            return true;
+        }
+        
+        // Check default closed days (weekends)
+        return in_array($dayOfWeek, $schedule['default_closed_days'] ?? [0, 6]);
+    }
+
+    /**
      * Check if a time slot is already taken
      */
     private function isTimeSlotTaken($date, $time)
@@ -270,6 +321,12 @@ class AppointmentController extends Controller
         $pet = Pet::find($request->Pet_ID);
         if ($pet->Owner_ID != Auth::user()->User_ID) {
             return back()->withErrors(['Pet_ID' => 'This pet does not belong to you.']);
+        }
+
+        // Check if the date is closed
+        if ($this->isDateClosed($request->Date)) {
+            return back()->withErrors(['Date' => 'The clinic is closed on this date. Please select another date.'])
+                         ->withInput();
         }
 
         // Check if time slot is already taken
@@ -308,6 +365,13 @@ class AppointmentController extends Controller
         $pet = Pet::find($request->Pet_ID);
         if ($pet->Owner_ID != Auth::user()->User_ID) {
             return back()->withErrors(['Pet_ID' => 'This pet does not belong to you.']);
+        }
+
+        // Check if the date is closed
+        if ($this->isDateClosed($request->Date)) {
+            return redirect()->route('appointments.create')
+                ->withErrors(['Date' => 'The clinic is closed on this date. Please select another date.'])
+                ->withInput();
         }
 
         // Check if time slot is already taken (double-check before saving)
@@ -351,6 +415,12 @@ class AppointmentController extends Controller
         $pet = Pet::find($request->Pet_ID);
         if ($pet->Owner_ID != Auth::user()->User_ID) {
             return back()->withErrors(['Pet_ID' => 'This pet does not belong to you.']);
+        }
+
+        // Check if the date is closed
+        if ($this->isDateClosed($request->Date)) {
+            return back()->withErrors(['Date' => 'The clinic is closed on this date. Please select another date.'])
+                         ->withInput();
         }
 
         if ($this->isTimeSlotTaken($request->Date, $request->Time)) {
