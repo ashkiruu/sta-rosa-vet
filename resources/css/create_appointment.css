@@ -397,3 +397,72 @@
     color: #d1d5db !important; /* gray-300 */
     background-color: transparent !important;
 }
+/* Add these styles to your create_appointment.css file */
+
+/* =====================================================
+   CLOSED DAY STYLES FOR CALENDAR
+   ===================================================== */
+
+/* Closed days (weekends and admin-closed dates) */
+.calendar-day.closed {
+    background-color: #d1d5db !important; /* gray-300 */
+    color: #6b7280 !important; /* gray-500 */
+    cursor: not-allowed !important;
+    position: relative;
+    pointer-events: auto !important;
+}
+
+.calendar-day.closed::after {
+    content: '🔒';
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    font-size: 8px;
+    opacity: 0.8;
+}
+
+.calendar-day.closed:hover {
+    background-color: #9ca3af !important; /* gray-400 */
+}
+
+/* Weekend days in header */
+.calendar-day-header.text-red-400 {
+    color: #f87171 !important;
+}
+
+/* Fully booked days */
+.calendar-day.fully-booked {
+    background-color: #fecaca !important; /* red-200 */
+    color: #b91c1c !important; /* red-700 */
+    cursor: not-allowed !important;
+    pointer-events: auto !important;
+}
+
+.calendar-day.fully-booked:hover {
+    background-color: #fca5a5 !important; /* red-300 */
+}
+
+/* Past days */
+.calendar-day.past {
+    background-color: #f3f4f6 !important; /* gray-100 */
+    color: #d1d5db !important; /* gray-300 */
+    cursor: not-allowed !important;
+    pointer-events: auto !important;
+}
+
+/* Other month days */
+.calendar-day.other-month {
+    color: #d1d5db !important; /* gray-300 */
+    background-color: transparent !important;
+    pointer-events: none !important;
+}
+
+/* Disabled state visual indicator */
+.calendar-day[data-disabled="true"] {
+    cursor: not-allowed !important;
+    opacity: 0.7;
+}
+
+.calendar-day[data-disabled="true"]:not(.closed):not(.fully-booked):not(.past) {
+    background-color: #e5e7eb !important;
+}

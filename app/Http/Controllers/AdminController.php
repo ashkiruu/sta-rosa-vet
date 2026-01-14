@@ -198,11 +198,11 @@ class AdminController extends Controller
 
     /**
      * Approve a pending appointment.
-     * This will update the status and trigger a notification for the user.
+     * This will update the status, generate QR code, and trigger a notification for the user.
      */
     public function approveAppointment($id)
     {
-        $appointment = \App\Models\Appointment::with(['pet', 'user'])->findOrFail($id);
+        $appointment = \App\Models\Appointment::with(['pet', 'user', 'service'])->findOrFail($id);
         
         if ($appointment->Status !== 'Pending') {
             return redirect()->back()->with('error', 'This appointment cannot be approved.');
@@ -213,8 +213,17 @@ class AdminController extends Controller
         $appointment->Status = 'Approved';
         $appointment->save();
 
+        // Generate QR code for the approved appointment
+        $qrCodePath = \App\Services\QRCodeService::generateForAppointment($appointment);
+        
+        if ($qrCodePath) {
+            \Log::info("QR Code generated for appointment {$id}: {$qrCodePath}");
+        } else {
+            \Log::warning("Failed to generate QR Code for appointment {$id}");
+        }
+
         return redirect()->back()->with('success', 
-            'Appointment for ' . $appointment->pet->Pet_Name . ' has been approved! The owner will be notified.');
+            'Appointment for ' . $appointment->pet->Pet_Name . ' has been approved! QR code generated and the owner will be notified.');
     }
 
     /**
@@ -265,6 +274,34 @@ class AdminController extends Controller
 
         return redirect()->back()->with('success', 
             "Appointment for {$petName} on {$date} at {$time} has been declined and removed. The time slot is now available.");
+    }
+
+    /**
+     * View attendance logs
+     */
+    public function attendance(Request $request)
+    {
+        $selectedDate = $request->get('date', now()->format('Y-m-d'));
+        
+        // Get all logs
+        $allLogs = \App\Services\QRCodeService::loadAttendanceLogs();
+        
+        // Get today's logs
+        $todayLogs = array_filter($allLogs, function($log) {
+            return ($log['check_in_date'] ?? '') === now()->format('Y-m-d');
+        });
+        
+        // Get filtered logs (by selected date)
+        $filteredLogs = array_filter($allLogs, function($log) use ($selectedDate) {
+            return ($log['check_in_date'] ?? '') === $selectedDate;
+        });
+        
+        // Sort by check-in time (newest first)
+        usort($filteredLogs, function($a, $b) {
+            return strtotime($b['check_in_time']) - strtotime($a['check_in_time']);
+        });
+        
+        return view('admin.attendance', compact('allLogs', 'todayLogs', 'filteredLogs', 'selectedDate'));
     }
 
 }

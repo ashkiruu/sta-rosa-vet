@@ -30,6 +30,13 @@ Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
+
+// PUBLIC ROUTE - QR Code Verification (NO AUTH REQUIRED!)
+// This must be outside auth middleware so receptionist can scan
+Route::get('/appointments/verify/{id}/{token}', [AppointmentController::class, 'verifyAppointment'])
+    ->name('appointments.verify');
+
+
 // Protected Routes
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', function () {
@@ -55,57 +62,58 @@ Route::middleware('auth')->group(function () {
     Route::post('/appointments/preview', [AppointmentController::class, 'preview'])->name('appointments.preview');
     Route::post('/appointments/confirm', [AppointmentController::class, 'confirm'])->name('appointments.confirm');
 
-     Route::get('/appointments/taken-times', [AppointmentController::class, 'getTakenTimes'])
+    // Appointment utility routes
+    Route::get('/appointments/taken-times', [AppointmentController::class, 'getTakenTimes'])
         ->name('appointments.takenTimes');
-
-        Route::get('/appointments/fully-booked', [AppointmentController::class, 'getFullyBookedDates'])
+    Route::get('/appointments/fully-booked', [AppointmentController::class, 'getFullyBookedDates'])
         ->name('appointments.fullyBooked');
+    Route::get('/appointments/clinic-schedule', [AppointmentController::class, 'getClinicSchedule'])
+        ->name('appointments.clinic-schedule');
     
     Route::get('/appointments/{id}', [AppointmentController::class, 'show'])->name('appointments.show');
     Route::post('/appointments/{id}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
 
+    // QR Code Routes (for authenticated users to view their QR codes)
+    Route::get('/appointments/{id}/qrcode', [AppointmentController::class, 'showQRCode'])
+        ->name('appointments.qrcode');
+    Route::get('/appointments/{id}/qrcode/download', [AppointmentController::class, 'downloadQRCode'])
+        ->name('appointments.qrcode.download');
+
+    // Notifications
     Route::get('/notifications/view/{id}', [NotificationController::class, 'viewAppointment'])
-    ->name('notifications.viewAppointment');
-
+        ->name('notifications.viewAppointment');
     Route::post('/notifications/mark-all-seen', [NotificationController::class, 'markAllSeen'])
-    ->name('notifications.markAllSeen');
+        ->name('notifications.markAllSeen');
 
-    Route::get('/appointments/taken-times', [AppointmentController::class, 'getTakenTimes'])
-    ->name('appointments.takenTimes');
-
-    // Appointment Notifications (session-based)
-Route::post('/appointments/notifications/mark-seen', [App\Http\Controllers\AppointmentController::class, 'markNotificationSeen'])
-    ->name('appointments.notifications.markSeen');
-
-Route::post('/appointments/notifications/mark-all-seen', [App\Http\Controllers\AppointmentController::class, 'markAllNotificationsSeen'])
-    ->name('appointments.notifications.markAllSeen');
-
-    Route::get('/appointments/clinic-schedule', [AppointmentController::class, 'getClinicSchedule'])
-    ->name('appointments.clinic-schedule');
+    // Appointment Notifications (file-based)
+    Route::post('/appointments/notifications/mark-seen', [AppointmentController::class, 'markNotificationSeen'])
+        ->name('appointments.notifications.markSeen');
+    Route::post('/appointments/notifications/mark-all-seen', [AppointmentController::class, 'markAllNotificationsSeen'])
+        ->name('appointments.notifications.markAllSeen');
 });
 
 // Admin-Only Routes
-Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     // Admin Dashboard Overview
-    Route::get('/dashboard', [App\Http\Controllers\AdminController::class, 'dashboard'])->name('admin.dashboard');
-    Route::get('/users/{id}', [App\Http\Controllers\AdminController::class, 'showUser'])->name('admin.user.show'); 
+    Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
+    Route::get('/users/{id}', [AdminController::class, 'showUser'])->name('user.show'); 
 
     // 1. User Verification (The OCR Review Module)
-    Route::get('/verifications', [App\Http\Controllers\AdminController::class, 'pendingVerifications'])->name('admin.verifications');
-    Route::post('/verifications/{id}/approve', [App\Http\Controllers\AdminController::class, 'approveUser'])->name('admin.user.approve');
-    Route::post('/verifications/{id}/reject', [App\Http\Controllers\AdminController::class, 'rejectUser'])->name('admin.user.reject');
+    Route::get('/verifications', [AdminController::class, 'pendingVerifications'])->name('verifications');
+    Route::post('/verifications/{id}/approve', [AdminController::class, 'approveUser'])->name('user.approve');
+    Route::post('/verifications/{id}/reject', [AdminController::class, 'rejectUser'])->name('user.reject');
 
     // 2. Appointment Management (The Conflict Resolution Module)
-    Route::get('/appointments', [App\Http\Controllers\AdminController::class, 'appointments'])->name('admin.appointment_index');
-    Route::post('/appointments/{id}/approve', [App\Http\Controllers\AdminController::class, 'approveAppointment'])->name('admin.appointments.approve');
+    Route::get('/appointments', [AdminController::class, 'appointments'])->name('appointment_index');
+    Route::post('/appointments/{id}/approve', [AdminController::class, 'approveAppointment'])->name('appointments.approve');
+    Route::post('/appointments/{id}/reject', [AdminController::class, 'rejectAppointment'])->name('appointments.reject');
 
-    Route::post('/appointments/{id}/reject', [App\Http\Controllers\AdminController::class, 'rejectAppointment'])->name('admin.appointments.reject');
-
-    Route::post('/schedule/toggle', [\App\Http\Controllers\AdminController::class, 'toggleDateStatus'])
-    ->name('admin.schedule.toggle');
+    // 3. Schedule Management
+    Route::post('/schedule/toggle', [AdminController::class, 'toggleDateStatus'])->name('schedule.toggle');
     
-    // 3. Reports (The Summary Report Module)
-    Route::get('/reports', [App\Http\Controllers\AdminController::class, 'reports'])->name('admin.reports');
+    // 4. Attendance Logs
+    Route::get('/attendance', [AdminController::class, 'attendance'])->name('attendance');
+
+    // 5. Reports (The Summary Report Module)
+    Route::get('/reports', [AdminController::class, 'reports'])->name('reports');
 });
-
-

@@ -208,6 +208,7 @@
             opened_dates: [],
             closed_dates: []
         };
+        let scheduleLoaded = false;
 
         // Fetch clinic schedule on page load
         async function fetchClinicSchedule() {
@@ -216,11 +217,25 @@
                 if (response.ok) {
                     clinicSchedule = await response.json();
                     console.log('Clinic schedule loaded:', clinicSchedule);
-                    // Re-render calendar after schedule is loaded
-                    renderCalendar();
+                    console.log('Default closed days:', clinicSchedule.default_closed_days);
+                    console.log('Opened dates:', clinicSchedule.opened_dates);
+                    console.log('Closed dates:', clinicSchedule.closed_dates);
+                    scheduleLoaded = true;
+                    
+                    // If a date was already selected, check if it's now closed
+                    if (selectedDate && isDateClosed(selectedDate)) {
+                        console.log('Previously selected date is now closed, clearing selection');
+                        selectedDate = null;
+                        document.getElementById('selectedDate').value = '';
+                        // Reset time selection too
+                        timeInput.value = '';
+                        selectedTimeText.textContent = 'Time';
+                        timeSlots.forEach(s => s.classList.remove('selected'));
+                    }
                 }
             } catch (error) {
                 console.error('Failed to load clinic schedule:', error);
+                scheduleLoaded = true; // Still mark as loaded to use defaults
             }
         }
 
@@ -396,7 +411,7 @@
             // Previous month days
             for (let i = firstDay - 1; i >= 0; i--) {
                 const day = prevMonthDays - i;
-                daysHTML += `<div class="calendar-day other-month disabled">${day}</div>`;
+                daysHTML += `<div class="calendar-day other-month">${day}</div>`;
             }
 
             // Current month days
@@ -412,36 +427,66 @@
                 
                 let classes = 'calendar-day';
                 let title = '';
+                let isDisabled = false;
                 
                 if (isPast) {
-                    classes += ' past disabled';
+                    classes += ' past';
                     title = 'Past date';
+                    isDisabled = true;
                 } else if (isClosed) {
-                    classes += ' closed disabled';
+                    classes += ' closed';
                     title = 'Clinic closed';
+                    isDisabled = true;
                 } else if (isFullyBooked) {
-                    classes += ' fully-booked disabled';
+                    classes += ' fully-booked';
                     title = 'Fully booked';
-                } else if (isSelected) {
+                    isDisabled = true;
+                }
+                
+                if (isSelected && !isDisabled) {
                     classes += ' selected';
                     title = 'Selected';
                 }
                 
-                daysHTML += `<div class="${classes}" data-date="${dateStr}" title="${title}">${day}</div>`;
+                daysHTML += `<div class="${classes}" data-date="${dateStr}" data-disabled="${isDisabled}" title="${title}">${day}</div>`;
             }
 
             // Next month days to fill the grid
             const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
             const remainingCells = totalCells - (firstDay + daysInMonth);
             for (let day = 1; day <= remainingCells; day++) {
-                daysHTML += `<div class="calendar-day other-month disabled">${day}</div>`;
+                daysHTML += `<div class="calendar-day other-month">${day}</div>`;
             }
 
             document.getElementById('calendarDays').innerHTML = daysHTML;
 
-            // Add click handlers to non-disabled dates only
-            document.querySelectorAll('.calendar-day:not(.disabled)').forEach(day => {
-                day.addEventListener('click', function() {
+            // Add click handlers
+            document.querySelectorAll('.calendar-day').forEach(dayEl => {
+                dayEl.addEventListener('click', function(e) {
+                    // Skip other month days
+                    if (this.classList.contains('other-month')) {
+                        return;
+                    }
+                    
+                    // Check if disabled using data attribute
+                    const isDisabled = this.getAttribute('data-disabled') === 'true';
+                    
+                    if (isDisabled) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        // Show feedback based on reason
+                        if (this.classList.contains('closed')) {
+                            alert('This day is closed. The clinic is not open on this date.');
+                        } else if (this.classList.contains('fully-booked')) {
+                            alert('This day is fully booked. Please select another date.');
+                        } else if (this.classList.contains('past')) {
+                            alert('You cannot book appointments for past dates.');
+                        }
+                        return false;
+                    }
+                    
+                    // Normal selection for enabled days
                     document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected'));
                     this.classList.add('selected');
                     selectedDate = this.dataset.date;
@@ -479,7 +524,44 @@
         // INITIALIZE
         // =====================================================
         // First fetch clinic schedule, then render calendar
-        fetchClinicSchedule();
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchClinicSchedule().then(() => {
+                renderCalendar();
+            });
+            
+            // Add form submission validation
+            document.getElementById('appointmentForm').addEventListener('submit', function(e) {
+                const selectedDateValue = document.getElementById('selectedDate').value;
+                
+                // Check if date is selected
+                if (!selectedDateValue) {
+                    e.preventDefault();
+                    alert('Please select a date for your appointment.');
+                    return false;
+                }
+                
+                // Check if selected date is closed
+                if (isDateClosed(selectedDateValue)) {
+                    e.preventDefault();
+                    alert('The selected date is closed. Please choose another date.');
+                    // Clear the invalid selection
+                    selectedDate = null;
+                    document.getElementById('selectedDate').value = '';
+                    document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected'));
+                    renderCalendarDays();
+                    return false;
+                }
+                
+                // Check if time is selected
+                if (!timeInput.value) {
+                    e.preventDefault();
+                    alert('Please select a time for your appointment.');
+                    return false;
+                }
+                
+                return true;
+            });
+        });
     </script>
 </body>
 </html>

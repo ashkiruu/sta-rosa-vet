@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Appointment;
 use App\Models\Pet;
 use App\Models\ServiceType;
+use App\Services\QRCodeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -62,12 +63,13 @@ class AppointmentController extends Controller
                     'id' => $appointment->Appointment_ID,
                     'key' => $notificationKey,
                     'type' => 'success',
-                    'title' => 'Appointment Approved!',
+                    'title' => 'Appointment Approved! 🎉',
                     'message' => "Your appointment for {$appointment->pet->Pet_Name} on " . 
                                 $appointment->Date->format('M d, Y') . " at " . 
                                 \Carbon\Carbon::parse($appointment->Time)->format('h:i A') . 
-                                " has been approved!",
+                                " has been approved! Your QR code is ready.",
                     'time' => $appointment->updated_at->diffForHumans(),
+                    'qr_link' => route('appointments.qrcode', $appointment->Appointment_ID),
                 ];
             }
         }
@@ -529,5 +531,110 @@ class AppointmentController extends Controller
         return response()->json([
             'fullyBookedDates' => $fullyBookedDates
         ]);
+    }
+
+    /**
+     * Verify appointment from QR code scan
+     * This is a public route (no auth required)
+     * AUTOMATICALLY records attendance when scanned!
+     */
+    public function verifyAppointment($id, $token)
+    {
+        $appointment = Appointment::with(['pet', 'service', 'user'])->find($id);
+        
+        if (!$appointment) {
+            return view('appointments.verify', [
+                'valid' => false,
+                'appointment' => null,
+                'attendance' => null,
+                'message' => 'Appointment not found.'
+            ]);
+        }
+        
+        // Verify the token
+        $valid = QRCodeService::verifyToken($appointment, $token);
+        
+        if (!$valid) {
+            return view('appointments.verify', [
+                'valid' => false,
+                'appointment' => null,
+                'attendance' => null,
+                'message' => 'Invalid QR code token.'
+            ]);
+        }
+        
+        // Check if appointment is approved (can only check-in approved appointments)
+        if ($appointment->Status !== 'Approved' && $appointment->Status !== 'Completed') {
+            return view('appointments.verify', [
+                'valid' => true,
+                'appointment' => $appointment,
+                'attendance' => null,
+                'message' => $appointment->Status === 'Pending' 
+                    ? 'This appointment is still pending approval.' 
+                    : 'This appointment cannot be checked in (Status: ' . $appointment->Status . ').'
+            ]);
+        }
+        
+        // Record attendance (this updates the appointment status to "Completed")
+        $attendance = QRCodeService::recordAttendance($appointment);
+        
+        return view('appointments.verify', [
+            'valid' => true,
+            'appointment' => $appointment->fresh(['pet', 'service', 'user']), // Refresh to get updated status
+            'attendance' => $attendance,
+            'message' => $attendance['already_checked_in'] 
+                ? 'Already checked in at ' . $attendance['check_in_time']
+                : 'Successfully checked in!'
+        ]);
+    }
+
+    /**
+     * Show QR code for an appointment (for authenticated user)
+     */
+    public function showQRCode($id)
+    {
+        $appointment = Appointment::where('Appointment_ID', $id)
+            ->where('User_ID', Auth::user()->User_ID)
+            ->where('Status', 'Approved')
+            ->with(['pet', 'service'])
+            ->firstOrFail();
+        
+        $qrCodeUrl = QRCodeService::getQRCodeUrl($appointment);
+        
+        // If QR code doesn't exist, generate it
+        if (!$qrCodeUrl) {
+            $path = QRCodeService::generateForAppointment($appointment);
+            if ($path) {
+                $qrCodeUrl = asset('storage/' . $path);
+            }
+        }
+        
+        return view('appointments.qrcode', compact('appointment', 'qrCodeUrl'));
+    }
+
+    /**
+     * Download QR code for an appointment
+     */
+    public function downloadQRCode($id)
+    {
+        $appointment = Appointment::where('Appointment_ID', $id)
+            ->where('User_ID', Auth::user()->User_ID)
+            ->where('Status', 'Approved')
+            ->firstOrFail();
+        
+        $path = QRCodeService::getQRCodePath($appointment);
+        
+        if (!$path) {
+            // Generate if doesn't exist
+            $path = QRCodeService::generateForAppointment($appointment);
+        }
+        
+        if ($path) {
+            $fullPath = storage_path('app/public/' . $path);
+            $filename = 'appointment_' . $appointment->Appointment_ID . '_qrcode.png';
+            return response()->download($fullPath, $filename);
+        }
+        
+        return back()->with('error', 'QR Code not available.');
     }
 }

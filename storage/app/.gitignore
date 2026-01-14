@@ -5,3 +5,4 @@
 !storage/
 !storage/app/
 !storage/app/.gitkeep
+/storage/app/attendance_logs.json
