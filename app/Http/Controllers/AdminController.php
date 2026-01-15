@@ -304,4 +304,222 @@ class AdminController extends Controller
         return view('admin.attendance', compact('allLogs', 'todayLogs', 'filteredLogs', 'selectedDate'));
     }
 
+    /**
+     * =====================================================
+     * CERTIFICATE GENERATION METHODS
+     * =====================================================
+     */
+
+    /**
+     * Display certificates index
+     */
+    public function certificatesIndex()
+    {
+        $allCertificates = \App\Services\CertificateService::getAllCertificates();
+        $draftCertificates = \App\Services\CertificateService::getAllCertificates('draft');
+        $approvedCertificates = \App\Services\CertificateService::getAllCertificates('approved');
+        
+        // Get completed appointments
+        $completedAppointments = \App\Models\Appointment::with(['pet', 'user', 'service'])
+            ->where('Status', 'Completed')
+            ->orderBy('Date', 'desc')
+            ->get();
+        
+        return view('admin.certificates.index', compact(
+            'allCertificates', 
+            'draftCertificates', 
+            'approvedCertificates', 
+            'completedAppointments'
+        ));
+    }
+
+    /**
+     * Show certificate creation form
+     */
+    public function certificatesCreate($appointmentId)
+    {
+        $appointment = \App\Models\Appointment::with(['pet', 'user', 'service'])
+            ->findOrFail($appointmentId);
+        
+        // Check if certificate already exists
+        $existingCertificate = \App\Services\CertificateService::getCertificateByAppointment($appointmentId);
+        if ($existingCertificate) {
+            return redirect()->route('admin.certificates.edit', $existingCertificate['id'])
+                ->with('info', 'A certificate already exists for this appointment.');
+        }
+        
+        return view('admin.certificates.create', compact('appointment'));
+    }
+
+    /**
+     * Store new certificate
+     */
+    public function certificatesStore(Request $request)
+    {
+        $request->validate([
+            'appointment_id' => 'required',
+            'pet_name' => 'required|string|max:255',
+            'animal_type' => 'required|string|max:100',
+            'pet_gender' => 'required|string|max:50',
+            'pet_age' => 'required|string|max:100',
+            'pet_breed' => 'required|string|max:255',
+            'pet_color' => 'required|string|max:100',
+            'owner_name' => 'required|string|max:255',
+            'owner_address' => 'required|string',
+            'owner_phone' => 'required|string|max:50',
+            'service_type' => 'required|string|max:255',
+            'vaccination_date' => 'required|date',
+            'vaccine_used' => 'required|string|max:255',
+            'lot_number' => 'required|string|max:100',
+            'veterinarian_name' => 'required|string|max:255',
+            'license_number' => 'required|string|max:100',
+            'ptr_number' => 'required|string|max:100',
+        ]);
+
+        $data = $request->all();
+        $data['created_by'] = auth()->user()->First_Name ?? 'Admin';
+        
+        $certificate = \App\Services\CertificateService::createCertificate($data);
+        
+        // If action is approve, approve immediately
+        if ($request->action === 'approve') {
+            \App\Services\CertificateService::approveCertificate(
+                $certificate['id'], 
+                auth()->user()->First_Name ?? 'Admin'
+            );
+            return redirect()->route('admin.certificates.index')
+                ->with('success', 'Certificate created and approved successfully!');
+        }
+        
+        return redirect()->route('admin.certificates.index')
+            ->with('success', 'Certificate saved as draft.');
+    }
+
+    /**
+     * Show certificate edit form
+     */
+    public function certificatesEdit($id)
+    {
+        $certificate = \App\Services\CertificateService::getCertificate($id);
+        
+        if (!$certificate) {
+            return redirect()->route('admin.certificates.index')
+                ->with('error', 'Certificate not found.');
+        }
+        
+        $appointment = \App\Models\Appointment::with(['pet', 'user', 'service'])
+            ->find($certificate['appointment_id']);
+        
+        return view('admin.certificates.create', compact('certificate', 'appointment'));
+    }
+
+    /**
+     * Update certificate
+     */
+    public function certificatesUpdate(Request $request, $id)
+    {
+        $request->validate([
+            'pet_name' => 'required|string|max:255',
+            'animal_type' => 'required|string|max:100',
+            'pet_gender' => 'required|string|max:50',
+            'pet_age' => 'required|string|max:100',
+            'pet_breed' => 'required|string|max:255',
+            'pet_color' => 'required|string|max:100',
+            'owner_name' => 'required|string|max:255',
+            'owner_address' => 'required|string',
+            'owner_phone' => 'required|string|max:50',
+            'service_type' => 'required|string|max:255',
+            'vaccination_date' => 'required|date',
+            'vaccine_used' => 'required|string|max:255',
+            'lot_number' => 'required|string|max:100',
+            'veterinarian_name' => 'required|string|max:255',
+            'license_number' => 'required|string|max:100',
+            'ptr_number' => 'required|string|max:100',
+        ]);
+
+        $certificate = \App\Services\CertificateService::updateCertificate($id, $request->all());
+        
+        if (!$certificate) {
+            return redirect()->route('admin.certificates.index')
+                ->with('error', 'Certificate not found.');
+        }
+        
+        // If action is approve, approve the certificate
+        if ($request->action === 'approve') {
+            \App\Services\CertificateService::approveCertificate(
+                $id, 
+                auth()->user()->First_Name ?? 'Admin'
+            );
+            return redirect()->route('admin.certificates.index')
+                ->with('success', 'Certificate updated and approved!');
+        }
+        
+        return redirect()->route('admin.certificates.index')
+            ->with('success', 'Certificate updated successfully.');
+    }
+
+    /**
+     * Approve certificate
+     */
+    public function certificatesApprove($id)
+    {
+        $certificate = \App\Services\CertificateService::approveCertificate(
+            $id, 
+            auth()->user()->First_Name ?? 'Admin'
+        );
+        
+        if (!$certificate) {
+            return redirect()->route('admin.certificates.index')
+                ->with('error', 'Certificate not found.');
+        }
+        
+        return redirect()->route('admin.certificates.index')
+            ->with('success', 'Certificate approved and ready for download!');
+    }
+
+    /**
+     * View/Download certificate PDF
+     */
+    public function certificatesView($id)
+    {
+        $certificate = \App\Services\CertificateService::getCertificate($id);
+        
+        if (!$certificate) {
+            abort(404, 'Certificate not found.');
+        }
+        
+        // If PDF doesn't exist, generate it
+        if (empty($certificate['pdf_path'])) {
+            $certificate['pdf_path'] = \App\Services\CertificateService::generatePdf($certificate);
+        }
+        
+        $pdfPath = storage_path('app/public/' . $certificate['pdf_path']);
+        
+        if (!file_exists($pdfPath)) {
+            // Regenerate if file is missing
+            $certificate['pdf_path'] = \App\Services\CertificateService::generatePdf($certificate);
+            $pdfPath = storage_path('app/public/' . $certificate['pdf_path']);
+        }
+        
+        return response()->file($pdfPath, [
+            'Content-Type' => 'text/html',
+        ]);
+    }
+
+    /**
+     * Delete certificate
+     */
+    public function certificatesDelete($id)
+    {
+        $deleted = \App\Services\CertificateService::deleteCertificate($id);
+        
+        if (!$deleted) {
+            return redirect()->route('admin.certificates.index')
+                ->with('error', 'Certificate not found.');
+        }
+        
+        return redirect()->route('admin.certificates.index')
+            ->with('success', 'Certificate deleted successfully.');
+    }
+
 }

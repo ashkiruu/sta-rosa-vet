@@ -138,6 +138,8 @@
                                         Your appointment has been confirmed!
                                     @elseif($appointment->Status == 'Cancelled')
                                         Your appointment was cancelled.
+                                    @elseif($appointment->Status == 'Completed')
+                                        Your appointment is completed!
                                     @else
                                         Appointment update
                                     @endif
@@ -162,6 +164,8 @@
                                     <span class="w-2 h-2 bg-green-400 rounded-full inline-block"></span>
                                 @elseif($appointment->Status == 'Confirmed')
                                     <span class="w-2 h-2 bg-green-400 rounded-full inline-block"></span>
+                                @elseif($appointment->Status == 'Completed')
+                                    <span class="w-2 h-2 bg-blue-400 rounded-full inline-block"></span>
                                 @elseif($appointment->Status == 'Cancelled')
                                     <span class="w-2 h-2 bg-gray-400 rounded-full inline-block"></span>
                                 @endif
@@ -276,17 +280,42 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             <!-- Book Appointment -->
             <a href="{{ route('appointments.create') }}" class="bg-white border-2 border-red-600 rounded-lg p-10 text-center hover:bg-red-50 transition shadow-lg hover:shadow-xl">
+                <div class="text-4xl mb-3">📅</div>
                 <h3 class="text-red-700 font-bold text-2xl">Book Appointment</h3>
+                <p class="text-gray-500 text-sm mt-2">Schedule a visit for your pet</p>
             </a>
 
             <!-- Manage Pets -->
             <a href="{{ route('pets.index') }}" class="bg-white border-2 border-red-600 rounded-lg p-10 text-center hover:bg-red-50 transition shadow-lg hover:shadow-xl">
+                <div class="text-4xl mb-3">🐾</div>
                 <h3 class="text-red-700 font-bold text-2xl">Manage Pets</h3>
+                <p class="text-gray-500 text-sm mt-2">Add or view your registered pets</p>
             </a>
 
             <!-- View Certificates -->
-            <a href="#" class="bg-white border-2 border-red-600 rounded-lg p-10 text-center hover:bg-red-50 transition shadow-lg hover:shadow-xl">
+            <a href="{{ route('certificates.index') }}" class="bg-white border-2 border-red-600 rounded-lg p-10 text-center hover:bg-red-50 transition shadow-lg hover:shadow-xl relative">
+                <div class="text-4xl mb-3">📜</div>
                 <h3 class="text-red-700 font-bold text-2xl">View Certificates</h3>
+                <p class="text-gray-500 text-sm mt-2">Download vaccination certificates</p>
+                
+                @php
+                    // Count available certificates for badge
+                    $userCertificates = \App\Services\CertificateService::getCertificatesByOwner(Auth::user()->User_ID);
+                    $certCount = count($userCertificates);
+                @endphp
+                
+                @if($certCount > 0)
+                    <span class="absolute top-4 right-4 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                        {{ $certCount }} available
+                    </span>
+                @endif
+            </a>
+        </div>
+        
+        <!-- Quick Links -->
+        <div class="mt-8 text-center">
+            <a href="{{ route('appointments.index') }}" class="text-red-600 hover:text-red-800 font-semibold">
+                View My Appointments →
             </a>
         </div>
     </div>

@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body class="bg-gray-50 flex h-screen overflow-hidden">
-
     <aside class="w-64 bg-slate-900 text-white flex flex-col">
         <div class="p-6 text-center font-bold text-xl border-b border-slate-700">
             <span class="text-blue-400">STA. ROSA</span> VET
@@ -17,13 +16,19 @@
             <a href="{{ route('admin.dashboard') }}" class="flex items-center px-6 py-3 text-gray-300 hover:bg-slate-800 hover:text-white {{ request()->routeIs('admin.dashboard') ? 'bg-blue-600 text-white' : '' }}">
                 <i class="fas fa-chart-line mr-3"></i> Dashboard
             </a>
-            <a href="{{ route('admin.verifications') }}" class="flex items-center px-6 py-3 text-gray-300 hover:bg-slate-800 hover:text-white {{ request()->routeIs('admin.verifications') ? 'bg-blue-600 text-white' : '' }}">
+            <a href="{{ route('admin.verifications') }}" class="flex items-center px-6 py-3 text-gray-300 hover:bg-slate-800 hover:text-white {{ request()->routeIs('admin.verifications') || request()->routeIs('admin.user.show') ? 'bg-blue-600 text-white' : '' }}">
                 <i class="fas fa-user-check mr-3"></i> User Verification
             </a>
             <a href="{{ route('admin.appointment_index') }}" class="flex items-center px-6 py-3 text-gray-300 hover:bg-slate-800 hover:text-white {{ request()->routeIs('admin.appointment_index') ? 'bg-blue-600 text-white' : '' }}">
-    <i class="fas fa-calendar-alt mr-3"></i> Appointments
-</a>
-            <a href="#" class="flex items-center px-6 py-3 text-gray-300 hover:bg-slate-800">
+                <i class="fas fa-calendar-alt mr-3"></i> Appointments
+            </a>
+            <a href="{{ route('admin.attendance') }}" class="flex items-center px-6 py-3 text-gray-300 hover:bg-slate-800 hover:text-white {{ request()->routeIs('admin.attendance') ? 'bg-blue-600 text-white' : '' }}">
+                <i class="fas fa-clipboard-check mr-3"></i> Attendance
+            </a>
+            <a href="{{ route('admin.certificates.index') }}" class="flex items-center px-6 py-3 text-gray-300 hover:bg-slate-800 hover:text-white {{ request()->routeIs('admin.certificates.*') ? 'bg-blue-600 text-white' : '' }}">
+                <i class="fas fa-certificate mr-3"></i> Certificates
+            </a>
+            <a href="{{ route('admin.reports') }}" class="flex items-center px-6 py-3 text-gray-300 hover:bg-slate-800 hover:text-white {{ request()->routeIs('admin.reports') ? 'bg-blue-600 text-white' : '' }}">
                 <i class="fas fa-file-medical mr-3"></i> Reports
             </a>
         </nav>
@@ -36,7 +41,6 @@
             </form>
         </div>
     </aside>
-
     <div class="flex-1 flex flex-col">
         <header class="h-16 bg-white border-b flex items-center justify-between px-8">
             <h1 class="text-lg font-semibold text-gray-700">@yield('page_title')</h1>
@@ -48,16 +52,24 @@
             </div>
         </header>
         @if(session('success'))
-            <div class="mb-4 p-4 bg-green-100 border-l-4 border-green-500 text-green-700 shadow-sm rounded">
+            <div class="mx-8 mt-4 p-4 bg-green-100 border-l-4 border-green-500 text-green-700 shadow-sm rounded">
                 <i class="fas fa-check-circle mr-2"></i> {{ session('success') }}
+            </div>
+        @endif
+        @if(session('error'))
+            <div class="mx-8 mt-4 p-4 bg-red-100 border-l-4 border-red-500 text-red-700 shadow-sm rounded">
+                <i class="fas fa-exclamation-circle mr-2"></i> {{ session('error') }}
+            </div>
+        @endif
+        @if(session('info'))
+            <div class="mx-8 mt-4 p-4 bg-blue-100 border-l-4 border-blue-500 text-blue-700 shadow-sm rounded">
+                <i class="fas fa-info-circle mr-2"></i> {{ session('info') }}
             </div>
         @endif
         <main class="p-8 overflow-y-auto">
             @yield('content')
         </main>
     </div>
-
     
-
 </body>
 </html>

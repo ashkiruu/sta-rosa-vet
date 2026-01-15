@@ -6,6 +6,7 @@ use App\Models\Appointment;
 use App\Models\Pet;
 use App\Models\ServiceType;
 use App\Services\QRCodeService;
+use App\Services\CertificateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -595,7 +596,7 @@ class AppointmentController extends Controller
     {
         $appointment = Appointment::where('Appointment_ID', $id)
             ->where('User_ID', Auth::user()->User_ID)
-            ->where('Status', 'Approved')
+            ->whereIn('Status', ['Approved', 'Completed']) // Allow both statuses
             ->with(['pet', 'service'])
             ->firstOrFail();
         
@@ -609,6 +610,15 @@ class AppointmentController extends Controller
             }
         }
         
+        // Check if already checked in - if so, redirect to verification page
+        if ($appointment->Status === 'Completed') {
+            $token = QRCodeService::generateVerificationToken($appointment);
+            return redirect()->route('appointments.verify', [
+                'id' => $appointment->Appointment_ID,
+                'token' => $token
+            ]);
+        }
+        
         return view('appointments.qrcode', compact('appointment', 'qrCodeUrl'));
     }
 
@@ -619,7 +629,7 @@ class AppointmentController extends Controller
     {
         $appointment = Appointment::where('Appointment_ID', $id)
             ->where('User_ID', Auth::user()->User_ID)
-            ->where('Status', 'Approved')
+            ->whereIn('Status', ['Approved', 'Completed']) // Allow both statuses
             ->firstOrFail();
         
         $path = QRCodeService::getQRCodePath($appointment);
@@ -636,5 +646,95 @@ class AppointmentController extends Controller
         }
         
         return back()->with('error', 'QR Code not available.');
+    }
+
+    /**
+     * Check appointment status (for AJAX polling from QR code page)
+     * Returns JSON with current status and redirect URL if checked in
+     */
+    public function checkStatus($id)
+    {
+        $appointment = Appointment::where('Appointment_ID', $id)
+            ->where('User_ID', Auth::user()->User_ID)
+            ->first();
+        
+        if (!$appointment) {
+            return response()->json([
+                'status' => 'not_found',
+                'message' => 'Appointment not found'
+            ], 404);
+        }
+        
+        $response = [
+            'status' => $appointment->Status,
+            'appointment_id' => $appointment->Appointment_ID,
+        ];
+        
+        // If checked in (Completed), include redirect URL
+        if ($appointment->Status === 'Completed') {
+            $token = QRCodeService::generateVerificationToken($appointment);
+            $response['redirect_url'] = url('/appointments/verify/' . $appointment->Appointment_ID . '/' . $token);
+            $response['message'] = 'Checked in successfully!';
+        }
+        
+        return response()->json($response);
+    }
+
+    /**
+     * =====================================================
+     * USER CERTIFICATE METHODS
+     * =====================================================
+     */
+
+    /**
+     * Show user's certificates
+     */
+    public function certificatesIndex()
+    {
+        $userId = Auth::user()->User_ID;
+        $certificates = CertificateService::getCertificatesByOwner($userId);
+        
+        return view('certificates.index', compact('certificates'));
+    }
+
+    /**
+     * Download certificate (for user)
+     */
+    public function certificateDownload($id)
+    {
+        $certificate = CertificateService::getCertificate($id);
+        
+        if (!$certificate) {
+            abort(404, 'Certificate not found.');
+        }
+        
+        // Verify the certificate belongs to the user
+        $userId = Auth::user()->User_ID;
+        $appointment = Appointment::find($certificate['appointment_id']);
+        
+        if (!$appointment || $appointment->User_ID != $userId) {
+            abort(403, 'Unauthorized.');
+        }
+        
+        // Check if certificate is approved
+        if ($certificate['status'] !== 'approved') {
+            abort(403, 'Certificate is not yet approved.');
+        }
+        
+        // Generate PDF if not exists
+        if (empty($certificate['pdf_path'])) {
+            $certificate['pdf_path'] = CertificateService::generatePdf($certificate);
+        }
+        
+        $pdfPath = storage_path('app/public/' . $certificate['pdf_path']);
+        
+        if (!file_exists($pdfPath)) {
+            $certificate['pdf_path'] = CertificateService::generatePdf($certificate);
+            $pdfPath = storage_path('app/public/' . $certificate['pdf_path']);
+        }
+        
+        return response()->file($pdfPath, [
+            'Content-Type' => 'text/html',
+        ]);
     }
 }

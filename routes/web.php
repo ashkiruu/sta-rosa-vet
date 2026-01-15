@@ -36,6 +36,8 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 Route::get('/appointments/verify/{id}/{token}', [AppointmentController::class, 'verifyAppointment'])
     ->name('appointments.verify');
 
+    
+
 
 // Protected Routes
 Route::middleware('auth')->group(function () {
@@ -79,6 +81,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/appointments/{id}/qrcode/download', [AppointmentController::class, 'downloadQRCode'])
         ->name('appointments.qrcode.download');
 
+    // Check appointment status (AJAX polling for auto-redirect)
+    Route::get('/appointments/{id}/check-status', [AppointmentController::class, 'checkStatus'])
+        ->name('appointments.checkStatus');
+
     // Notifications
     Route::get('/notifications/view/{id}', [NotificationController::class, 'viewAppointment'])
         ->name('notifications.viewAppointment');
@@ -90,6 +96,14 @@ Route::middleware('auth')->group(function () {
         ->name('appointments.notifications.markSeen');
     Route::post('/appointments/notifications/mark-all-seen', [AppointmentController::class, 'markAllNotificationsSeen'])
         ->name('appointments.notifications.markAllSeen');
+
+    // User Certificate Routes (for regular users to view/download their certificates)
+    Route::get('/my-certificates', [AppointmentController::class, 'certificatesIndex'])
+        ->name('certificates.index');
+    Route::get('/my-certificates/{id}/download', [AppointmentController::class, 'certificateDownload'])
+        ->name('certificates.download');
+    Route::get('/my-certificates/{id}/view', [AppointmentController::class, 'certificateDownload'])
+        ->name('certificates.view');
 });
 
 // Admin-Only Routes
@@ -114,6 +128,16 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // 4. Attendance Logs
     Route::get('/attendance', [AdminController::class, 'attendance'])->name('attendance');
 
-    // 5. Reports (The Summary Report Module)
+    // 5. Certificate Management (Admin)
+    Route::get('/certificates', [AdminController::class, 'certificatesIndex'])->name('certificates.index');
+    Route::get('/certificates/create/{appointmentId}', [AdminController::class, 'certificatesCreate'])->name('certificates.create');
+    Route::post('/certificates', [AdminController::class, 'certificatesStore'])->name('certificates.store');
+    Route::get('/certificates/{id}/edit', [AdminController::class, 'certificatesEdit'])->name('certificates.edit');
+    Route::put('/certificates/{id}', [AdminController::class, 'certificatesUpdate'])->name('certificates.update');
+    Route::post('/certificates/{id}/approve', [AdminController::class, 'certificatesApprove'])->name('certificates.approve');
+    Route::get('/certificates/{id}/view', [AdminController::class, 'certificatesView'])->name('certificates.view');
+    Route::delete('/certificates/{id}', [AdminController::class, 'certificatesDelete'])->name('certificates.delete');
+
+    // 6. Reports (The Summary Report Module)
     Route::get('/reports', [AdminController::class, 'reports'])->name('reports');
 });

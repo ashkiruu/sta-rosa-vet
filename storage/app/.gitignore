@@ -6,3 +6,7 @@
 !storage/app/
 !storage/app/.gitkeep
 /storage/app/attendance_logs.json
+/storage/app/certificates.json
+/storage/app/clinic_schedule.json
+/storage/app/seen_notifications.json
+/storage/app/declined_notifications.json

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Appointment QR Code</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -55,6 +56,14 @@
                     Scan this QR code to verify your appointment
                 </p>
 
+                <!-- Status Indicator -->
+                <div id="statusIndicator" class="mb-4">
+                    <div class="inline-flex items-center gap-2 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-full text-sm">
+                        <span class="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
+                        <span>Waiting for check-in...</span>
+                    </div>
+                </div>
+
                 @if($qrCodeUrl)
                     <a href="{{ route('appointments.qrcode.download', $appointment->Appointment_ID) }}" 
                        class="inline-flex items-center gap-2 bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition">
@@ -88,7 +97,7 @@
                     </div>
                     <div class="flex justify-between">
                         <span class="text-gray-500">Status</span>
-                        <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                        <span id="appointmentStatus" class="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">
                             {{ $appointment->Status }}
                         </span>
                     </div>
@@ -107,5 +116,60 @@
             </div>
         </div>
     </div>
+
+    <script>
+        // Auto-check if appointment has been checked in
+        const appointmentId = {{ $appointment->Appointment_ID }};
+        const checkInterval = 3000; // Check every 3 seconds
+        let isChecking = true;
+
+        async function checkAttendanceStatus() {
+            if (!isChecking) return;
+
+            try {
+                const response = await fetch(`/appointments/${appointmentId}/check-status`);
+                const data = await response.json();
+
+                if (data.status === 'Completed') {
+                    // Appointment has been checked in!
+                    isChecking = false;
+
+                    // Update UI
+                    document.getElementById('statusIndicator').innerHTML = `
+                        <div class="inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-800 rounded-full text-sm">
+                            <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                            <span>✓ Checked in! Redirecting...</span>
+                        </div>
+                    `;
+
+                    document.getElementById('appointmentStatus').className = 'px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800';
+                    document.getElementById('appointmentStatus').textContent = 'Completed';
+
+                    // Redirect to verification page after short delay
+                    setTimeout(() => {
+                        window.location.href = data.redirect_url;
+                    }, 1500);
+                }
+            } catch (error) {
+                console.error('Error checking status:', error);
+            }
+
+            // Continue checking
+            if (isChecking) {
+                setTimeout(checkAttendanceStatus, checkInterval);
+            }
+        }
+
+        // Start checking when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Start polling after 2 seconds
+            setTimeout(checkAttendanceStatus, 2000);
+        });
+
+        // Stop checking when user leaves page
+        window.addEventListener('beforeunload', function() {
+            isChecking = false;
+        });
+    </script>
 </body>
 </html>
