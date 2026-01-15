@@ -140,4 +140,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     // 6. Reports (The Summary Report Module)
     Route::get('/reports', [AdminController::class, 'reports'])->name('reports');
+    Route::post('/reports/generate', [AdminController::class, 'generateReport'])->name('reports.generate');
+    Route::get('/reports/{id}/anti-rabies', [AdminController::class, 'viewAntiRabiesReport'])->name('reports.anti-rabies');
+    Route::get('/reports/{id}/routine-services', [AdminController::class, 'viewRoutineServicesReport'])->name('reports.routine-services');
+    Route::delete('/reports/{id}', [AdminController::class, 'deleteReport'])->name('reports.delete');
 });

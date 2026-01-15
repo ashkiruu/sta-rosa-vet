@@ -31,13 +31,27 @@ class Pet extends Model
         'Registration_Date' => 'datetime',
     ];
 
+    /**
+     * Relationship with Owner (User)
+     */
     public function owner()
     {
         return $this->belongsTo(User::class, 'Owner_ID', 'User_ID');
     }
 
+    /**
+     * Relationship with Species
+     */
     public function species()
     {
         return $this->belongsTo(Species::class, 'Species_ID', 'Species_ID');
+    }
+
+    /**
+     * Relationship with Appointments
+     */
+    public function appointments()
+    {
+        return $this->hasMany(Appointment::class, 'Pet_ID', 'Pet_ID');
     }
 }

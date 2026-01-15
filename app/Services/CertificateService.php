@@ -89,18 +89,21 @@ class CertificateService
             'pet_age' => $data['pet_age'],
             'pet_breed' => $data['pet_breed'],
             'pet_color' => $data['pet_color'],
-            'pet_dob' => $data['pet_dob'],
+            'pet_dob' => $data['pet_dob'] ?? null,
             
             // Owner Information
             'owner_name' => $data['owner_name'],
             'owner_address' => $data['owner_address'],
             'owner_phone' => $data['owner_phone'],
+            'civil_status' => $data['civil_status'] ?? null,
+            'years_of_residency' => $data['years_of_residency'] ?? null,
+            'owner_birthdate' => $data['owner_birthdate'] ?? null,
             
             // Vaccination/Service Details
             'service_type' => $data['service_type'],
             'vaccination_date' => $data['vaccination_date'],
             'lot_number' => $data['lot_number'],
-            'next_vaccination_date' => $data['next_vaccination_date'],
+            'next_vaccination_date' => $data['next_vaccination_date'] ?? null,
             'vaccine_used' => $data['vaccine_used'],
             
             // Veterinarian Details
@@ -138,6 +141,7 @@ class CertificateService
         $allowedFields = [
             'pet_name', 'animal_type', 'pet_gender', 'pet_age', 'pet_breed', 
             'pet_color', 'pet_dob', 'owner_name', 'owner_address', 'owner_phone',
+            'civil_status', 'years_of_residency', 'owner_birthdate',
             'service_type', 'vaccination_date', 'lot_number', 'next_vaccination_date',
             'vaccine_used', 'veterinarian_name', 'license_number', 'ptr_number'
         ];
@@ -285,6 +289,11 @@ class CertificateService
         $ownerName = htmlspecialchars($certificate['owner_name']);
         $ownerAddress = htmlspecialchars($certificate['owner_address']);
         $ownerPhone = htmlspecialchars($certificate['owner_phone']);
+        $civilStatus = htmlspecialchars($certificate['civil_status'] ?? 'N/A');
+        $yearsOfResidency = htmlspecialchars($certificate['years_of_residency'] ?? 'N/A');
+        $ownerBirthdate = isset($certificate['owner_birthdate']) && $certificate['owner_birthdate'] 
+            ? date('F d, Y', strtotime($certificate['owner_birthdate'])) 
+            : 'N/A';
         
         $serviceType = htmlspecialchars($certificate['service_type']);
         $vaccinationDate = $certificate['vaccination_date'] ? date('F d, Y', strtotime($certificate['vaccination_date'])) : 'N/A';
@@ -621,12 +630,24 @@ class CertificateService
                         <span class="info-value">{$ownerName}</span>
                     </div>
                     <div class="info-row full-width">
-                        <span class="info-label">Home Address:</span>
+                        <span class="info-label">Complete Address:</span>
                         <span class="info-value">{$ownerAddress}</span>
                     </div>
-                    <div class="info-row full-width">
+                    <div class="info-row">
+                        <span class="info-label">Civil Status:</span>
+                        <span class="info-value">{$civilStatus}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Years of Residency:</span>
+                        <span class="info-value">{$yearsOfResidency}</span>
+                    </div>
+                    <div class="info-row">
                         <span class="info-label">Contact Number:</span>
                         <span class="info-value">{$ownerPhone}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Birthdate:</span>
+                        <span class="info-value">{$ownerBirthdate}</span>
                     </div>
                 </div>
             </div>

@@ -58,7 +58,7 @@
                                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                                 <option value="">Select Type</option>
                                 @php
-                                    $animalType = old('animal_type', $certificate['animal_type'] ?? $appointment->pet->Species ?? '');
+                                    $animalType = old('animal_type', $certificate['animal_type'] ?? ($appointment->pet->species->Species_Name ?? ''));
                                 @endphp
                                 <option value="Dog" {{ $animalType == 'Dog' ? 'selected' : '' }}>Dog</option>
                                 <option value="Cat" {{ $animalType == 'Cat' ? 'selected' : '' }}>Cat</option>
@@ -82,7 +82,7 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Age *</label>
                             <input type="text" name="pet_age" required placeholder="e.g., 2 years, 6 months"
-                                   value="{{ old('pet_age', $certificate['pet_age'] ?? '') }}"
+                                   value="{{ old('pet_age', $certificate['pet_age'] ?? $appointment->pet->Age ?? '') }}"
                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                         </div>
                         <div>
@@ -100,7 +100,7 @@
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
                             <input type="date" name="pet_dob"
-                                   value="{{ old('pet_dob', $certificate['pet_dob'] ?? $appointment->pet->Date_of_Birth ?? '') }}"
+                                   value="{{ old('pet_dob', $certificate['pet_dob'] ?? ($appointment->pet->Date_of_Birth ? $appointment->pet->Date_of_Birth->format('Y-m-d') : '')) }}"
                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                         </div>
                     </div>
@@ -113,22 +113,58 @@
                     <h2 class="text-lg font-bold">👤 Owner Information</h2>
                 </div>
                 <div class="p-6">
-                    <div class="grid grid-cols-1 gap-4">
-                        <div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="md:col-span-2">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Owner's Name *</label>
                             <input type="text" name="owner_name" required
-                                   value="{{ old('owner_name', $certificate['owner_name'] ?? (($appointment->user->First_Name ?? '') . ' ' . ($appointment->user->Last_Name ?? ''))) }}"
+                                   value="{{ old('owner_name', $certificate['owner_name'] ?? (($appointment->user->First_Name ?? '') . ' ' . ($appointment->user->Middle_Name ?? '') . ' ' . ($appointment->user->Last_Name ?? ''))) }}"
                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Home Address *</label>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Complete Address *</label>
+                            @php
+                                $defaultAddress = '';
+                                if (isset($appointment->user)) {
+                                    $defaultAddress = $appointment->user->Address ?? '';
+                                    if ($appointment->user->barangay) {
+                                        $defaultAddress .= ($defaultAddress ? ', ' : '') . 'Brgy. ' . $appointment->user->barangay->Barangay_Name;
+                                    }
+                                }
+                            @endphp
                             <textarea name="owner_address" required rows="2"
-                                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">{{ old('owner_address', $certificate['owner_address'] ?? $appointment->user->Address ?? '') }}</textarea>
+                                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">{{ old('owner_address', $certificate['owner_address'] ?? $defaultAddress) }}</textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Civil Status *</label>
+                            <select name="civil_status" required
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                                <option value="">Select Civil Status</option>
+                                @php
+                                    $civilStatus = old('civil_status', $certificate['civil_status'] ?? '');
+                                @endphp
+                                <option value="Single" {{ $civilStatus == 'Single' ? 'selected' : '' }}>Single</option>
+                                <option value="Married" {{ $civilStatus == 'Married' ? 'selected' : '' }}>Married</option>
+                                <option value="Widowed" {{ $civilStatus == 'Widowed' ? 'selected' : '' }}>Widowed</option>
+                                <option value="Separated" {{ $civilStatus == 'Separated' ? 'selected' : '' }}>Separated</option>
+                                <option value="Divorced" {{ $civilStatus == 'Divorced' ? 'selected' : '' }}>Divorced</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Years/Length of Residency *</label>
+                            <input type="text" name="years_of_residency" required placeholder="e.g., 5 years, Since birth"
+                                   value="{{ old('years_of_residency', $certificate['years_of_residency'] ?? '') }}"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Cellphone/Telephone Number *</label>
                             <input type="text" name="owner_phone" required
-                                   value="{{ old('owner_phone', $certificate['owner_phone'] ?? $appointment->user->Phone ?? '') }}"
+                                   value="{{ old('owner_phone', $certificate['owner_phone'] ?? $appointment->user->Contact_Number ?? '') }}"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Birthdate</label>
+                            <input type="date" name="owner_birthdate"
+                                   value="{{ old('owner_birthdate', $certificate['owner_birthdate'] ?? '') }}"
                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
                         </div>
                     </div>

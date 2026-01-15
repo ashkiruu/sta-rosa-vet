@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Appointment;
+use App\Services\ReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class AdminController extends Controller
 {
@@ -367,6 +369,8 @@ class AdminController extends Controller
             'owner_name' => 'required|string|max:255',
             'owner_address' => 'required|string',
             'owner_phone' => 'required|string|max:50',
+            'civil_status' => 'required|string|max:50',
+            'years_of_residency' => 'required|string|max:100',
             'service_type' => 'required|string|max:255',
             'vaccination_date' => 'required|date',
             'vaccine_used' => 'required|string|max:255',
@@ -428,6 +432,8 @@ class AdminController extends Controller
             'owner_name' => 'required|string|max:255',
             'owner_address' => 'required|string',
             'owner_phone' => 'required|string|max:50',
+            'civil_status' => 'required|string|max:50',
+            'years_of_residency' => 'required|string|max:100',
             'service_type' => 'required|string|max:255',
             'vaccination_date' => 'required|date',
             'vaccine_used' => 'required|string|max:255',
@@ -522,4 +528,169 @@ class AdminController extends Controller
             ->with('success', 'Certificate deleted successfully.');
     }
 
+    /**
+     * =====================================================
+     * REPORTS METHODS
+     * =====================================================
+     */
+
+    /**
+     * Display reports index
+     */
+    public function reports()
+    {
+        $reports = ReportService::getAllReports();
+        
+        return view('admin.reports.index', compact('reports'));
+    }
+
+    /**
+     * Generate a new weekly report
+     */
+    public function generateReport(Request $request)
+    {
+        // Determine date range
+        if ($request->filled('custom_start') && $request->filled('custom_end')) {
+            $startDate = Carbon::parse($request->custom_start)->startOfDay();
+            $endDate = Carbon::parse($request->custom_end)->endOfDay();
+            $weekNumber = $startDate->weekOfYear;
+            $year = $startDate->year;
+        } else {
+            $weekOffset = (int) $request->input('week_offset', 0);
+            $dateRange = ReportService::getWeeklyDateRange($weekOffset);
+            $startDate = $dateRange['start'];
+            $endDate = $dateRange['end'];
+            $weekNumber = $dateRange['week_number'];
+            $year = $dateRange['year'];
+        }
+
+        // Get report data
+        $antiRabiesData = ReportService::getAntiRabiesData($startDate, $endDate);
+        $routineServicesData = ReportService::getRoutineServicesData($startDate, $endDate);
+        $summary = ReportService::getWeeklySummary($startDate, $endDate);
+
+        // Create report record
+        $reportData = [
+            'type' => 'WEEKLY',
+            'week_number' => $weekNumber,
+            'year' => $year,
+            'start_date' => $startDate->format('Y-m-d'),
+            'end_date' => $endDate->format('Y-m-d'),
+            'generated_by' => auth()->user()->First_Name ?? 'Admin',
+            'summary' => $summary,
+            'anti_rabies_count' => count($antiRabiesData),
+            'routine_services_count' => count($routineServicesData),
+        ];
+
+        $report = ReportService::createReport($reportData);
+
+        // Add the data to report for PDF generation
+        $report['anti_rabies_data'] = $antiRabiesData;
+        $report['routine_services_data'] = $routineServicesData;
+
+        // Generate separate PDFs
+        $antiRabiesPdf = ReportService::generateAntiRabiesPdf($report);
+        $routineServicesPdf = ReportService::generateRoutineServicesPdf($report);
+
+        // Update report with PDF paths
+        ReportService::updateReport($report['id'], [
+            'anti_rabies_pdf' => $antiRabiesPdf,
+            'routine_services_pdf' => $routineServicesPdf,
+        ]);
+
+        return redirect()->route('admin.reports')
+            ->with('success', "Weekly report for Week {$weekNumber}, {$year} has been generated successfully!");
+    }
+
+    /**
+     * View Anti-Rabies report PDF
+     */
+    public function viewAntiRabiesReport($id)
+    {
+        $report = ReportService::getReport($id);
+        
+        if (!$report) {
+            abort(404, 'Report not found.');
+        }
+        
+        // If PDF doesn't exist, regenerate it
+        if (empty($report['anti_rabies_pdf'])) {
+            $startDate = Carbon::parse($report['start_date']);
+            $endDate = Carbon::parse($report['end_date']);
+            
+            $report['anti_rabies_data'] = ReportService::getAntiRabiesData($startDate, $endDate);
+            $report['anti_rabies_pdf'] = ReportService::generateAntiRabiesPdf($report);
+            
+            ReportService::updateReport($id, ['anti_rabies_pdf' => $report['anti_rabies_pdf']]);
+        }
+        
+        $pdfPath = storage_path('app/public/' . $report['anti_rabies_pdf']);
+        
+        if (!file_exists($pdfPath)) {
+            $startDate = Carbon::parse($report['start_date']);
+            $endDate = Carbon::parse($report['end_date']);
+            
+            $report['anti_rabies_data'] = ReportService::getAntiRabiesData($startDate, $endDate);
+            $report['anti_rabies_pdf'] = ReportService::generateAntiRabiesPdf($report);
+            $pdfPath = storage_path('app/public/' . $report['anti_rabies_pdf']);
+        }
+        
+        return response()->file($pdfPath, [
+            'Content-Type' => 'text/html',
+        ]);
+    }
+
+    /**
+     * View Routine Services report PDF
+     */
+    public function viewRoutineServicesReport($id)
+    {
+        $report = ReportService::getReport($id);
+        
+        if (!$report) {
+            abort(404, 'Report not found.');
+        }
+        
+        // If PDF doesn't exist, regenerate it
+        if (empty($report['routine_services_pdf'])) {
+            $startDate = Carbon::parse($report['start_date']);
+            $endDate = Carbon::parse($report['end_date']);
+            
+            $report['routine_services_data'] = ReportService::getRoutineServicesData($startDate, $endDate);
+            $report['routine_services_pdf'] = ReportService::generateRoutineServicesPdf($report);
+            
+            ReportService::updateReport($id, ['routine_services_pdf' => $report['routine_services_pdf']]);
+        }
+        
+        $pdfPath = storage_path('app/public/' . $report['routine_services_pdf']);
+        
+        if (!file_exists($pdfPath)) {
+            $startDate = Carbon::parse($report['start_date']);
+            $endDate = Carbon::parse($report['end_date']);
+            
+            $report['routine_services_data'] = ReportService::getRoutineServicesData($startDate, $endDate);
+            $report['routine_services_pdf'] = ReportService::generateRoutineServicesPdf($report);
+            $pdfPath = storage_path('app/public/' . $report['routine_services_pdf']);
+        }
+        
+        return response()->file($pdfPath, [
+            'Content-Type' => 'text/html',
+        ]);
+    }
+
+    /**
+     * Delete report
+     */
+    public function deleteReport($id)
+    {
+        $deleted = ReportService::deleteReport($id);
+        
+        if (!$deleted) {
+            return redirect()->route('admin.reports')
+                ->with('error', 'Report not found.');
+        }
+        
+        return redirect()->route('admin.reports')
+            ->with('success', 'Report deleted successfully.');
+    }
 }

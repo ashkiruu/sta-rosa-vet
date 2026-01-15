@@ -34,6 +34,30 @@ class User extends Authenticatable
     public function getAuthPassword() { return $this->Password; }
     public function getAuthIdentifierName() { return 'User_ID'; }
 
+     /**
+     * Relationship with Pets
+     */
+    public function pets()
+    {
+        return $this->hasMany(Pet::class, 'Owner_ID', 'User_ID');
+    }
+
+    /**
+     * Relationship with Barangay
+     */
+    public function barangay()
+    {
+        return $this->belongsTo(Barangay::class, 'Barangay_ID', 'Barangay_ID');
+    }
+
+    /**
+     * Relationship with Appointments
+     */
+    public function appointments()
+    {
+        return $this->hasMany(Appointment::class, 'User_ID', 'User_ID');
+    }
+
     public function admin()
     {
         // Primary key is User_ID, Foreign key in admin table is also User_ID
