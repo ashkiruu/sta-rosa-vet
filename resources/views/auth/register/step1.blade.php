@@ -78,7 +78,11 @@
                                     </option>
                                 @endforeach
                             </select>
-                            <x-input-error :messages="$errors->get('Barangay_ID')" class="mt-1" />
+
+                            {{-- Custom Error Message --}}
+                            @error('Barangay_ID')
+                                <p class="text-sm text-red-600 mt-1">The barangay field is required.</p>
+                            @enderror
                         </div>
 
                         {{-- City --}}
