@@ -6,14 +6,19 @@
     <title>{{ config('app.name', 'Laravel') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="font-sans text-gray-900 antialiased bg-gray-100">
-    {{-- Flattened structure: Logo and Content in a single flow --}}
-    <div class="min-h-screen w-full flex flex-col items-center py-6 bg-fixed bg-cover bg-center" 
+<body class="font-sans text-gray-900 antialiased">
+    <div class="min-h-screen w-full flex flex-col items-center bg-fixed bg-cover bg-center" 
          style="background-image: url('{{ asset('images/PawsBackground.png') }}');">
         
-        <img src="{{ asset('images/LogoBlack.png') }}" alt="Logo" class="w-100 h-100 mb-6 object-contain">
+        <div class="mt-8 mb-2"> 
+            <img src="{{ asset('images/LogoBlack.png') }}" 
+                 alt="Logo" 
+                 class="w-auto h-20 md:h-28 object-contain mx-auto">
+        </div>
 
-        {{ $slot }}
+        <div class="w-full flex-1 flex flex-col items-center">
+            {{ $slot }}
+        </div>
     </div>
 </body>
 </html>

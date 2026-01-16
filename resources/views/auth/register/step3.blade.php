@@ -50,10 +50,6 @@
                                     </svg>
                                 </button>
                             </div>
-                            
-                            @error('password')
-                                <p class="text-[11px] text-red-600 mt-1 leading-tight">Your password must be at least 8 characters long and include uppercase, lowercase, numbers, symbols, and a matching confirmation.</p>
-                            @enderror
                         </div>
 
                         {{-- Confirm Password --}}
@@ -90,6 +86,15 @@
                             }
                         </script>
                     </div>
+
+                    {{-- ERROR BLOCK --}}
+                    @if ($errors->any())
+                        <div class="mb-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-lg shadow-sm">
+                            <p class="text-[13px] leading-tight mb-3 italic">
+                                Your password must be at least 8 characters long and include uppercase, lowercase, numbers, symbols, and a matching confirmation.
+                            </p>
+                        </div>
+                    @endif
 
                     {{-- ID Verification Status Indicators --}}
                     <div class="mt-8 p-6 bg-gray-50/50 rounded-3xl border border-gray-100 flex flex-wrap items-center gap-6">
