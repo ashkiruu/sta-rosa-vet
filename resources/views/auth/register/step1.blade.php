@@ -1,83 +1,118 @@
 <x-guest-layout>
-    <div class="max-w-xl mx-auto mt-10 p-6 bg-white rounded shadow">
-        <!-- Progress Bar -->
-        <div class="flex mb-6">
-            <div class="w-1/3 h-2 bg-red-600 rounded-l"></div>
-            <div class="w-1/3 h-2 bg-gray-300 mx-1"></div>
-            <div class="w-1/3 h-2 bg-gray-300 rounded-r"></div>
+    <div class="max-w-5xl mx-auto px-4 py-10">
+        {{-- Single Flattened Landscape Card --}}
+        <div class="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 overflow-hidden">
+            
+            <div class="p-8 md:p-12">
+                {{-- Centered Header & Progress Bar Section --}}
+                <div class="flex flex-col items-center justify-center mb-12">
+                    <h2 class="text-4xl font-black text-gray-900 uppercase tracking-tight">Register</h2>
+                    <p class="text-red-700 font-bold uppercase text-xs tracking-[0.2em] mt-2 mb-8">Step 1: Personal Profile</p>
+
+                    {{-- Centered Progress Bar Style --}}
+                    <div class="flex items-center justify-center w-full max-w-md relative">
+                        {{-- Connecting Line --}}
+                        <div class="absolute top-1/2 left-0 w-full h-0.5 bg-gray-300 -translate-y-1/2 z-0"></div>
+                        
+                        {{-- Steps --}}
+                        <div class="flex justify-between w-full relative z-10">
+                            {{-- Step 1 Active --}}
+                            <div class="flex items-center justify-center w-10 h-10 rounded-full bg-red-700 text-white font-black shadow-lg border-4 border-white">1</div>
+                            {{-- Step 2 Inactive --}}
+                            <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-400 text-white font-black border-4 border-white">2</div>
+                            {{-- Step 3 Inactive --}}
+                            <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-400 text-white font-black border-4 border-white">3</div>
+                        </div>
+                    </div>
+                </div>
+
+                <form method="POST" action="{{ route('register.step1') }}" class="space-y-6">
+                    @csrf
+
+                    {{-- Form Grid: 3 Columns for Landscape Desktop View --}}
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
+                        
+                        {{-- First Name --}}
+                        <div>
+                            <x-input-label for="First_Name" value="First Name" class="text-red-700 font-black uppercase text-[10px]" />
+                            <x-text-input id="First_Name" name="First_Name" type="text" value="{{ old('First_Name') }}" 
+                                class="block mt-1 w-full border-gray-200 focus:border-red-500 focus:ring-red-500 rounded-xl bg-gray-50/50" required autofocus />
+                            <x-input-error :messages="$errors->get('First_Name')" class="mt-1" />
+                        </div>
+
+                        {{-- Middle Name --}}
+                        <div>
+                            <x-input-label for="Middle_Name" value="Middle Name (Optional)" class="text-gray-400 font-black uppercase text-[10px]" />
+                            <x-text-input id="Middle_Name" name="Middle_Name" type="text" value="{{ old('Middle_Name') }}" 
+                                class="block mt-1 w-full border-gray-200 rounded-xl bg-gray-50/50" />
+                        </div>
+
+                        {{-- Last Name --}}
+                        <div>
+                            <x-input-label for="Last_Name" value="Last Name" class="text-red-700 font-black uppercase text-[10px]" />
+                            <x-text-input id="Last_Name" name="Last_Name" type="text" value="{{ old('Last_Name') }}" 
+                                class="block mt-1 w-full border-gray-200 focus:border-red-500 focus:ring-red-500 rounded-xl bg-gray-50/50" required />
+                            <x-input-error :messages="$errors->get('Last_Name')" class="mt-1" />
+                        </div>
+
+                        {{-- Mobile Number --}}
+                        <div>
+                            <x-input-label for="Contact_Number" value="Mobile Number" class="text-red-700 font-black uppercase text-[10px]" />
+                            <div class="relative mt-1">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 font-bold text-sm">+63</span>
+                                <x-text-input id="Contact_Number" name="Contact_Number" type="text" value="{{ old('Contact_Number') }}" 
+                                    class="block w-full pl-12 border-gray-200 rounded-xl bg-gray-50/50" placeholder="9123456789" required />
+                            </div>
+                            <x-input-error :messages="$errors->get('Contact_Number')" class="mt-1" />
+                        </div>
+
+                        {{-- Barangay --}}
+                        <div>
+                            <x-input-label for="Barangay_ID" value="Barangay" class="text-red-700 font-black uppercase text-[10px]" />
+                            <select id="Barangay_ID" name="Barangay_ID" 
+                                class="mt-1 block w-full border-gray-200 rounded-xl focus:border-red-500 focus:ring-red-500 shadow-sm bg-gray-50/50 py-2.5">
+                                <option value="">Select Barangay</option>
+                                @foreach($barangays as $barangay)
+                                    <option value="{{ $barangay->Barangay_ID }}" {{ old('Barangay_ID') == $barangay->Barangay_ID ? 'selected' : '' }}>
+                                        {{ $barangay->Barangay_Name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get('Barangay_ID')" class="mt-1" />
+                        </div>
+
+                        {{-- City --}}
+                        <div>
+                            <x-input-label for="City" value="City / Province" class="text-gray-400 font-black uppercase text-[10px]" />
+                            <x-text-input id="City" name="City" type="text" value="Sta. Rosa, Laguna" 
+                                class="mt-1 block w-full bg-gray-100 border-gray-200 rounded-xl text-gray-500 cursor-not-allowed" readonly />
+                        </div>
+
+                        {{-- Address (Full Width Span) --}}
+                        <div class="md:col-span-3">
+                            <x-input-label for="Address" value="House No. / Street / Subd." class="text-red-700 font-black uppercase text-[10px]" />
+                            <textarea id="Address" name="Address" rows="2" 
+                                class="mt-1 block w-full border-gray-200 rounded-xl focus:border-red-500 focus:ring-red-500 shadow-sm bg-gray-50/50">{{ old('Address') }}</textarea>
+                            <x-input-error :messages="$errors->get('Address')" class="mt-1" />
+                        </div>
+                    </div>
+
+                    {{-- Action Footer --}}
+                    <div class="pt-10 flex flex-col md:flex-row items-center justify-between border-t border-gray-100 gap-6">
+                        <p class="text-sm text-gray-500 font-medium">
+                            Already have an account? 
+                            <a href="{{ route('login') }}" class="text-red-700 font-black hover:text-red-800 hover:underline transition ml-1">
+                                Log in here
+                            </a>
+                        </p>
+
+                        <button type="submit" 
+                            class="w-full md:w-64 bg-red-700 hover:bg-red-800 text-white font-black py-4 rounded-2xl shadow-lg transition-all active:scale-95 uppercase tracking-widest text-sm">
+                            Next Step
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
-
-        <h2 class="text-xl font-semibold mb-4">Step 1: Personal Information</h2>
-
-        <form method="POST" action="{{ route('register.step1') }}">
-            @csrf
-
-            <!-- Last Name -->
-            <div class="mb-4">
-                <label for="Last_Name" class="block font-medium">Last Name</label>
-                <input type="text" name="Last_Name" id="Last_Name" value="{{ old('Last_Name') }}"
-                    class="w-full border rounded px-3 py-2" required>
-                @error('Last_Name') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
-            </div>
-
-            <!-- First Name -->
-            <div class="mb-4">
-                <label for="First_Name" class="block font-medium">First Name</label>
-                <input type="text" name="First_Name" id="First_Name" value="{{ old('First_Name') }}"
-                    class="w-full border rounded px-3 py-2" required>
-                @error('First_Name') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
-            </div>
-
-            <!-- Middle Name -->
-            <div class="mb-4">
-                <label for="Middle_Name" class="block font-medium">Middle Name</label>
-                <input type="text" name="Middle_Name" id="Middle_Name" value="{{ old('Middle_Name') }}"
-                    class="w-full border rounded px-3 py-2" required>
-                @error('Middle_Name') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
-            </div>
-
-            <!-- Contact Number -->
-            <div class="mb-4">
-                <label for="Contact_Number" class="block font-medium">Mobile Number</label>
-                <input type="text" name="Contact_Number" id="Contact_Number" value="{{ old('Contact_Number') }}"
-                    class="w-full border rounded px-3 py-2" required>
-                @error('Contact_Number') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
-            </div>
-
-            <!-- Address -->
-            <div class="mb-4">
-                <label for="Address" class="block font-medium">Address</label>
-                <textarea name="Address" id="Address" rows="2"
-                    class="w-full border rounded px-3 py-2" required>{{ old('Address') }}</textarea>
-                @error('Address') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
-            </div>
-
-            <!-- Barangay -->
-            <div class="mb-4">
-                <label for="Barangay_ID" class="block font-medium">Barangay</label>
-                <select name="Barangay_ID" id="Barangay_ID" class="w-full border rounded px-3 py-2" required>
-                    <option value="">Select Barangay</option>
-                    @foreach($barangays as $barangay)
-                        <option value="{{ $barangay->Barangay_ID }}" {{ old('Barangay_ID') == $barangay->Barangay_ID ? 'selected' : '' }}>
-                            {{ $barangay->Barangay_Name }}
-                        </option>
-                    @endforeach
-                </select>
-                @error('Barangay_ID') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
-            </div>
-
-            <!-- City -->
-            <div class="mb-6">
-                <label for="City" class="block font-medium">City</label>
-                <input type="text" name="City" id="City" value="Sta. Rosa, Laguna"
-                    class="w-full border rounded px-3 py-2 bg-gray-100" readonly>
-            </div>
-
-            <!-- Next Button -->
-            <div class="flex justify-end">
-                <button type="submit"
-                    class="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700">Next</button>
-            </div>
-        </form>
     </div>
 </x-guest-layout>
