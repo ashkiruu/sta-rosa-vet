@@ -12,7 +12,7 @@
         <div class="p-6 text-center font-bold text-xl border-b border-slate-700">
             <span class="text-blue-400">STA. ROSA</span> VET
         </div>
-        <nav class="flex-1 mt-4">
+        <nav class="flex-1 mt-4 overflow-y-auto">
             <a href="{{ route('admin.dashboard') }}" class="flex items-center px-6 py-3 text-gray-300 hover:bg-slate-800 hover:text-white {{ request()->routeIs('admin.dashboard') ? 'bg-blue-600 text-white' : '' }}">
                 <i class="fas fa-chart-line mr-3"></i> Dashboard
             </a>
@@ -31,8 +31,40 @@
             <a href="{{ route('admin.reports') }}" class="flex items-center px-6 py-3 text-gray-300 hover:bg-slate-800 hover:text-white {{ request()->routeIs('admin.reports') ? 'bg-blue-600 text-white' : '' }}">
                 <i class="fas fa-file-medical mr-3"></i> Reports
             </a>
+
+            {{-- Super Admin Only Section --}}
+            @if(isset($isSuperAdmin) && $isSuperAdmin)
+            <div class="mt-4 pt-4 border-t border-slate-700">
+                <p class="px-6 py-2 text-xs text-slate-500 uppercase tracking-wider font-semibold">
+                    <i class="fas fa-shield-alt mr-1"></i> Super Admin
+                </p>
+                <a href="{{ route('admin.admins.index') }}" class="flex items-center px-6 py-3 text-gray-300 hover:bg-slate-800 hover:text-white {{ request()->routeIs('admin.admins.*') ? 'bg-purple-600 text-white' : '' }}">
+                    <i class="fas fa-users-cog mr-3"></i> Manage Admins
+                </a>
+                <a href="{{ route('admin.logs') }}" class="flex items-center px-6 py-3 text-gray-300 hover:bg-slate-800 hover:text-white {{ request()->routeIs('admin.logs') ? 'bg-purple-600 text-white' : '' }}">
+                    <i class="fas fa-history mr-3"></i> Activity Logs
+                </a>
+            </div>
+            @endif
         </nav>
         <div class="p-4 border-t border-slate-700">
+            <div class="flex items-center mb-3 px-2">
+                <div class="h-8 w-8 rounded-full {{ isset($isSuperAdmin) && $isSuperAdmin ? 'bg-purple-500' : 'bg-blue-500' }} flex items-center justify-center text-white font-bold mr-2">
+                    {{ substr(Auth::user()->First_Name, 0, 1) }}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-white truncate">{{ Auth::user()->First_Name }}</p>
+                    <p class="text-xs {{ isset($isSuperAdmin) && $isSuperAdmin ? 'text-purple-400' : 'text-blue-400' }}">
+                        @if(isset($isSuperAdmin) && $isSuperAdmin)
+                            <i class="fas fa-crown mr-1"></i> Super Admin
+                        @elseif(isset($currentAdmin))
+                            {{ ucfirst($currentAdmin->admin_role ?? 'Staff') }}
+                        @else
+                            Admin
+                        @endif
+                    </p>
+                </div>
+            </div>
             <form action="{{ route('logout') }}" method="POST">
                 @csrf
                 <button class="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-slate-800 rounded">
@@ -45,8 +77,14 @@
         <header class="h-16 bg-white border-b flex items-center justify-between px-8">
             <h1 class="text-lg font-semibold text-gray-700">@yield('page_title')</h1>
             <div class="flex items-center gap-3">
-                <span class="text-sm text-gray-500 italic">Administrator</span>
-                <div class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
+                @if(isset($isSuperAdmin) && $isSuperAdmin)
+                    <span class="px-3 py-1 text-xs font-semibold bg-purple-100 text-purple-700 rounded-full">
+                        <i class="fas fa-crown mr-1"></i> Super Admin
+                    </span>
+                @else
+                    <span class="text-sm text-gray-500 italic">Administrator</span>
+                @endif
+                <div class="h-8 w-8 rounded-full {{ isset($isSuperAdmin) && $isSuperAdmin ? 'bg-purple-500' : 'bg-blue-500' }} flex items-center justify-center text-white font-bold">
                     {{ substr(Auth::user()->First_Name, 0, 1) }}
                 </div>
             </div>

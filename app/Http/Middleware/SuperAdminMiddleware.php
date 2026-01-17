@@ -7,11 +7,11 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use App\Models\Admin;
 
-class AdminMiddleware
+class SuperAdminMiddleware
 {
     /**
      * Handle an incoming request.
-     * Allows both normal admins and super admins to access admin routes.
+     * Only allows super admins to access these routes.
      */
     public function handle(Request $request, Closure $next): Response
     {
@@ -20,16 +20,13 @@ class AdminMiddleware
             return redirect('/login')->with('error', 'Please log in to access this area.');
         }
 
-        // Check if user exists in the admin table
+        // Check if user is a super admin
         $admin = Admin::find(auth()->id());
         
-        if (!$admin) {
-            return redirect('/dashboard')->with('error', 'You do not have administrative access.');
+        if (!$admin || !$admin->isSuperAdmin()) {
+            return redirect()->route('admin.dashboard')
+                ->with('error', 'You do not have permission to access this area. Super Admin access required.');
         }
-
-        // Share admin info with all views
-        view()->share('currentAdmin', $admin);
-        view()->share('isSuperAdmin', $admin->isSuperAdmin());
 
         return $next($request);
     }

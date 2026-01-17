@@ -3,11 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Admin;
+use App\Models\SystemLog;
 use App\Models\Appointment;
 use App\Services\ReportService;
+use App\Services\AdminLogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Carbon\Carbon;
 
 class AdminController extends Controller
@@ -25,11 +29,22 @@ class AdminController extends Controller
 
     public function dashboard()
     {
+        $currentAdmin = Admin::find(auth()->id());
+        $isSuperAdmin = $currentAdmin ? $currentAdmin->isSuperAdmin() : false;
+        
         $stats = [
             'pending_users' => User::where('Verification_Status_ID', 1)->count(),
             'today_appointments' => Appointment::whereDate('Date', now())->count(),
+            'total_pets' => \App\Models\Pet::count(),
         ];
-        return view('admin.dashboard', compact('stats'));
+
+        // Super admin gets additional stats
+        if ($isSuperAdmin) {
+            $stats['total_admins'] = Admin::normalAdmins()->count();
+            $stats['activity_summary'] = AdminLogService::getActivitySummary();
+        }
+
+        return view('admin.dashboard', compact('stats', 'isSuperAdmin'));
     }
 
     public function pendingVerifications(Request $request)
@@ -59,22 +74,28 @@ class AdminController extends Controller
 
     public function approveUser($id)
     {
-        $user = \App\Models\User::findOrFail($id);
+        $user = User::findOrFail($id);
         
         $user->update([
             'Verification_Status_ID' => 2 
         ]);
+
+        // Log this action (only for normal admins)
+        AdminLogService::logUserVerification($id, 'approved', $user->First_Name . ' ' . $user->Last_Name);
 
         return redirect()->route('admin.verifications')->with('success', 'Resident ' . $user->First_Name . ' has been successfully verified.');
     }
 
     public function rejectUser($id)
     {
-        $user = \App\Models\User::findOrFail($id);
+        $user = User::findOrFail($id);
         
         $user->update([
             'Verification_Status_ID' => 3 
         ]);
+
+        // Log this action (only for normal admins)
+        AdminLogService::logUserVerification($id, 'rejected', $user->First_Name . ' ' . $user->Last_Name);
 
         return redirect()->route('admin.verifications')->with('success', 'Resident ' . $user->First_Name . ' has been rejected.');
     }
@@ -110,41 +131,32 @@ class AdminController extends Controller
     public function appointments()
     {
         $appointments = Appointment::with(['user', 'pet', 'service'])
-            ->whereIn('Status', ['Pending', 'Approved']) // Only show active appointments
+            ->whereIn('Status', ['Pending', 'Approved'])
             ->orderBy('Date', 'asc')
             ->orderBy('Time', 'asc')
             ->get()
             ->map(function ($appointment) {
-                // Format date as Y-m-d string for consistent JavaScript handling
                 $appointment->Date = \Carbon\Carbon::parse($appointment->Date)->format('Y-m-d');
-                // Format time as H:i string (remove seconds)
                 $appointment->Time = \Carbon\Carbon::parse($appointment->Time)->format('H:i');
                 return $appointment;
             });
 
-        // Load clinic schedule
         $schedule = $this->getClinicSchedule();
 
         return view('admin.appointment_index', compact('appointments', 'schedule'));
     }
 
-    /**
-     * Get clinic schedule configuration
-     * Auto-creates the file if it doesn't exist
-     */
     private function getClinicSchedule()
     {
         $schedulePath = storage_path('app/clinic_schedule.json');
         
-        // Auto-create the file if it doesn't exist
         if (!file_exists($schedulePath)) {
             $defaultSchedule = [
-                'default_closed_days' => [0, 6], // Sunday and Saturday
+                'default_closed_days' => [0, 6],
                 'opened_dates' => [],
                 'closed_dates' => [],
             ];
             
-            // Ensure directory exists
             $directory = dirname($schedulePath);
             if (!is_dir($directory)) {
                 mkdir($directory, 0755, true);
@@ -157,9 +169,6 @@ class AdminController extends Controller
         return json_decode(file_get_contents($schedulePath), true);
     }
 
-    /**
-     * Toggle a specific date open/closed
-     */
     public function toggleDateStatus(Request $request)
     {
         $request->validate([
@@ -173,24 +182,23 @@ class AdminController extends Controller
         $schedule = $this->getClinicSchedule();
 
         if ($action === 'open') {
-            // Add to opened_dates if not already there
             if (!in_array($date, $schedule['opened_dates'])) {
                 $schedule['opened_dates'][] = $date;
             }
-            // Remove from closed_dates if present
             $schedule['closed_dates'] = array_values(array_diff($schedule['closed_dates'], [$date]));
         } else {
-            // Add to closed_dates if not already there
             if (!in_array($date, $schedule['closed_dates'])) {
                 $schedule['closed_dates'][] = $date;
             }
-            // Remove from opened_dates if present
             $schedule['opened_dates'] = array_values(array_diff($schedule['opened_dates'], [$date]));
         }
 
         file_put_contents($schedulePath, json_encode($schedule, JSON_PRETTY_PRINT));
 
+        // Log schedule change
         $dayName = \Carbon\Carbon::parse($date)->format('l, M d, Y');
+        AdminLogService::logScheduleChange($dayName, strtoupper($action));
+
         $message = $action === 'open' 
             ? "Clinic is now OPEN on {$dayName}" 
             : "Clinic is now CLOSED on {$dayName}";
@@ -198,24 +206,17 @@ class AdminController extends Controller
         return redirect()->back()->with('success', $message);
     }
 
-    /**
-     * Approve a pending appointment.
-     * This will update the status, generate QR code, and trigger a notification for the user.
-     */
     public function approveAppointment($id)
     {
-        $appointment = \App\Models\Appointment::with(['pet', 'user', 'service'])->findOrFail($id);
+        $appointment = Appointment::with(['pet', 'user', 'service'])->findOrFail($id);
         
         if ($appointment->Status !== 'Pending') {
             return redirect()->back()->with('error', 'This appointment cannot be approved.');
         }
         
-        // Update the status - this triggers the updated_at timestamp
-        // which is used by the notification system
         $appointment->Status = 'Approved';
         $appointment->save();
 
-        // Generate QR code for the approved appointment
         $qrCodePath = \App\Services\QRCodeService::generateForAppointment($appointment);
         
         if ($qrCodePath) {
@@ -224,34 +225,35 @@ class AdminController extends Controller
             \Log::warning("Failed to generate QR Code for appointment {$id}");
         }
 
+        // Log appointment approval
+        AdminLogService::logAppointmentAction(
+            $id, 
+            'approved', 
+            $appointment->pet->Pet_Name,
+            $appointment->user->First_Name . ' ' . $appointment->user->Last_Name
+        );
+
         return redirect()->back()->with('success', 
             'Appointment for ' . $appointment->pet->Pet_Name . ' has been approved! QR code generated and the owner will be notified.');
     }
 
-    /**
-     * Reject/Decline a pending appointment.
-     * This will delete the appointment and free up the time slot.
-     * Stores a notification in file so user can see it was declined.
-     */
     public function rejectAppointment($id)
     {
-        $appointment = \App\Models\Appointment::with(['pet', 'user'])->findOrFail($id);
+        $appointment = Appointment::with(['pet', 'user'])->findOrFail($id);
         
         if ($appointment->Status !== 'Pending') {
             return redirect()->back()->with('error', 'This appointment cannot be rejected.');
         }
         
-        // Store info for the success message and notification before deleting
         $petName = $appointment->pet->Pet_Name;
+        $ownerName = $appointment->user->First_Name . ' ' . $appointment->user->Last_Name;
         $ownerUserId = $appointment->User_ID;
         $date = $appointment->Date->format('M d, Y');
         $time = \Carbon\Carbon::parse($appointment->Time)->format('h:i A');
         $serviceName = $appointment->service->Service_Name ?? 'Appointment';
         
-        // Store declined notification for the user
         $notificationPath = storage_path('app/declined_notifications.json');
         
-        // Auto-create file if it doesn't exist
         if (!file_exists($notificationPath)) {
             $directory = dirname($notificationPath);
             if (!is_dir($directory)) {
@@ -271,34 +273,29 @@ class AdminController extends Controller
         ];
         file_put_contents($notificationPath, json_encode($declinedNotifications, JSON_PRETTY_PRINT));
         
-        // Delete the appointment - this frees up the time slot
+        // Log before deleting
+        AdminLogService::logAppointmentAction($id, 'rejected', $petName, $ownerName);
+        
         $appointment->delete();
 
         return redirect()->back()->with('success', 
             "Appointment for {$petName} on {$date} at {$time} has been declined and removed. The time slot is now available.");
     }
 
-    /**
-     * View attendance logs
-     */
     public function attendance(Request $request)
     {
         $selectedDate = $request->get('date', now()->format('Y-m-d'));
         
-        // Get all logs
         $allLogs = \App\Services\QRCodeService::loadAttendanceLogs();
         
-        // Get today's logs
         $todayLogs = array_filter($allLogs, function($log) {
             return ($log['check_in_date'] ?? '') === now()->format('Y-m-d');
         });
         
-        // Get filtered logs (by selected date)
         $filteredLogs = array_filter($allLogs, function($log) use ($selectedDate) {
             return ($log['check_in_date'] ?? '') === $selectedDate;
         });
         
-        // Sort by check-in time (newest first)
         usort($filteredLogs, function($a, $b) {
             return strtotime($b['check_in_time']) - strtotime($a['check_in_time']);
         });
@@ -306,23 +303,17 @@ class AdminController extends Controller
         return view('admin.attendance', compact('allLogs', 'todayLogs', 'filteredLogs', 'selectedDate'));
     }
 
-    /**
-     * =====================================================
-     * CERTIFICATE GENERATION METHODS
-     * =====================================================
-     */
+    // =====================================================
+    // CERTIFICATE GENERATION METHODS
+    // =====================================================
 
-    /**
-     * Display certificates index
-     */
     public function certificatesIndex()
     {
         $allCertificates = \App\Services\CertificateService::getAllCertificates();
         $draftCertificates = \App\Services\CertificateService::getAllCertificates('draft');
         $approvedCertificates = \App\Services\CertificateService::getAllCertificates('approved');
         
-        // Get completed appointments
-        $completedAppointments = \App\Models\Appointment::with(['pet', 'user', 'service'])
+        $completedAppointments = Appointment::with(['pet', 'user', 'service'])
             ->where('Status', 'Completed')
             ->orderBy('Date', 'desc')
             ->get();
@@ -335,15 +326,11 @@ class AdminController extends Controller
         ));
     }
 
-    /**
-     * Show certificate creation form
-     */
     public function certificatesCreate($appointmentId)
     {
-        $appointment = \App\Models\Appointment::with(['pet', 'user', 'service'])
+        $appointment = Appointment::with(['pet', 'user', 'service'])
             ->findOrFail($appointmentId);
         
-        // Check if certificate already exists
         $existingCertificate = \App\Services\CertificateService::getCertificateByAppointment($appointmentId);
         if ($existingCertificate) {
             return redirect()->route('admin.certificates.edit', $existingCertificate['id'])
@@ -353,9 +340,6 @@ class AdminController extends Controller
         return view('admin.certificates.create', compact('appointment'));
     }
 
-    /**
-     * Store new certificate
-     */
     public function certificatesStore(Request $request)
     {
         $request->validate([
@@ -384,13 +368,17 @@ class AdminController extends Controller
         $data['created_by'] = auth()->user()->First_Name ?? 'Admin';
         
         $certificate = \App\Services\CertificateService::createCertificate($data);
+
+        // Log certificate creation
+        AdminLogService::logCertificateAction($certificate['id'], 'created', $data['pet_name']);
         
-        // If action is approve, approve immediately
         if ($request->action === 'approve') {
             \App\Services\CertificateService::approveCertificate(
                 $certificate['id'], 
                 auth()->user()->First_Name ?? 'Admin'
             );
+            AdminLogService::logCertificateAction($certificate['id'], 'approved', $data['pet_name']);
+            
             return redirect()->route('admin.certificates.index')
                 ->with('success', 'Certificate created and approved successfully!');
         }
@@ -399,9 +387,6 @@ class AdminController extends Controller
             ->with('success', 'Certificate saved as draft.');
     }
 
-    /**
-     * Show certificate edit form
-     */
     public function certificatesEdit($id)
     {
         $certificate = \App\Services\CertificateService::getCertificate($id);
@@ -411,15 +396,12 @@ class AdminController extends Controller
                 ->with('error', 'Certificate not found.');
         }
         
-        $appointment = \App\Models\Appointment::with(['pet', 'user', 'service'])
+        $appointment = Appointment::with(['pet', 'user', 'service'])
             ->find($certificate['appointment_id']);
         
         return view('admin.certificates.create', compact('certificate', 'appointment'));
     }
 
-    /**
-     * Update certificate
-     */
     public function certificatesUpdate(Request $request, $id)
     {
         $request->validate([
@@ -449,13 +431,17 @@ class AdminController extends Controller
             return redirect()->route('admin.certificates.index')
                 ->with('error', 'Certificate not found.');
         }
+
+        // Log certificate update
+        AdminLogService::logCertificateAction($id, 'updated', $request->pet_name);
         
-        // If action is approve, approve the certificate
         if ($request->action === 'approve') {
             \App\Services\CertificateService::approveCertificate(
                 $id, 
                 auth()->user()->First_Name ?? 'Admin'
             );
+            AdminLogService::logCertificateAction($id, 'approved', $request->pet_name);
+            
             return redirect()->route('admin.certificates.index')
                 ->with('success', 'Certificate updated and approved!');
         }
@@ -464,9 +450,6 @@ class AdminController extends Controller
             ->with('success', 'Certificate updated successfully.');
     }
 
-    /**
-     * Approve certificate
-     */
     public function certificatesApprove($id)
     {
         $certificate = \App\Services\CertificateService::approveCertificate(
@@ -478,14 +461,14 @@ class AdminController extends Controller
             return redirect()->route('admin.certificates.index')
                 ->with('error', 'Certificate not found.');
         }
+
+        // Log certificate approval
+        AdminLogService::logCertificateAction($id, 'approved', $certificate['pet_name'] ?? 'Unknown');
         
         return redirect()->route('admin.certificates.index')
             ->with('success', 'Certificate approved and ready for download!');
     }
 
-    /**
-     * View/Download certificate PDF
-     */
     public function certificatesView($id)
     {
         $certificate = \App\Services\CertificateService::getCertificate($id);
@@ -494,7 +477,6 @@ class AdminController extends Controller
             abort(404, 'Certificate not found.');
         }
         
-        // If PDF doesn't exist, generate it
         if (empty($certificate['pdf_path'])) {
             $certificate['pdf_path'] = \App\Services\CertificateService::generatePdf($certificate);
         }
@@ -502,7 +484,6 @@ class AdminController extends Controller
         $pdfPath = storage_path('app/public/' . $certificate['pdf_path']);
         
         if (!file_exists($pdfPath)) {
-            // Regenerate if file is missing
             $certificate['pdf_path'] = \App\Services\CertificateService::generatePdf($certificate);
             $pdfPath = storage_path('app/public/' . $certificate['pdf_path']);
         }
@@ -512,11 +493,14 @@ class AdminController extends Controller
         ]);
     }
 
-    /**
-     * Delete certificate
-     */
     public function certificatesDelete($id)
     {
+        $certificate = \App\Services\CertificateService::getCertificate($id);
+        
+        if ($certificate) {
+            AdminLogService::logCertificateAction($id, 'deleted', $certificate['pet_name'] ?? 'Unknown');
+        }
+        
         $deleted = \App\Services\CertificateService::deleteCertificate($id);
         
         if (!$deleted) {
@@ -528,15 +512,10 @@ class AdminController extends Controller
             ->with('success', 'Certificate deleted successfully.');
     }
 
-    /**
-     * =====================================================
-     * REPORTS METHODS
-     * =====================================================
-     */
+    // =====================================================
+    // REPORTS METHODS
+    // =====================================================
 
-    /**
-     * Display reports index
-     */
     public function reports()
     {
         $reports = ReportService::getAllReports();
@@ -544,12 +523,8 @@ class AdminController extends Controller
         return view('admin.reports.index', compact('reports'));
     }
 
-    /**
-     * Generate a new weekly report
-     */
     public function generateReport(Request $request)
     {
-        // Determine date range
         if ($request->filled('custom_start') && $request->filled('custom_end')) {
             $startDate = Carbon::parse($request->custom_start)->startOfDay();
             $endDate = Carbon::parse($request->custom_end)->endOfDay();
@@ -564,12 +539,10 @@ class AdminController extends Controller
             $year = $dateRange['year'];
         }
 
-        // Get report data
         $antiRabiesData = ReportService::getAntiRabiesData($startDate, $endDate);
         $routineServicesData = ReportService::getRoutineServicesData($startDate, $endDate);
         $summary = ReportService::getWeeklySummary($startDate, $endDate);
 
-        // Create report record
         $reportData = [
             'type' => 'WEEKLY',
             'week_number' => $weekNumber,
@@ -584,27 +557,24 @@ class AdminController extends Controller
 
         $report = ReportService::createReport($reportData);
 
-        // Add the data to report for PDF generation
         $report['anti_rabies_data'] = $antiRabiesData;
         $report['routine_services_data'] = $routineServicesData;
 
-        // Generate separate PDFs
         $antiRabiesPdf = ReportService::generateAntiRabiesPdf($report);
         $routineServicesPdf = ReportService::generateRoutineServicesPdf($report);
 
-        // Update report with PDF paths
         ReportService::updateReport($report['id'], [
             'anti_rabies_pdf' => $antiRabiesPdf,
             'routine_services_pdf' => $routineServicesPdf,
         ]);
 
+        // Log report generation
+        AdminLogService::logReportGeneration('WEEKLY', $weekNumber, $year);
+
         return redirect()->route('admin.reports')
             ->with('success', "Weekly report for Week {$weekNumber}, {$year} has been generated successfully!");
     }
 
-    /**
-     * View Anti-Rabies report PDF
-     */
     public function viewAntiRabiesReport($id)
     {
         $report = ReportService::getReport($id);
@@ -613,7 +583,6 @@ class AdminController extends Controller
             abort(404, 'Report not found.');
         }
         
-        // If PDF doesn't exist, regenerate it
         if (empty($report['anti_rabies_pdf'])) {
             $startDate = Carbon::parse($report['start_date']);
             $endDate = Carbon::parse($report['end_date']);
@@ -640,9 +609,6 @@ class AdminController extends Controller
         ]);
     }
 
-    /**
-     * View Routine Services report PDF
-     */
     public function viewRoutineServicesReport($id)
     {
         $report = ReportService::getReport($id);
@@ -651,7 +617,6 @@ class AdminController extends Controller
             abort(404, 'Report not found.');
         }
         
-        // If PDF doesn't exist, regenerate it
         if (empty($report['routine_services_pdf'])) {
             $startDate = Carbon::parse($report['start_date']);
             $endDate = Carbon::parse($report['end_date']);
@@ -678,11 +643,14 @@ class AdminController extends Controller
         ]);
     }
 
-    /**
-     * Delete report
-     */
     public function deleteReport($id)
     {
+        $report = ReportService::getReport($id);
+        
+        if ($report) {
+            AdminLogService::log('REPORT_DELETED', "Report for Week {$report['week_number']}, {$report['year']} was deleted");
+        }
+        
         $deleted = ReportService::deleteReport($id);
         
         if (!$deleted) {
@@ -692,5 +660,179 @@ class AdminController extends Controller
         
         return redirect()->route('admin.reports')
             ->with('success', 'Report deleted successfully.');
+    }
+
+    // =====================================================
+    // SUPER ADMIN: ADMIN MANAGEMENT METHODS
+    // =====================================================
+
+    /**
+     * Display list of all admins (Super Admin only)
+     */
+    public function adminsIndex()
+    {
+        $admins = Admin::with('user', 'creator')
+            ->orderBy('is_super_admin', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        return view('admin.admins.index', compact('admins'));
+    }
+
+    /**
+     * Show form to create new admin (Super Admin only)
+     */
+    public function adminsCreate()
+    {
+        // Get verified users who are not already admins
+        $eligibleUsers = User::where('Verification_Status_ID', 2)
+            ->whereNotExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('admins')
+                    ->whereColumn('admins.User_ID', 'users.User_ID');
+            })
+            ->orderBy('First_Name')
+            ->get();
+        
+        return view('admin.admins.create', compact('eligibleUsers'));
+    }
+
+    /**
+     * Store new admin (Super Admin only)
+     */
+    public function adminsStore(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,User_ID',
+            'admin_role' => 'required|in:staff,admin',
+        ]);
+
+        // Check if user is already an admin
+        if (Admin::find($request->user_id)) {
+            return redirect()->back()->with('error', 'This user is already an admin.');
+        }
+
+        $user = User::findOrFail($request->user_id);
+
+        Admin::create([
+            'User_ID' => $request->user_id,
+            'is_super_admin' => false,
+            'admin_role' => $request->admin_role,
+            'created_by' => auth()->id(),
+        ]);
+
+        // Log admin creation
+        AdminLogService::logAdminManagement(
+            $request->user_id, 
+            'created', 
+            $user->First_Name . ' ' . $user->Last_Name
+        );
+
+        return redirect()->route('admin.admins.index')
+            ->with('success', $user->First_Name . ' ' . $user->Last_Name . ' has been added as ' . ucfirst($request->admin_role) . '.');
+    }
+
+    /**
+     * Update admin role (Super Admin only)
+     */
+    public function adminsUpdate(Request $request, $id)
+    {
+        $request->validate([
+            'admin_role' => 'required|in:staff,admin',
+        ]);
+
+        $admin = Admin::with('user')->findOrFail($id);
+        
+        // Prevent modifying super admins
+        if ($admin->isSuperAdmin()) {
+            return redirect()->back()->with('error', 'Cannot modify super admin accounts.');
+        }
+
+        $oldRole = $admin->admin_role;
+        $admin->update(['admin_role' => $request->admin_role]);
+
+        // Log role change
+        AdminLogService::logAdminManagement(
+            $id, 
+            "role_changed_from_{$oldRole}_to_{$request->admin_role}", 
+            $admin->user->First_Name . ' ' . $admin->user->Last_Name
+        );
+
+        return redirect()->route('admin.admins.index')
+            ->with('success', 'Admin role updated successfully.');
+    }
+
+    /**
+     * Remove admin privileges (Super Admin only)
+     */
+    public function adminsDestroy($id)
+    {
+        $admin = Admin::with('user')->findOrFail($id);
+        
+        // Prevent deleting super admins
+        if ($admin->isSuperAdmin()) {
+            return redirect()->back()->with('error', 'Cannot remove super admin accounts.');
+        }
+
+        // Prevent deleting yourself
+        if ($admin->User_ID == auth()->id()) {
+            return redirect()->back()->with('error', 'You cannot remove your own admin privileges.');
+        }
+
+        $userName = $admin->user->First_Name . ' ' . $admin->user->Last_Name;
+        
+        // Log before deleting
+        AdminLogService::logAdminManagement($id, 'removed', $userName);
+        
+        $admin->delete();
+
+        return redirect()->route('admin.admins.index')
+            ->with('success', $userName . ' has been removed from admin role.');
+    }
+
+    // =====================================================
+    // SUPER ADMIN: ACTIVITY LOGS METHODS
+    // =====================================================
+
+    /**
+     * Display activity logs (Super Admin only)
+     */
+    public function activityLogs(Request $request)
+    {
+        $query = SystemLog::with('user');
+
+        // Filter by normal admins only
+        $normalAdminIds = Admin::normalAdmins()->pluck('User_ID');
+        $query->whereIn('User_ID', $normalAdminIds);
+
+        // Filter by admin
+        if ($request->filled('admin_id')) {
+            $query->where('User_ID', $request->admin_id);
+        }
+
+        // Filter by action type
+        if ($request->filled('action')) {
+            $query->where('Action', 'like', '%' . $request->action . '%');
+        }
+
+        // Filter by date range
+        if ($request->filled('date_from')) {
+            $query->whereDate('Timestamp', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('Timestamp', '<=', $request->date_to);
+        }
+
+        $logs = $query->orderBy('Timestamp', 'desc')->paginate(25);
+
+        // Get list of normal admins for filter dropdown
+        $admins = Admin::normalAdmins()->with('user')->get();
+
+        // Get unique action types for filter
+        $actionTypes = SystemLog::whereIn('User_ID', $normalAdminIds)
+            ->distinct()
+            ->pluck('Action');
+
+        return view('admin.logs.index', compact('logs', 'admins', 'actionTypes'));
     }
 }

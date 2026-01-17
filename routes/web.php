@@ -106,7 +106,7 @@ Route::middleware('auth')->group(function () {
         ->name('certificates.view');
 });
 
-// Admin-Only Routes
+// Admin-Only Routes (Both Normal Admin and Super Admin can access)
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     // Admin Dashboard Overview
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
@@ -144,4 +144,17 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/reports/{id}/anti-rabies', [AdminController::class, 'viewAntiRabiesReport'])->name('reports.anti-rabies');
     Route::get('/reports/{id}/routine-services', [AdminController::class, 'viewRoutineServicesReport'])->name('reports.routine-services');
     Route::delete('/reports/{id}', [AdminController::class, 'deleteReport'])->name('reports.delete');
+});
+
+// Super Admin Only Routes
+Route::middleware(['auth', 'admin', 'superadmin'])->prefix('admin')->name('admin.')->group(function () {
+    // Admin Management (Super Admin Only)
+    Route::get('/admins', [AdminController::class, 'adminsIndex'])->name('admins.index');
+    Route::get('/admins/create', [AdminController::class, 'adminsCreate'])->name('admins.create');
+    Route::post('/admins', [AdminController::class, 'adminsStore'])->name('admins.store');
+    Route::put('/admins/{id}', [AdminController::class, 'adminsUpdate'])->name('admins.update');
+    Route::delete('/admins/{id}', [AdminController::class, 'adminsDestroy'])->name('admins.destroy');
+
+    // Activity Logs (Super Admin Only)
+    Route::get('/logs', [AdminController::class, 'activityLogs'])->name('logs');
 });
