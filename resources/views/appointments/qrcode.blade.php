@@ -41,16 +41,41 @@
                     <p class="text-2xl font-bold text-gray-800">VET-{{ str_pad($appointment->Appointment_ID, 6, '0', STR_PAD_LEFT) }}</p>
                 </div>
 
-                @if($qrCodeUrl)
-                    <div class="bg-white p-4 rounded-lg inline-block border-2 border-gray-200 mb-4">
-                        <img src="{{ $qrCodeUrl }}" alt="Appointment QR Code" class="w-64 h-64 mx-auto">
-                    </div>
-                @else
-                    <div class="bg-gray-100 p-8 rounded-lg mb-4">
-                        <p class="text-gray-500">QR Code is being generated...</p>
-                        <p class="text-gray-400 text-sm mt-2">Please refresh the page in a moment.</p>
-                    </div>
-                @endif
+                {{-- QR Code Display with Multiple Fallbacks --}}
+                <div class="bg-white p-4 rounded-lg inline-block border-2 border-gray-200 mb-4">
+                    @php
+                        // Generate the verification URL (same as QRCodeService)
+                        $token = substr(md5($appointment->Appointment_ID . '-' . $appointment->User_ID . '-' . $appointment->Date . config('app.key', 'veterinary-clinic-secret')), 0, 16);
+                        $verificationUrl = url("/appointments/verify/{$appointment->Appointment_ID}/{$token}");
+                        
+                        // Try multiple image sources
+                        $localPath = 'qrcodes/appointment_' . $appointment->Appointment_ID . '.png';
+                        $storagePath = storage_path('app/public/' . $localPath);
+                        $fileExists = file_exists($storagePath);
+                        
+                        // Generate QR code URL using external API as reliable fallback
+                        $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=' . urlencode($verificationUrl);
+                    @endphp
+                    
+                    {{-- Primary: Try local storage URL --}}
+                    @if($qrCodeUrl && $fileExists)
+                        <img 
+                            src="{{ $qrCodeUrl }}" 
+                            alt="Appointment QR Code" 
+                            class="w-64 h-64 mx-auto"
+                            id="qrImage"
+                            onerror="this.onerror=null; this.src='{{ $qrApiUrl }}';"
+                        >
+                    @else
+                        {{-- Fallback: Use QR Server API directly --}}
+                        <img 
+                            src="{{ $qrApiUrl }}" 
+                            alt="Appointment QR Code" 
+                            class="w-64 h-64 mx-auto"
+                            id="qrImage"
+                        >
+                    @endif
+                </div>
 
                 <p class="text-gray-600 text-sm mb-4">
                     Scan this QR code to verify your appointment
@@ -64,15 +89,14 @@
                     </div>
                 </div>
 
-                @if($qrCodeUrl)
-                    <a href="{{ route('appointments.qrcode.download', $appointment->Appointment_ID) }}" 
-                       class="inline-flex items-center gap-2 bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Download QR Code
-                    </a>
-                @endif
+                {{-- Download Button - Always show since we can generate QR on-the-fly --}}
+                <a href="{{ route('appointments.qrcode.download', $appointment->Appointment_ID) }}" 
+                   class="inline-flex items-center gap-2 bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Download QR Code
+                </a>
             </div>
 
             <!-- Appointment Details -->
@@ -115,6 +139,14 @@
                 </ul>
             </div>
         </div>
+        
+        {{-- Storage Link Warning (for developers) --}}
+        @if(!$fileExists && $qrCodeUrl)
+        <div class="mt-4 p-3 bg-orange-100 border border-orange-300 rounded-lg text-sm text-orange-800">
+            <strong>Note:</strong> If QR codes aren't displaying from local storage, run: 
+            <code class="bg-orange-200 px-1 rounded">php artisan storage:link</code>
+        </div>
+        @endif
     </div>
 
     <script>

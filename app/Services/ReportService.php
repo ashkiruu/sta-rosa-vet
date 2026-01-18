@@ -240,9 +240,11 @@ class ReportService
 
     /**
      * Get weekly statistics summary
+     * FIXED: Now also counts certificates from the JSON file to ensure sync
      */
     public static function getWeeklySummary($startDate, $endDate)
     {
+        // Count from appointments table
         $totalAppointments = Appointment::whereBetween('Date', [$startDate, $endDate])->count();
         $completedAppointments = Appointment::whereBetween('Date', [$startDate, $endDate])
             ->where('Status', 'Completed')->count();
@@ -251,12 +253,70 @@ class ReportService
         $approvedAppointments = Appointment::whereBetween('Date', [$startDate, $endDate])
             ->where('Status', 'Approved')->count();
 
+        // BUGFIX: Also count certificates issued in this period (from JSON)
+        // This handles cases where certificates were created but appointment status wasn't updated
+        $certificatesIssued = self::countCertificatesInPeriod($startDate, $endDate);
+        
+        // Use the higher of the two counts to ensure we don't undercount
+        // (in case appointment status and certificate creation are out of sync)
+        $completedCount = max($completedAppointments, $certificatesIssued);
+
         return [
             'total_appointments' => $totalAppointments,
-            'completed' => $completedAppointments,
+            'completed' => $completedCount,
             'pending' => $pendingAppointments,
             'approved' => $approvedAppointments,
+            'certificates_issued' => $certificatesIssued,
         ];
+    }
+
+    /**
+     * Count certificates issued in a date range
+     * This ensures we capture certificates even if appointment status wasn't updated
+     */
+    private static function countCertificatesInPeriod($startDate, $endDate)
+    {
+        $certificates = CertificateService::getAllCertificates('approved');
+        $count = 0;
+        
+        $start = Carbon::parse($startDate)->startOfDay();
+        $end = Carbon::parse($endDate)->endOfDay();
+        
+        foreach ($certificates as $cert) {
+            // Check by vaccination_date (the service date)
+            if (!empty($cert['vaccination_date'])) {
+                $certDate = Carbon::parse($cert['vaccination_date']);
+                if ($certDate->between($start, $end)) {
+                    $count++;
+                    continue;
+                }
+            }
+            
+            // Also check by approved_at date as fallback
+            if (!empty($cert['approved_at'])) {
+                $approvedDate = Carbon::parse($cert['approved_at']);
+                if ($approvedDate->between($start, $end)) {
+                    $count++;
+                }
+            }
+        }
+        
+        return $count;
+    }
+
+    /**
+     * Sync appointment status with certificate
+     * Call this when a certificate is approved to ensure the appointment is marked as Completed
+     */
+    public static function syncAppointmentStatus($appointmentId)
+    {
+        $appointment = Appointment::find($appointmentId);
+        if ($appointment && $appointment->Status !== 'Completed') {
+            $appointment->Status = 'Completed';
+            $appointment->save();
+            return true;
+        }
+        return false;
     }
 
     /**
