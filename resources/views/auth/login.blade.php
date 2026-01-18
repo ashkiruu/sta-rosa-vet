@@ -15,6 +15,13 @@
 
                 <div class="bg-white rounded-[2rem] shadow-2xl p-8 border border-gray-100">
                     
+                    {{-- SUCCESS MESSAGE (for password reset) --}}
+                    @if (session('status'))
+                        <div class="mb-4 p-3 bg-green-50 border-l-4 border-green-500 text-green-700 rounded-lg shadow-sm">
+                            <p class="text-[14px] font-semibold">{{ session('status') }}</p>
+                        </div>
+                    @endif
+
                     {{-- ERROR BLOCK --}}
                     @if ($errors->any())
                         <div class="mb-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-lg shadow-sm">
@@ -49,9 +56,14 @@
                             </div>
                         </div>
 
-                        <div class="flex items-center">
-                            <input type="checkbox" name="remember" class="rounded border-gray-300 text-red-700 focus:ring-red-500">
-                            <span class="ml-2 text-sm text-gray-600 font-semibold">Remember me</span>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <input type="checkbox" name="remember" class="rounded border-gray-300 text-red-700 focus:ring-red-500">
+                                <span class="ml-2 text-sm text-gray-600 font-semibold">Remember me</span>
+                            </div>
+                            <a href="{{ route('password.request') }}" class="text-[12px] font-semibold text-red-700 hover:text-red-900 hover:underline">
+                                Forgot Password?
+                            </a>
                         </div>
 
                         <div class="flex items-center justify-end gap-3 pt-2">
