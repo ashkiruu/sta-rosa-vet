@@ -7,6 +7,8 @@ use App\Http\Controllers\PetController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\Auth\ForgotPasswordController;
+use App\Http\Controllers\Auth\ResetPasswordController;
 
 
 
@@ -158,3 +160,20 @@ Route::middleware(['auth', 'admin', 'superadmin'])->prefix('admin')->name('admin
     // Activity Logs (Super Admin Only)
     Route::get('/logs', [AdminController::class, 'activityLogs'])->name('logs');
 });
+
+// Forgot Password Routes
+Route::get('/forgot-password', [ForgotPasswordController::class, 'showForm'])
+    ->middleware('guest')
+    ->name('password.request');
+
+Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLink'])
+    ->middleware('guest')
+    ->name('password.email');
+
+Route::get('/reset-password/{token}', [ResetPasswordController::class, 'showResetForm'])
+    ->middleware('guest')
+    ->name('password.reset');
+
+Route::post('/reset-password', [ResetPasswordController::class, 'reset'])
+    ->middleware('guest')
+    ->name('password.update');
