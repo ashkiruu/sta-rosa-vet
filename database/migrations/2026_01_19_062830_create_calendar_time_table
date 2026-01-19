@@ -1,0 +1,33 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration {
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('calendar_time', function (Blueprint $table) {
+            $table->increments('Slot_ID'); 
+            // 'Val' stores the 24-hour format (e.g., 08:10) for logic/database comparison
+            $table->string('Slot_Val', 10)->unique(); 
+            // 'Display' stores the human-readable format (e.g., 08:10 AM) for the UI
+            $table->string('Slot_Display', 20); 
+            // Toggle to disable specific slots if the clinic is partially closed
+            $table->boolean('Is_Active')->default(true); 
+            
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('master_time_slots');
+    }
+};

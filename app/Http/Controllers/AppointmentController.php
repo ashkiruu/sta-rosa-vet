@@ -9,6 +9,7 @@ use App\Services\QRCodeService;
 use App\Services\CertificateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\CalendarTime;
 
 class AppointmentController extends Controller
 {
@@ -23,6 +24,16 @@ class AppointmentController extends Controller
         $notifications = $this->checkForStatusChanges($appointments);
 
         return view('appointments.index', compact('appointments', 'notifications'));
+    }
+
+    public function getTimeSlots()
+    {
+        $slots = \DB::table('calendar_time')
+                    ->where('Is_Active', true)
+                    ->orderBy('Slot_Val', 'asc')
+                    ->get();
+
+        return response()->json($slots);
     }
 
     /**

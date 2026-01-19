@@ -1,710 +1,433 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Appointment Booking</title>
-    @vite([
-        'resources/css/app.css',
-        'resources/css/create_appointment.css',
-        'resources/js/app.js'
-    ])
-    <style>
-        /* Validation error styles */
-        .validation-error {
-            color: #dc2626;
-            font-size: 0.875rem;
-            margin-top: 0.5rem;
-            display: none;
-            align-items: center;
-            gap: 0.25rem;
-        }
-        .validation-error.show {
-            display: flex;
-        }
-        .field-error {
-            border: 2px solid #dc2626 !important;
-            animation: shake 0.5s ease-in-out;
-        }
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            20%, 60% { transform: translateX(-5px); }
-            40%, 80% { transform: translateX(5px); }
-        }
-        .section-container.field-error {
-            box-shadow: 0 0 0 2px #dc2626;
-            border-radius: 0.5rem;
-        }
-        .calendar-container.field-error {
-            border: 2px solid #dc2626 !important;
-        }
-        .time-dropdown-toggle.field-error {
-            border: 2px solid #dc2626 !important;
-        }
-        .field-label {
-            display: block;
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: #374151;
-            margin-bottom: 0.5rem;
-        }
-        .field-label .required {
-            color: #dc2626;
-        }
-    </style>
-</head>
-<body class="min-h-screen">
-    <!-- Breadcrumb -->
-    <div class="text-gray-400 text-sm py-3 px-6 relative z-10">
-        <a href="{{ route('dashboard') }}" class="hover:text-gray-600">Dashboard</a> / Appointment Booking
-    </div>
-    
-    <!-- Header -->
-    <nav class="bg-gradient-to-r from-red-800 to-red-700 text-white px-6 py-3 relative z-10">
-        <div class="container mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center overflow-hidden">
-                    <span class="text-red-700 font-bold text-lg">🐾</span>
-                </div>
-                <div class="leading-tight">
-                    <p class="text-xs text-red-200">City of</p>
-                    <h1 class="font-bold text-lg">Veterinary</h1>
-                    <p class="text-xs text-red-200">Office</p>
-                </div>
-            </div>
-            <div class="flex gap-4 items-center">
-                <a href="{{ route('dashboard') }}" class="text-white hover:underline text-sm hidden sm:block">
-                    ← Back to Dashboard
-                </a>
-                <button class="w-10 h-10 flex items-center justify-center text-white hover:bg-red-600 rounded-lg transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                    </svg>
-                </button>
-                <button class="w-10 h-10 flex items-center justify-center text-white hover:bg-red-600 rounded-lg transition border border-white/30">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
-                </button>
-            </div>
+<x-dashboardheader-layout>
+    <head>
+        @vite([
+            'resources/css/app.css',
+            'resources/css/create_appointment.css',
+            'resources/js/app.js'
+        ])
+    </head>
+    <body class="min-h-screen">
+            <div class="max-w-5xl mx-auto text-gray-400 text-xs py-4 px-6 uppercase font-black tracking-widest">
+            <a href="{{ route('dashboard') }}" class="hover:text-red-700 transition-colors">Dashboard</a> 
+            <span class="mx-2">/</span>
+            <span class="font-black uppercase tracking-widest text-red-700">Confirm Appointment</span>
         </div>
-    </nav>
 
-    <div class="container mx-auto mt-8 px-4 max-w-4xl pb-12 relative z-10">
-        <div class="main-card">
-            
-            {{-- Server-side validation errors --}}
-            @if ($errors->any())
-                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4">
-                    <div class="flex items-center gap-2 mb-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-                        </svg>
-                        <strong>Please fix the following errors:</strong>
-                    </div>
-                    <ul class="list-disc list-inside">
-                        @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
+        <div class="max-w-5xl mx-auto px-4 pb-12">
+            {{-- Main Flattened Landscape Card --}}
+            <div class="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 overflow-hidden">
+                
+                <div class="p-8 md:p-12">
+                    {{-- Centered Header & Progress --}}
+                    <div class="flex flex-col items-center justify-center mb-12">
+                        <h2 class="text-3xl md:text-4xl font-black text-gray-900 uppercase tracking-tight text-center">Book Appointment</h2>
+                        <p class="text-red-700 font-bold uppercase text-xs tracking-[0.2em] mt-2 mb-8">Step 1: Appointment Details</p>
 
-            <form method="POST" action="{{ route('appointments.preview') }}" id="appointmentForm" novalidate>
-                @csrf
-
-                <!-- Service Type Selection -->
-                <div class="mb-6">
-                    <label class="field-label">Select Service Type <span class="required">*</span></label>
-                    <div class="flex flex-wrap gap-4 bg-white/60 rounded-lg p-3 section-container" id="serviceContainer">
-                        @foreach($services as $service)
-                            <label class="service-btn" data-service="{{ $service->Service_ID }}">
-                                <input type="radio" name="Service_ID" value="{{ $service->Service_ID }}" class="hidden" {{ old('Service_ID') == $service->Service_ID ? 'checked' : '' }}>
-                                <span class="radio-dot"></span>
-                                <span>{{ $service->Service_Name }}</span>
-                            </label>
-                        @endforeach
-                    </div>
-                    <p class="validation-error" id="serviceError">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-                        </svg>
-                        Please select a service type
-                    </p>
-                </div>
-
-                <!-- Calendar and Time Section -->
-                <div class="flex flex-col md:flex-row gap-4 mb-6">
-                    <!-- Calendar -->
-                    <div class="flex-1">
-                        <label class="field-label">Select Date <span class="required">*</span></label>
-                        <div class="calendar-container" id="calendarContainer">
-                            <div class="flex justify-between items-center mb-4">
-                                <button type="button" id="prevMonth" class="calendar-nav-btn">
-                                    ←
-                                </button>
-                                <h3 class="text-sm font-semibold text-gray-700" id="monthYear">January 2026</h3>
-                                <button type="button" id="nextMonth" class="calendar-nav-btn">
-                                    →
-                                </button>
-                            </div>
-
-                            <!-- Day Headers with Weekend Highlighting -->
-                            <div class="grid grid-cols-7 gap-1 mb-2">
-                                <div class="calendar-day-header text-red-400">Sun</div>
-                                <div class="calendar-day-header">Mon</div>
-                                <div class="calendar-day-header">Tue</div>
-                                <div class="calendar-day-header">Wed</div>
-                                <div class="calendar-day-header">Thu</div>
-                                <div class="calendar-day-header">Fri</div>
-                                <div class="calendar-day-header text-red-400">Sat</div>
-                            </div>
-
-                            <div id="calendarDays" class="grid grid-cols-7 gap-1"></div>
-                            
-                            <!-- Schedule Legend -->
-                            <div class="mt-3 pt-3 border-t border-gray-200">
-                                <div class="flex flex-wrap gap-3 text-xs">
-                                    <div class="flex items-center gap-1">
-                                        <span class="w-3 h-3 rounded bg-gray-300"></span>
-                                        <span class="text-gray-500">Closed</span>
-                                    </div>
-                                    <div class="flex items-center gap-1">
-                                        <span class="w-3 h-3 rounded bg-red-200"></span>
-                                        <span class="text-gray-500">Fully Booked</span>
-                                    </div>
-                                </div>
+                        {{-- Progress Bar --}}
+                        <div class="flex items-center justify-center w-full max-w-xs relative">
+                            <div class="absolute top-1/2 left-0 w-full h-0.5 bg-gray-200 -translate-y-1/2 z-0"></div>
+                            <div class="flex justify-between w-full relative z-10">
+                                <div class="flex items-center justify-center w-8 h-8 rounded-full bg-red-700 text-white text-xs font-black shadow-lg border-4 border-white">1</div>
+                                <div class="flex items-center justify-center w-8 h-8 rounded-full bg-gray-300 text-white text-xs font-black border-4 border-white">2</div>
                             </div>
                         </div>
-                        <p class="validation-error" id="dateError">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-                            </svg>
-                            Please select a date
-                        </p>
-                        <input type="hidden" name="Date" id="selectedDate" value="{{ old('Date') }}">
                     </div>
 
-                    <!-- Time Slot Dropdown -->
-                    <div class="time-dropdown-wrapper">
-                        <label class="field-label">Select Time <span class="required">*</span></label>
-                        <div class="time-dropdown" id="timeDropdown">
-                            <button type="button" class="time-dropdown-toggle" id="timeToggle">
-                                <span id="selectedTimeText">Time</span>
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                                </svg>
-                            </button>
-                            
-                            <div class="time-dropdown-menu" id="timeMenu">
-                                <div class="time-slot" data-value="08:00" data-display="08:00 AM">08:00 AM</div>
-                                <div class="time-slot" data-value="08:10" data-display="08:10 AM">08:10 AM</div>
-                                <div class="time-slot" data-value="08:20" data-display="08:20 AM">08:20 AM</div>
-                                <div class="time-slot" data-value="08:30" data-display="08:30 AM">08:30 AM</div>
-                                <div class="time-slot" data-value="08:45" data-display="08:45 AM">08:45 AM</div>
-                                <div class="time-slot" data-value="09:00" data-display="09:00 AM">09:00 AM</div>
-                                <div class="time-slot" data-value="09:10" data-display="09:10 AM">09:10 AM</div>
-                                <div class="time-slot" data-value="09:20" data-display="09:20 AM">09:20 AM</div>
-                                <div class="time-slot" data-value="09:30" data-display="09:30 AM">09:30 AM</div>
-                                <div class="time-slot" data-value="09:40" data-display="09:40 AM">09:40 AM</div>
-                                <div class="time-slot" data-value="09:50" data-display="09:50 AM">09:50 AM</div>
-                                <div class="time-slot" data-value="10:00" data-display="10:00 AM">10:00 AM</div>
-                                <div class="time-slot" data-value="10:10" data-display="10:10 AM">10:10 AM</div>
-                                <div class="time-slot" data-value="10:20" data-display="10:20 AM">10:20 AM</div>
-                                <div class="time-slot" data-value="10:30" data-display="10:30 AM">10:30 AM</div>
-                                <div class="time-slot" data-value="10:40" data-display="10:40 AM">10:40 AM</div>
-                                <div class="time-slot" data-value="10:45" data-display="10:45 AM">10:45 AM</div>
+                    {{-- Validation Errors --}}
+                    @if ($errors->any())
+                        <div class="mb-10 bg-red-50 border-l-4 border-red-600 p-5 rounded-r-xl">
+                            <h3 class="text-red-800 font-black uppercase text-[10px] tracking-widest mb-2">Check the following:</h3>
+                            <ul class="text-xs text-red-700 list-disc list-inside space-y-1 font-medium">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
+                    <form method="POST" action="{{ route('appointments.preview') }}" id="appointmentForm" class="space-y-12" novalidate>
+                        @csrf
+
+                        {{-- Section 1: Service Selection --}}
+                        <section>
+                            <div class="flex items-center gap-3 mb-6">
+                                <span class="text-red-700 font-black uppercase text-xs tracking-widest">01. Select Service</span>
                             </div>
                             
-                            <input type="hidden" name="Time" id="timeInput" value="{{ old('Time') }}">
-                        </div>
-                        <p class="validation-error" id="timeError">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-                            </svg>
-                            Please select a time
-                        </p>
-                    </div>
-                </div>
-
-                <!-- Pet Selection -->
-                <div class="mb-6">
-                    <div class="pet-section-header">Choose Your Pet <span class="required">*</span></div>
-                    
-                    @if($pets->isEmpty())
-                        <div class="pet-section-body text-center">
-                            <p class="text-gray-600 mb-4">You don't have any registered pets yet.</p>
-                            <a href="{{ route('pets.create') }}" class="add-pet-btn">
-                                <span>➕</span>
-                                <span>Register a Pet First</span>
-                            </a>
-                        </div>
-                        <p class="validation-error show" id="noPetError">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-                            </svg>
-                            You must register a pet before booking an appointment
-                        </p>
-                    @else
-                        <div class="pet-section-body section-container" id="petContainer">
-                            <div class="flex flex-wrap gap-3">
-                                @foreach($pets as $pet)
-                                    <label class="pet-btn">
-                                        <input type="radio" name="Pet_ID" value="{{ $pet->Pet_ID }}" class="hidden" {{ old('Pet_ID') == $pet->Pet_ID ? 'checked' : '' }}>
-                                        <span class="pet-icon">🐕</span>
-                                        <span>{{ $pet->Pet_Name }}</span>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                @foreach($services as $service)
+                                    <label class="relative group cursor-pointer h-full">
+                                        <input type="radio" name="Service_ID" value="{{ $service->Service_ID }}" class="peer hidden" {{ old('Service_ID') == $service->Service_ID ? 'checked' : '' }} required>
+                                        <div class="h-full min-h-[80px] flex flex-col justify-center border-2 border-gray-100 rounded-2xl p-5 transition-all 
+                                                    hover:border-red-600 hover:bg-red-50/50
+                                                    peer-checked:border-red-600 peer-checked:bg-red-50/50">
+                                            
+                                            <span class="block text-center font-black text-gray-700 uppercase text-[11px] tracking-wider group-hover:text-red-700 transition-colors">
+                                                {{ $service->Service_Name }}
+                                            </span>
+                                        </div>
                                     </label>
                                 @endforeach
-                                
-                                <a href="{{ route('pets.create') }}" class="add-pet-btn">
-                                    <span>➕</span>
-                                    <span>Add Pet</span>
-                                </a>
                             </div>
+                        </section>
+
+                        {{-- Section 2: Date & Time --}}
+                        <section>
+                            <div class="flex items-center gap-3 mb-6">
+                                <span class="text-red-700 font-black uppercase text-xs tracking-widest">02. Schedule Slot</span>
+                            </div>
+
+                            <div class="flex flex-col lg:flex-row gap-8">
+                                {{-- Calendar --}}
+                                <div class="flex-1 bg-gray-50/50 rounded-3xl p-6 border border-gray-100">
+                                    <div class="flex justify-between items-center mb-6">
+                                        <h3 id="monthYear" class="font-black text-gray-900 uppercase tracking-widest text-[11px]"></h3>
+                                        <div class="flex gap-2">
+                                            <button type="button" id="prevMonth" class="p-2 bg-white border border-red-600 rounded-lg text-black hover:text-red-700 transition-colors text-xs font-black">PREV</button>
+                                            <button type="button" id="nextMonth" class="p-2 bg-white border border-red-600 rounded-lg text-black hover:text-red-700 transition-colors text-xs font-black">NEXT</button>
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-7 gap-1 text-center mb-4">
+                                        @foreach(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as $day)
+                                            <span class="text-[9px] font-black text-gray-400 uppercase tracking-tighter">{{ $day }}</span>
+                                        @endforeach
+                                    </div>
+                                    <div id="calendarDays" class="grid grid-cols-7 gap-2"></div>
+                                    <input type="hidden" name="Date" id="selectedDate" value="{{ old('Date') }}">
+                                </div>
+
+                                {{-- Time Selection --}}
+                                <div class="w-full lg:w-72">
+                                    <x-input-label value="Available Slots" class="text-red-700 font-bold uppercase text-[10px] tracking-widest mb-2" />
+                                    <div class="relative">
+                                        <button type="button" id="timeToggle" 
+                                            class="group w-full flex justify-between items-center bg-gray-50/50 border-2 border-gray-100 rounded-xl px-5 py-3.5 text-left transition-all 
+                                                hover:border-red-600 hover:bg-red-50/50 focus:border-red-600 outline-none">
+                                            
+                                            <span id="selectedTimeText" class="text-gray-500 font-bold text-xs uppercase tracking-widest group-hover:text-red-700 transition-colors">
+                                                Select a time
+                                            </span>
+                                            
+                                            <svg class="w-4 h-4 text-gray-400 group-hover:text-red-700 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path d="M19 9l-7 7-7-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                            </svg>
+                                        </button>
+
+                                        <div id="timeMenu" class="hidden absolute left-0 w-full mt-2 bg-white border border-gray-100 shadow-2xl rounded-2xl z-50 max-h-60 overflow-y-auto p-2">
+                                            {{-- Populated via JS --}}
+                                        </div>
+                                    </div>
+                                    <input type="hidden" name="Time" id="timeInput" value="{{ old('Time') }}">
+                                </div>
+                            </div>
+                        </section>
+
+                        {{-- Section 3: Pet Selection --}}
+                        <section>
+                            <div class="flex items-center gap-3 mb-6">
+                                <span class="text-red-700 font-black uppercase text-xs tracking-widest">03. Choose Patient</span>
+                            </div>
+
+                            @if($pets->isEmpty())
+                                <div class="text-center py-12 bg-gray-50/50 rounded-3xl border-2 border-dashed border-gray-200">
+                                    <p class="text-gray-400 text-xs font-black uppercase tracking-widest mb-4">No pets found</p>
+                                    <a href="{{ route('pets.create') }}" class="inline-flex items-center px-6 py-3 bg-red-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-800 transition-all shadow-lg">
+                                        Register Pet
+                                    </a>
+                                </div>
+                            @else
+                                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                    @foreach($pets as $pet)
+                                        <label class="cursor-pointer group h-full">
+                                            <input type="radio" name="Pet_ID" value="{{ $pet->Pet_ID }}" class="peer hidden" {{ old('Pet_ID') == $pet->Pet_ID ? 'checked' : '' }} required>
+                                            
+                                            <div class="h-full min-h-[110px] p-4 bg-white border-2 border-gray-100 rounded-2xl text-center transition-all flex flex-col items-center justify-center
+                                                        group-hover:border-red-600 group-hover:bg-red-50/50
+                                                        peer-checked:border-red-600 peer-checked:bg-red-50/50">
+                                                
+                                                {{-- Paw Icon Integration --}}
+                                                <div class="w-10 h-10 mb-3 bg-gray-50 rounded-xl flex items-center justify-center text-lg transition-colors group-hover:bg-white peer-checked:bg-white">
+                                                    🐾
+                                                </div>
+
+                                                <div class="font-black text-gray-700 text-[10px] uppercase truncate tracking-widest transition-colors group-hover:text-red-700 peer-checked:text-red-700">
+                                                    {{ $pet->Pet_Name }}
+                                                </div>
+                                            </div>
+                                        </label>
+                                    @endforeach
+
+                                    <a href="{{ route('pets.create') }}" class="flex flex-col items-center justify-center p-4 border-2 border-dashed border-red-600 rounded-2xl transition-all text-red-600 hover:text-red-700 hover:border-red-600 hover:bg-red-50/50 min-h-[110px]">
+                                        <span class="text-xl mb-1">＋</span>
+                                        <span class="text-[9px] font-black uppercase tracking-widest">Add New</span>
+                                    </a>
+                                </div>
+                            @endif
+                        </section>
+
+                        {{-- Action Footer --}}
+                        <div class="pt-10 flex flex-col md:flex-row items-center justify-between border-t border-gray-100 gap-6">
+                            <p class="text-[10px] text-gray-400 font-black uppercase tracking-widest text-center md:text-left">
+                                Need help? <a href="#" class="text-red-700 hover:underline">Contact Clinic</a>
+                            </p>
+
+                            <button type="submit" id="submitBtn"
+                                class="w-full md:w-64 bg-red-700 hover:bg-red-800 text-white font-black py-4 rounded-2xl shadow-lg transition-all active:scale-95 uppercase tracking-widest text-sm disabled:opacity-50"
+                                {{ $pets->isEmpty() ? 'disabled' : '' }}>
+                                Continue
+                            </button>
                         </div>
-                        <p class="validation-error" id="petError">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-                            </svg>
-                            Please select a pet
-                        </p>
-                    @endif
+                    </form>
                 </div>
-
-                <!-- Location (Hidden, default to office) -->
-                <input type="hidden" name="Location" value="Veterinary Office">
-                <input type="hidden" name="Special_Notes" value="">
-
-                <!-- Submit Button -->
-                <div class="text-right">
-                    @if($pets->isEmpty())
-                        <button type="button" class="next-btn opacity-50 cursor-not-allowed" disabled title="Please register a pet first">
-                            Next
-                        </button>
-                    @else
-                        <button type="submit" class="next-btn" id="submitBtn">
-                            Next
-                        </button>
-                    @endif
-                </div>
-            </form>
+            </div>
         </div>
-    </div>
 
     <script>
         // =====================================================
-        // CLINIC SCHEDULE CONFIGURATION
+        // STATE & CONFIGURATION
         // =====================================================
-        let clinicSchedule = {
-            default_closed_days: [0, 6],
-            opened_dates: [],
-            closed_dates: []
-        };
-        let scheduleLoaded = false;
+        let clinicSchedule = { default_closed_days: [0, 6], opened_dates: [], closed_dates: [] };
+        let masterTimeSlots = []; 
+        let currentTakenTimes = []; // NEW: Track taken times globally
+        let currentDate = new Date(); 
+        const todayDate = new Date(); 
+        let selectedDate = document.getElementById('selectedDate').value || null;
+
+        // =====================================================
+        // CORE INITIALIZATION
+        // =====================================================
+        document.addEventListener('DOMContentLoaded', function() {
+            initServiceSelection();
+            initPetSelection();
+            initTimeDropdown();
+            initCalendarNavigation();
+            
+            Promise.all([
+                fetchClinicSchedule(),
+                fetchMasterTimeSlots()
+            ]).then(() => {
+                renderCalendar();
+                if (selectedDate) fetchTakenTimes(selectedDate);
+            });
+        });
+
+        // =====================================================
+        // FETCHING DATA
+        // =====================================================
+        async function fetchMasterTimeSlots() {
+            try {
+                const response = await fetch('/appointments/time-slots');
+                if (response.ok) {
+                    masterTimeSlots = await response.json();
+                }
+            } catch (error) {
+                console.error('Error loading time slots:', error);
+            }
+        }
+
+        async function fetchTakenTimes(date) {
+            if (!date) return;
+            try {
+                const res = await fetch(`/appointments/taken-times?date=${date}`);
+                const data = await res.json();
+                currentTakenTimes = data.takenTimes || []; // Store globally
+                renderTimeSlots(currentTakenTimes);
+            } catch (err) {
+                console.error('Fetch Times Error:', err);
+            }
+        }
+
+        // =====================================================
+        // TIME DROPDOWN RENDERING
+        // =====================================================
+        function renderTimeSlots(takenTimes = currentTakenTimes) {
+            const timeMenu = document.getElementById('timeMenu');
+            const timeInput = document.getElementById('timeInput');
+            const selectedTimeText = document.getElementById('selectedTimeText');
+            timeMenu.innerHTML = '';
+
+            // 1. Check if date is selected
+            if (!selectedDate) {
+                timeMenu.innerHTML = '<div class="px-4 py-8 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Select a date on the<br>calendar first</div>';
+                return;
+            }
+
+            // 2. Render Slots
+            masterTimeSlots.forEach(slot => {
+                const isTaken = takenTimes.includes(slot.Slot_Val);
+                const div = document.createElement('div');
+                
+                // Fixed styling logic
+                div.className = `px-5 py-3.5 text-[11px] font-black tracking-widest transition-colors border-b border-gray-50 last:border-0 uppercase 
+                    ${isTaken 
+                        ? 'bg-gray-100 text-gray-300 cursor-not-allowed' 
+                        : 'hover:bg-red-50 text-gray-700 hover:text-red-700 cursor-pointer'}`;
+                
+                div.textContent = isTaken ? `${slot.Slot_Display} (FULL)` : slot.Slot_Display;
+
+                // 3. Strict Click Logic: Only allow if NOT taken
+                div.onclick = (e) => {
+                    if (isTaken) {
+                        e.stopPropagation();
+                        return; // Do absolutely nothing if full
+                    }
+                    
+                    timeInput.value = slot.Slot_Val;
+                    selectedTimeText.textContent = slot.Slot_Display;
+                    selectedTimeText.className = "text-gray-900 font-black tracking-widest uppercase";
+                    timeMenu.classList.add('hidden');
+                };
+                
+                timeMenu.appendChild(div);
+            });
+        }
+
+        // =====================================================
+        // CALENDAR RENDERING
+        // =====================================================
+        function renderCalendarDays() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const todayReset = new Date().setHours(0,0,0,0);
+
+            let daysHTML = '';
+            
+            for (let i = 0; i < firstDay; i++) {
+                daysHTML += `<div class="aspect-square border-2 border-transparent"></div>`;
+            }
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const isPast = new Date(dateStr + 'T00:00:00').getTime() < todayReset;
+                const isClosed = isDateClosed(dateStr);
+                const isSelected = selectedDate === dateStr;
+                
+                let stateClass = "text-gray-700 hover:border-red-700 hover:text-red-700 cursor-pointer border-gray-100 hover:bg-gray-50";
+                
+                if (isPast || isClosed) {
+                    stateClass = "text-gray-200 cursor-not-allowed opacity-40 border-transparent bg-gray-50/30";
+                }
+                
+                if (isSelected) {
+                    stateClass = "bg-red-700 text-white font-black border-red-700 shadow-md transform scale-105 z-10";
+                }
+
+                daysHTML += `
+                    <div class="calendar-day aspect-square flex items-center justify-center rounded-xl border-2 transition-all text-[11px] font-black ${stateClass}" 
+                        onclick="${(isPast || isClosed) ? '' : `selectDate('${dateStr}')`}">
+                        ${day}
+                    </div>`;
+            }
+            document.getElementById('calendarDays').innerHTML = daysHTML;
+        }
+
+        // =====================================================
+        // UTILITIES & NAVIGATION
+        // =====================================================
+        function initCalendarNavigation() {
+            const prevBtn = document.getElementById('prevMonth');
+            const nextBtn = document.getElementById('nextMonth');
+            prevBtn.addEventListener('click', () => {
+                if (currentDate.getMonth() > todayDate.getMonth() || currentDate.getFullYear() > todayDate.getFullYear()) {
+                    currentDate.setMonth(currentDate.getMonth() - 1);
+                    renderCalendar();
+                }
+            });
+            nextBtn.addEventListener('click', () => {
+                currentDate.setMonth(currentDate.getMonth() + 1);
+                renderCalendar();
+            });
+        }
+
+        function renderCalendar() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            document.getElementById('monthYear').textContent = new Date(year, month)
+                .toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase();
+            
+            const prevBtn = document.getElementById('prevMonth');
+            const isCurrentMonth = year === todayDate.getFullYear() && month === todayDate.getMonth();
+            prevBtn.disabled = isCurrentMonth;
+            prevBtn.classList.toggle('opacity-20', isCurrentMonth);
+            prevBtn.classList.toggle('cursor-not-allowed', isCurrentMonth);
+
+            renderCalendarDays(); 
+        }
+
+        function initTimeDropdown() {
+            const timeToggle = document.getElementById('timeToggle');
+            const timeMenu = document.getElementById('timeMenu');
+
+            timeToggle.addEventListener('click', (e) => { 
+                e.stopPropagation(); 
+                // Re-render whenever opened to show current state or "select date" message
+                renderTimeSlots(currentTakenTimes);
+                timeMenu.classList.toggle('hidden'); 
+            });
+
+            document.addEventListener('click', () => timeMenu.classList.add('hidden'));
+        }
 
         async function fetchClinicSchedule() {
             try {
                 const response = await fetch('/appointments/clinic-schedule');
                 if (response.ok) {
                     clinicSchedule = await response.json();
-                    scheduleLoaded = true;
-                    
-                    if (selectedDate && isDateClosed(selectedDate)) {
-                        selectedDate = null;
-                        document.getElementById('selectedDate').value = '';
-                        timeInput.value = '';
-                        selectedTimeText.textContent = 'Time';
-                        timeSlots.forEach(s => s.classList.remove('selected'));
-                    }
+                    if (selectedDate && isDateClosed(selectedDate)) resetDateTime();
                 }
-            } catch (error) {
-                console.error('Failed to load clinic schedule:', error);
-                scheduleLoaded = true;
-            }
+            } catch (error) { console.error('Schedule Load Error:', error); }
         }
 
         function isDateClosed(dateStr) {
             const date = new Date(dateStr + 'T00:00:00');
             const dayOfWeek = date.getDay();
-            
-            if (clinicSchedule.opened_dates && clinicSchedule.opened_dates.includes(dateStr)) {
-                return false;
-            }
-            
-            if (clinicSchedule.closed_dates && clinicSchedule.closed_dates.includes(dateStr)) {
-                return true;
-            }
-            
-            return clinicSchedule.default_closed_days && clinicSchedule.default_closed_days.includes(dayOfWeek);
+            if (clinicSchedule.opened_dates?.includes(dateStr)) return false;
+            if (clinicSchedule.closed_dates?.includes(dateStr)) return true;
+            return clinicSchedule.default_closed_days?.includes(dayOfWeek);
         }
 
-        // =====================================================
-        // VALIDATION FUNCTIONS
-        // =====================================================
-        function showError(containerId, errorId, message = null) {
-            const container = document.getElementById(containerId);
-            const error = document.getElementById(errorId);
-            if (container) container.classList.add('field-error');
-            if (error) {
-                error.classList.add('show');
-                if (message) {
-                    // Update message text (keep the icon)
-                    const textNode = error.childNodes[error.childNodes.length - 1];
-                    if (textNode.nodeType === Node.TEXT_NODE) {
-                        textNode.textContent = ' ' + message;
-                    }
-                }
-            }
-        }
-
-        function hideError(containerId, errorId) {
-            const container = document.getElementById(containerId);
-            const error = document.getElementById(errorId);
-            if (container) container.classList.remove('field-error');
-            if (error) error.classList.remove('show');
-        }
-
-        function validateForm() {
-            let isValid = true;
-            let firstErrorElement = null;
-
-            // Validate Service
-            const serviceSelected = document.querySelector('input[name="Service_ID"]:checked');
-            if (!serviceSelected) {
-                showError('serviceContainer', 'serviceError');
-                if (!firstErrorElement) firstErrorElement = document.getElementById('serviceContainer');
-                isValid = false;
-            } else {
-                hideError('serviceContainer', 'serviceError');
-            }
-
-            // Validate Date
-            const dateValue = document.getElementById('selectedDate').value;
-            if (!dateValue) {
-                showError('calendarContainer', 'dateError');
-                if (!firstErrorElement) firstErrorElement = document.getElementById('calendarContainer');
-                isValid = false;
-            } else if (isDateClosed(dateValue)) {
-                showError('calendarContainer', 'dateError', 'Selected date is closed');
-                if (!firstErrorElement) firstErrorElement = document.getElementById('calendarContainer');
-                isValid = false;
-            } else {
-                hideError('calendarContainer', 'dateError');
-            }
-
-            // Validate Time
-            const timeValue = document.getElementById('timeInput').value;
-            if (!timeValue) {
-                showError('timeToggle', 'timeError');
-                if (!firstErrorElement) firstErrorElement = document.getElementById('timeToggle');
-                isValid = false;
-            } else {
-                hideError('timeToggle', 'timeError');
-            }
-
-            // Validate Pet
-            const petSelected = document.querySelector('input[name="Pet_ID"]:checked');
-            if (!petSelected) {
-                showError('petContainer', 'petError');
-                if (!firstErrorElement) firstErrorElement = document.getElementById('petContainer');
-                isValid = false;
-            } else {
-                hideError('petContainer', 'petError');
-            }
-
-            // Scroll to first error
-            if (firstErrorElement) {
-                firstErrorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-
-            return isValid;
-        }
-
-        // =====================================================
-        // SERVICE BUTTON TOGGLE
-        // =====================================================
-        document.querySelectorAll('.service-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('.service-btn').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-                this.querySelector('input[type="radio"]').checked = true;
-                hideError('serviceContainer', 'serviceError');
-            });
+        function selectDate(date) {
+            selectedDate = date;
+            document.getElementById('selectedDate').value = date;
             
-            // Pre-select if old value exists
-            const radio = btn.querySelector('input[type="radio"]');
-            if (radio && radio.checked) {
-                btn.classList.add('active');
-            }
-        });
-
-        // =====================================================
-        // PET BUTTON TOGGLE
-        // =====================================================
-        document.querySelectorAll('.pet-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('.pet-btn').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-                const radio = this.querySelector('input[type="radio"]');
-                if (radio) radio.checked = true;
-                hideError('petContainer', 'petError');
-            });
+            // Reset time when date changes
+            document.getElementById('timeInput').value = '';
+            document.getElementById('selectedTimeText').textContent = 'SELECT A TIME';
             
-            // Pre-select if old value exists
-            const radio = btn.querySelector('input[type="radio"]');
-            if (radio && radio.checked) {
-                btn.classList.add('active');
-            }
-        });
-
-        // =====================================================
-        // TIME DROPDOWN FUNCTIONALITY
-        // =====================================================
-        const timeToggle = document.getElementById('timeToggle');
-        const timeMenu = document.getElementById('timeMenu');
-        const timeInput = document.getElementById('timeInput');
-        const selectedTimeText = document.getElementById('selectedTimeText');
-        const timeSlots = document.querySelectorAll('.time-slot');
-
-        timeToggle.addEventListener('click', function() {
-            this.classList.toggle('open');
-            timeMenu.classList.toggle('open');
-        });
-
-        document.addEventListener('click', function(e) {
-            if (!e.target.closest('.time-dropdown')) {
-                timeToggle.classList.remove('open');
-                timeMenu.classList.remove('open');
-            }
-        });
-
-        timeSlots.forEach(slot => {
-            slot.addEventListener('click', function() {
-                if (this.classList.contains('taken')) {
-                    return;
-                }
-                
-                timeSlots.forEach(s => s.classList.remove('selected'));
-                this.classList.add('selected');
-                
-                const value = this.dataset.value;
-                const display = this.dataset.display;
-                timeInput.value = value;
-                selectedTimeText.textContent = display;
-                
-                timeToggle.classList.remove('open');
-                timeMenu.classList.remove('open');
-                
-                hideError('timeToggle', 'timeError');
-            });
-        });
-
-        // Restore old time value if exists
-        if (timeInput.value) {
-            const oldTimeSlot = document.querySelector(`.time-slot[data-value="${timeInput.value}"]`);
-            if (oldTimeSlot) {
-                oldTimeSlot.classList.add('selected');
-                selectedTimeText.textContent = oldTimeSlot.dataset.display;
-            }
-        }
-
-        // =====================================================
-        // FETCH TAKEN TIMES FOR A DATE
-        // =====================================================
-        function fetchTakenTimes(date) {
-            if (!date) return;
-            
-            fetch(`/appointments/taken-times?date=${date}`)
-                .then(response => response.json())
-                .then(data => {
-                    timeSlots.forEach(slot => {
-                        slot.classList.remove('taken');
-                    });
-                    
-                    data.takenTimes.forEach(time => {
-                        const slot = document.querySelector(`.time-slot[data-value="${time}"]`);
-                        if (slot) {
-                            slot.classList.add('taken');
-                            if (slot.classList.contains('selected')) {
-                                slot.classList.remove('selected');
-                                timeInput.value = '';
-                                selectedTimeText.textContent = 'Time';
-                            }
-                        }
-                    });
-                })
-                .catch(error => {
-                    console.error('Error fetching taken times:', error);
-                });
-        }
-
-        // =====================================================
-        // CALENDAR FUNCTIONALITY
-        // =====================================================
-        let currentDate = new Date();
-        let selectedDate = document.getElementById('selectedDate').value || null;
-        let fullyBookedDates = [];
-        const totalTimeSlots = 17;
-
-        async function checkFullyBookedDates(year, month) {
-            fullyBookedDates = [];
-            
-            try {
-                const response = await fetch(`/appointments/fully-booked?year=${year}&month=${month + 1}`);
-                const data = await response.json();
-                fullyBookedDates = data.fullyBookedDates || [];
-            } catch (error) {
-                console.error('Error fetching fully booked dates:', error);
-            }
-            
-            renderCalendarDays();
-        }
-
-        function renderCalendar() {
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth();
-            
-            document.getElementById('monthYear').textContent = 
-                new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-
-            checkFullyBookedDates(year, month);
-        }
-
-        function renderCalendarDays() {
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth();
-            
-            const firstDay = new Date(year, month, 1).getDay();
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            const prevMonthDays = new Date(year, month, 0).getDate();
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-
-            let daysHTML = '';
-            
-            for (let i = firstDay - 1; i >= 0; i--) {
-                const day = prevMonthDays - i;
-                daysHTML += `<div class="calendar-day other-month">${day}</div>`;
-            }
-
-            for (let day = 1; day <= daysInMonth; day++) {
-                const dateObj = new Date(year, month, day);
-                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const isPast = dateObj < today;
-                const isSelected = selectedDate === dateStr;
-                const isFullyBooked = fullyBookedDates.includes(dateStr);
-                const isClosed = isDateClosed(dateStr);
-                
-                let classes = 'calendar-day';
-                let title = '';
-                let isDisabled = false;
-                
-                if (isPast) {
-                    classes += ' past';
-                    title = 'Past date';
-                    isDisabled = true;
-                } else if (isClosed) {
-                    classes += ' closed';
-                    title = 'Clinic closed';
-                    isDisabled = true;
-                } else if (isFullyBooked) {
-                    classes += ' fully-booked';
-                    title = 'Fully booked';
-                    isDisabled = true;
-                }
-                
-                if (isSelected && !isDisabled) {
-                    classes += ' selected';
-                    title = 'Selected';
-                }
-                
-                daysHTML += `<div class="${classes}" data-date="${dateStr}" data-disabled="${isDisabled}" title="${title}">${day}</div>`;
-            }
-
-            const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
-            const remainingCells = totalCells - (firstDay + daysInMonth);
-            for (let day = 1; day <= remainingCells; day++) {
-                daysHTML += `<div class="calendar-day other-month">${day}</div>`;
-            }
-
-            document.getElementById('calendarDays').innerHTML = daysHTML;
-
-            document.querySelectorAll('.calendar-day').forEach(dayEl => {
-                dayEl.addEventListener('click', function(e) {
-                    if (this.classList.contains('other-month')) {
-                        return;
-                    }
-                    
-                    const isDisabled = this.getAttribute('data-disabled') === 'true';
-                    
-                    if (isDisabled) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        
-                        if (this.classList.contains('closed')) {
-                            alert('This day is closed. The clinic is not open on this date.');
-                        } else if (this.classList.contains('fully-booked')) {
-                            alert('This day is fully booked. Please select another date.');
-                        } else if (this.classList.contains('past')) {
-                            alert('You cannot book appointments for past dates.');
-                        }
-                        return false;
-                    }
-                    
-                    document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected'));
-                    this.classList.add('selected');
-                    selectedDate = this.dataset.date;
-                    document.getElementById('selectedDate').value = selectedDate;
-                    
-                    fetchTakenTimes(selectedDate);
-                    
-                    timeSlots.forEach(s => s.classList.remove('selected'));
-                    timeInput.value = '';
-                    selectedTimeText.textContent = 'Time';
-                    
-                    hideError('calendarContainer', 'dateError');
-                });
-            });
-        }
-
-        document.getElementById('prevMonth').addEventListener('click', () => {
-            const today = new Date();
-            const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1);
-            
-            if (newDate >= new Date(today.getFullYear(), today.getMonth(), 1)) {
-                currentDate = newDate;
-                renderCalendar();
-            }
-        });
-
-        document.getElementById('nextMonth').addEventListener('click', () => {
-            currentDate.setMonth(currentDate.getMonth() + 1);
             renderCalendar();
-        });
+            fetchTakenTimes(date);
+        }
 
-        // =====================================================
-        // FORM SUBMISSION WITH VALIDATION
-        // =====================================================
-        document.getElementById('appointmentForm').addEventListener('submit', function(e) {
-            if (!validateForm()) {
-                e.preventDefault();
-                return false;
-            }
-            return true;
-        });
+        function resetDateTime() {
+            selectedDate = null;
+            currentTakenTimes = [];
+            document.getElementById('selectedDate').value = '';
+            document.getElementById('timeInput').value = '';
+            document.getElementById('selectedTimeText').textContent = 'SELECT A TIME';
+        }
 
-        // =====================================================
-        // INITIALIZE
-        // =====================================================
-        document.addEventListener('DOMContentLoaded', function() {
-            fetchClinicSchedule().then(() => {
-                renderCalendar();
-                
-                if (selectedDate) {
-                    fetchTakenTimes(selectedDate);
-                }
+        function initServiceSelection() {
+            document.querySelectorAll('.service-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.service-btn').forEach(b => b.classList.remove('border-red-700', 'bg-red-50'));
+                    this.classList.add('border-red-700', 'bg-red-50');
+                    this.querySelector('input').checked = true;
+                });
             });
-        });
+        }
+
+        function initPetSelection() {
+            document.querySelectorAll('.pet-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.pet-btn').forEach(b => b.classList.remove('border-red-700', 'bg-red-50'));
+                    this.classList.add('border-red-700', 'bg-red-50');
+                    this.querySelector('input').checked = true;
+                });
+            });
+        }
     </script>
-</body>
-</html>
+    </body>
+    </html>
+</x-dashboardheader-layout>

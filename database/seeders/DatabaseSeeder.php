@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             ServiceTypeSeeder::class,
             SpeciesSeeder::class,
+            CalendarTimeSeeder::class,
         ]);
     }
 }

@@ -67,6 +67,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/appointments/confirm', [AppointmentController::class, 'confirm'])->name('appointments.confirm');
 
     // Appointment utility routes
+    Route::get('/appointments/time-slots', [AppointmentController::class, 'getTimeSlots'])
+        ->name('appointments.timeSlots');
     Route::get('/appointments/taken-times', [AppointmentController::class, 'getTakenTimes'])
         ->name('appointments.takenTimes');
     Route::get('/appointments/fully-booked', [AppointmentController::class, 'getFullyBookedDates'])
