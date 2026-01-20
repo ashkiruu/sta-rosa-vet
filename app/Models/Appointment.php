@@ -14,15 +14,8 @@ class Appointment extends Model
     public $incrementing = true;
 
     protected $fillable = [
-        'User_ID',
-        'Pet_ID',
-        'Service_ID',
-        'Location',
-        'Date',
-        'Time',
-        'Status',
-        'Special_Notes',
-    ];
+    'User_ID', 'Pet_ID', 'Service_ID', 'Date', 'Time', 'Location', 'Status', 'Special_Notes'
+];
 
     protected $casts = [
         'Date' => 'date',
