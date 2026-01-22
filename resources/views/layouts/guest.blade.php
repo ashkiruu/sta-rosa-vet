@@ -11,7 +11,7 @@
          style="background-image: url('{{ asset('images/PawsBackground.png') }}');">
         
         <div class="mt-8 mb-2"> 
-            <img src="{{ asset('images/LogoBlack.png') }}" 
+            <img src="{{ asset('images/Logo.png') }}" 
                  alt="Logo" 
                  class="w-auto h-20 md:h-28 object-contain mx-auto">
         </div>

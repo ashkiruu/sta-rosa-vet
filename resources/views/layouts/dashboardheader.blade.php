@@ -292,7 +292,7 @@
                 </button>
 
                 <a href="{{ route('dashboard') }}" class="flex items-center gap-2 hover:opacity-90 transition">
-                    <img src="{{ asset('images/LogoWhite.png') }}" 
+                    <img src="{{ asset('images/Logo.png') }}" 
                         alt="Logo" 
                         class="h-8 md:h-12 w-auto object-contain">
                 </a>

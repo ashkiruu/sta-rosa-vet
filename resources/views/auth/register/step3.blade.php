@@ -138,21 +138,21 @@
                         
                         {{-- Left Side: Back Button --}}
                         <div class="w-full md:w-auto">
-                            <a href="{{ route('register.step1') }}" class="inline-block w-full md:w-auto bg-gray-500 hover:bg-gray-600 text-white font-black py-4 px-10 rounded-2xl shadow-lg transition-all active:scale-95 uppercase tracking-widest text-sm text-center">
+                            <a href="{{ route('register.step2') }}" class="inline-block w-full md:w-auto bg-gray-500 hover:bg-gray-600 text-white font-black py-4 px-10 rounded-2xl shadow-lg transition-all active:scale-95 uppercase tracking-widest text-sm text-center">
                                 Back
                             </a>
                         </div>
 
                         {{-- Right Side: Login Link + Submit Button --}}
                         <div class="flex flex-col items-center md:items-end w-full md:w-auto">
-                            <p class="text-[15px] font-black tracking-tighter mb-2">
-                                Already have an account? <a href="{{ route('login') }}" class="text-red-700 hover:underline">Log in here</a>
-                            </p>
                             <button type="submit" class="w-full md:w-64 bg-red-700 hover:bg-red-800 text-white font-black py-4 rounded-2xl shadow-lg transition-all active:scale-95 uppercase tracking-widest text-sm">
                                 Submit
                             </button>
                         </div>
                     </div>
+                    <p class="text-[15px] font-black tracking-tighter mb-2 text-right">
+                                Already have an account? <a href="{{ route('login') }}" class="text-red-700 hover:underline">Log in here</a>
+                    </p>
                 </form>
             </div>
         </div>

@@ -1,16 +1,18 @@
 <x-guest-layout>
-    <div class="fixed inset-0 flex flex-col md:flex-row bg-white overflow-hidden">
+    <div class="fixed inset-0 flex flex-col md:flex-row bg-white overflow-auto">
         
-        <div class="relative w-full md:w-[60%] h-1/2 md:h-full overflow-hidden">
-            <img src="{{ asset('images/LogIn.png') }}" class="absolute inset-0 w-full h-full object-cover" alt="City Arch">
+        <div class="w-auto h-full">
+            <img src="{{ asset('images/LogIn.png') }}" 
+                class="w-auto h-full block object-top" 
+                alt="City Arch">
         </div>
 
-        <div class="relative w-full md:w-[40%] h-1/2 md:h-full flex flex-col items-center justify-center p-6 md:p-12 bg-cover bg-center" 
-             style="background-image: url('{{ asset('images/PawsBackground.png') }}');"> 
+        <div class="relative flex-1 h-full flex flex-col items-center justify-center p-6 md:p-12 bg-cover bg-center shrink-0" 
+            style="background-image: url('{{ asset('images/PawsBackground.png') }}');">
             
             <div class="w-full max-w-sm">
                 <div class="flex justify-center mb-6">
-                    <img src="{{ asset('images/LogoBlack.png') }}" class="h-100 w-100 drop-shadow-md object-contain" alt="City Seal">
+                    <img src="{{ asset('images/Logo.png') }}" class="h-100 w-100 drop-shadow-md object-contain" alt="City Seal">
                 </div>
 
                 <div class="bg-white rounded-[2rem] shadow-2xl p-8 border border-gray-100">
