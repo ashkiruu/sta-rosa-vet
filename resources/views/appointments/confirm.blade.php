@@ -3,10 +3,10 @@
         
         {{-- Top Navigation Breadcrumbs --}}
         <div class="flex items-center gap-2 mb-6 ml-4">
-            <a href="{{ route('dashboard') }}" class="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-red-700 transition">Dashboard</a>
-            <span class="text-gray-300 text-[10px]">/</span>
-            <a href="{{ route('appointments.create') }}" class="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-red-700 transition">Appointment Booking</a>
-            <span class="text-gray-300 text-[10px]">/</span>
+            <a href="{{ route('dashboard') }}" class="text-[10px] font-black uppercase tracking-widest text-black hover:text-red-700 transition">Dashboard</a>
+            <span class="text-black text-[10px]">/</span>
+            <a href="{{ route('appointments.create') }}" class="text-[10px] font-black uppercase tracking-widest text-black hover:text-red-700 transition">Appointment Booking</a>
+            <span class="text-black text-[10px]">/</span>
             <span class="text-[10px] font-black uppercase tracking-widest text-red-700">Confirm Appointment</span>
         </div>
 

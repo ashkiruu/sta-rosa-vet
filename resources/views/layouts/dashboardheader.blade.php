@@ -335,7 +335,14 @@
     </nav>
 
     <main>
-        {{ $slot }}
+        <div class="min-h-[calc(100vh-80px)] w-full flex flex-col items-center bg-fixed bg-cover bg-center" 
+            style="background-image: url('{{ asset('images/PawsBackground.png') }}');">
+
+            {{-- Content Area: This is where your Appointment/Pet forms will appear --}}
+            <div class="w-full flex-1 flex flex-col items-center">
+                {{ $slot }}
+            </div>
+        </div>
     </main>
 
     <script>
