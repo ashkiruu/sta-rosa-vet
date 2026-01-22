@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Models\MlOcrProcessing;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rules\Password;
+use App\Services\IDVerificationService; // ← ADD THIS LINE
 
 class RegisterController extends Controller
 {
@@ -94,177 +95,252 @@ class RegisterController extends Controller
         return $totalScore / count($inputTokens);
     }
 
-    public function postStep2(Request $request)
-    {
-        $request->validate([
-            'id_file' => 'nullable|image|mimes:jpg,jpeg,png|max:5120',
+    public function postStep2(Request $request, IDVerificationService $mlService)
+{
+    $request->validate([
+        'id_file' => 'nullable|image|mimes:jpg,jpeg,png|max:5120',
+    ]);
+
+    // Handle the "Skip" logic
+    if (!$request->hasFile('id_file')) {
+        session(['register.step2' => [
+            'id_file_path'           => null,
+            'verification_status_id' => 3, // Set to 'Not Verified'
+            'confidence_score'       => 0,
+            'ml_confidence'          => 0,
+            'ml_check_passed'        => false,
+            'raw_text'               => '',
+            'address_score'          => 0,
+            'scores'                 => []
+        ]]);
+
+        return redirect()->route('register.step3');
+    }
+
+    $step1 = session('register.step1');
+    if (!$step1) {
+        return redirect()->route('register.step1')->withErrors(['error' => 'Please complete Step 1 first.']);
+    }
+
+    // Process File
+    $path = $request->file('id_file')->store('ids', 'public');
+    $absolutePath = storage_path('app/public/' . $path);
+
+    // ============================================
+    // STEP 1: ML DOCUMENT AUTHENTICITY CHECK
+    // ============================================
+    $mlResult = $mlService->verifyIDAuthenticity($absolutePath);
+
+    $ML_THRESHOLD = 0.80; // 80% confidence minimum
+    $mlCheckPassed = false;
+    $mlConfidence = 0.0;
+
+    // Check if ML API responded successfully
+    if (!$mlResult['success']) {
+        // ML API is unavailable - Log warning and continue with fallback
+        \Log::warning('ML_API_UNAVAILABLE', [
+            'error' => $mlResult['error'] ?? 'Unknown error',
+            'fallback_mode' => 'continuing_with_ocr_only',
+            'user' => [
+                'first_name' => $step1['First_Name'],
+                'last_name' => $step1['Last_Name']
+            ]
         ]);
-
-         // Handle the "Skip" logic
-        if (!$request->hasFile('id_file')) {
-            session(['register.step2' => [
-                'id_file_path'           => null,
-                'verification_status_id' => 3, // Set to 'Not Verified'
-                'confidence_score'       => 0,
-                'raw_text'               => '',
-                'address_score'          => 0,
-                'scores'                 => []
-            ]]);
-
-            return redirect()->route('register.step3');
-        }
-
-        $step1 = session('register.step1');
-        if (!$step1) {
-            return redirect()->route('register.step1')->withErrors(['error' => 'Please complete Step 1 first.']);
-        }
-
-        // Process File
-        $path = $request->file('id_file')->store('ids', 'public');
-        $absolutePath = storage_path('app/public/' . $path);
-
-        try {
-            $ocr = new \thiagoalessio\TesseractOCR\TesseractOCR($absolutePath);
-            $ocr->executable('C:\Program Files\Tesseract-OCR\tesseract.exe'); // Uncomment for Windows
-            $ocrText = $ocr->run();
-
-            if (empty(trim($ocrText))) {
-                // Delete the "garbage" image to save storage
-                Storage::disk('public')->delete($path);
-                
-                return back()->withErrors([
-                    'id_file' => 'No readable text found. Please ensure you are uploading a clear photo of your ID.'
-                ]);
-            }
+        
+        // Set flags - will force manual review later
+        $mlCheckPassed = false;
+        $mlConfidence = 0.0;
+        
+    } else {
+        // ML API responded - Check authenticity
+        $mlConfidence = $mlResult['confidence'];
+        
+        if (!$mlResult['is_legitimate'] || $mlConfidence < $ML_THRESHOLD) {
+            // ML detected fake/invalid ID - REJECT immediately
+            Storage::disk('public')->delete($path);
             
-            // 1. Normalization (Now fixes the "NAMESMARIA" bug)
-            $normalizedOcr = $this->normalizeText($ocrText);
-            $ocrTokens = explode(' ', $normalizedOcr);
+            \Log::warning('ML_REJECTED_FAKE_ID', [
+                'confidence' => $mlConfidence,
+                'threshold' => $ML_THRESHOLD,
+                'is_legitimate' => $mlResult['is_legitimate'],
+                'user' => [
+                    'first_name' => $step1['First_Name'],
+                    'last_name' => $step1['Last_Name']
+                ]
+            ]);
 
-            // 2. User Input
-            $firstName  = $step1['First_Name'] ?? '';
-            $middleName = $step1['Middle_Name'] ?? '';
-            $lastName   = $step1['Last_Name'] ?? '';
-            $address    = $this->normalizeText($step1['Address'] ?? '');
+            return back()->withErrors([
+                'id_file' => 'The uploaded document does not appear to be a valid government-issued ID. Please upload a clear photo of your PhilSys, UMID, Driver\'s License, or other official ID card.'
+            ]);
+        }
+        
+        // ✅ ML Check Passed
+        $mlCheckPassed = true;
+        \Log::info('ML_APPROVED_ID', [
+            'confidence' => $mlConfidence,
+            'proceeding_to_ocr' => true
+        ]);
+    }
 
-            // 3. New Scoring Logic (Splits multi-word names)
-            // This ensures "MARIA" matches "MARIA" (100%) and "LOULYNN" matches "LOULYNN" (100%)
-            $firstNameScore = $this->getCompositeScore($firstName, $ocrTokens);
-            $lastNameScore  = $this->getCompositeScore($lastName, $ocrTokens);
+    // ============================================
+    // STEP 2: OCR TEXT EXTRACTION
+    // ============================================
+    try {
+        $ocr = new \thiagoalessio\TesseractOCR\TesseractOCR($absolutePath);
+        $ocr->executable('C:\Program Files\Tesseract-OCR\tesseract.exe');
+        $ocrText = $ocr->run();
+
+        if (empty(trim($ocrText))) {
+            Storage::disk('public')->delete($path);
             
-            $hasMiddleName = !empty($middleName);
-            $middleNameScore = $hasMiddleName ? $this->getCompositeScore($middleName, $ocrTokens) : 0;
+            return back()->withErrors([
+                'id_file' => 'No readable text found. Please ensure you are uploading a clear photo of your ID.'
+            ]);
+        }
+        
+        // Normalization
+        $normalizedOcr = $this->normalizeText($ocrText);
+        $ocrTokens = explode(' ', $normalizedOcr);
 
-            // 4. Address Logic (Unchanged)
-            $addressTokens = explode(' ', $address);
-            $addressMatches = 0;
-            $validAddressTokens = 0;
-            foreach ($addressTokens as $token) {
-                if (strlen($token) < 3) continue;
-                $validAddressTokens++;
-                foreach ($ocrTokens as $ocrToken) {
-                    if ($this->similarity($token, $ocrToken) >= 0.80) { // Increased strictness slightly
-                        $addressMatches++;
-                        break;
-                    }
+        // User Input
+        $firstName  = $step1['First_Name'] ?? '';
+        $middleName = $step1['Middle_Name'] ?? '';
+        $lastName   = $step1['Last_Name'] ?? '';
+        $address    = $this->normalizeText($step1['Address'] ?? '');
+
+        // ============================================
+        // STEP 3: FUZZY MATCHING SCORES
+        // ============================================
+        $firstNameScore = $this->getCompositeScore($firstName, $ocrTokens);
+        $lastNameScore  = $this->getCompositeScore($lastName, $ocrTokens);
+        
+        $hasMiddleName = !empty($middleName);
+        $middleNameScore = $hasMiddleName ? $this->getCompositeScore($middleName, $ocrTokens) : 0;
+
+        // Address Logic
+        $addressTokens = explode(' ', $address);
+        $addressMatches = 0;
+        $validAddressTokens = 0;
+        foreach ($addressTokens as $token) {
+            if (strlen($token) < 3) continue;
+            $validAddressTokens++;
+            foreach ($ocrTokens as $ocrToken) {
+                if ($this->similarity($token, $ocrToken) >= 0.80) {
+                    $addressMatches++;
+                    break;
                 }
             }
-            $addressScore = ($validAddressTokens > 0) ? ($addressMatches / $validAddressTokens) : 0;
+        }
+        $addressScore = ($validAddressTokens > 0) ? ($addressMatches / $validAddressTokens) : 0;
 
-            // 5. Calculate Final Weighted Score
-            if ($hasMiddleName) {
-                $totalScore = ($lastNameScore * 0.35) + 
-                            ($firstNameScore * 0.30) + 
-                            ($middleNameScore * 0.10) + 
-                            ($addressScore * 0.25);
-            } else {
-                $totalScore = ($lastNameScore * 0.40) + 
-                            ($firstNameScore * 0.35) + 
-                            ($addressScore * 0.25);
-            }
+        // Calculate Final Weighted Score
+        if ($hasMiddleName) {
+            $totalScore = ($lastNameScore * 0.35) + 
+                        ($firstNameScore * 0.30) + 
+                        ($middleNameScore * 0.10) + 
+                        ($addressScore * 0.25);
+        } else {
+            $totalScore = ($lastNameScore * 0.40) + 
+                        ($firstNameScore * 0.35) + 
+                        ($addressScore * 0.25);
+        }
 
-            /*--- DEBUGGING: REMOVE THIS AFTER TESTING ---
-            dd([
-                'OCR_Text_Raw' => $ocrText,
-                'OCR_Tokens' => $ocrTokens,
-                'User_Input' => [
-                    'First' => $firstName,
-                    'Last' => $lastName,
-                    'Middle' => $middleName
-                ],
-                'Calculated_Scores' => [
-                    'First_Name_Score' => $firstNameScore,
-                    'Last_Name_Score' => $lastNameScore,
-                    'Middle_Name_Score' => $middleNameScore,
-                    'Address_Score' => $addressScore,
-                ],
-                'FINAL_TOTAL' => $totalScore
+        // ============================================
+        // STEP 4: FINAL DECISION (ML + FUZZY)
+        // ============================================
+        
+        // Combined decision logic
+        if ($mlCheckPassed && $totalScore >= 0.7) {
+            $statusID = 2; // ✅ Verified (Both ML and OCR passed)
+            $verificationMethod = 'ml_and_ocr';
+        } elseif (!$mlCheckPassed && $totalScore >= 0.7) {
+            $statusID = 1; // ⚠️ Pending (ML unavailable, OCR passed, needs manual review)
+            $verificationMethod = 'ocr_only_ml_unavailable';
+        } else {
+            $statusID = 1; // ⚠️ Pending (OCR score too low or ML failed)
+            $verificationMethod = 'pending_manual_review';
+        }
+
+        // Reject if OCR score is extremely low
+        if ($totalScore < 0.15) {
+            Storage::disk('public')->delete($path);
+            return back()->withErrors([
+                'id_file' => 'The uploaded document does not appear to match your registered name. Please upload a valid ID.'
             ]);
-            */
+        }
 
-            $statusID = ($totalScore >= 0.7) ? 2 : 1; 
-
-            if ($totalScore < 0.15) {
-                return back()->withErrors([
-                    'id_file' => 'The uploaded document does not appear to match your registered name. Please upload a valid ID.'
-                ]);
-            }
-            // Log logic...
-            \Log::info('ID_VERIFICATION', [
-            'input' => [
-                'first_name' => $firstName,
-                'middle_name' => $middleName,
-                'last_name' => $lastName,
-                'address' => $address,
+        // Comprehensive logging
+        \Log::info('ID_VERIFICATION_COMPLETE', [
+            'ml' => [
+                'check_passed' => $mlCheckPassed,
+                'confidence' => $mlConfidence,
+                'api_available' => $mlResult['success']
             ],
             'ocr' => [
-                'raw_excerpt' => substr($normalizedOcr, 0, 300),
-                'tokens' => array_slice($ocrTokens, 0, 20),
-            ],
-            'scores' => [
-                'first_name' => $firstNameScore,
-                'middle_name' => $middleNameScore,
-                'last_name' => $lastNameScore,
-                'address' => $addressScore,
-                'total' => $totalScore,
+                'first_name_score' => $firstNameScore,
+                'middle_name_score' => $middleNameScore,
+                'last_name_score' => $lastNameScore,
+                'address_score' => $addressScore,
+                'total_score' => $totalScore,
             ],
             'decision' => [
                 'status_id' => $statusID,
-                'threshold' => 0.7,
-                'rule_based' => true,
+                'verification_method' => $verificationMethod,
+                'ml_threshold' => $ML_THRESHOLD,
+                'ocr_threshold' => 0.7
             ],
+            'user' => [
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+            ]
         ]);
 
-            session(['register.step2' => [
-                'id_file_path'           => $path,
-                'verification_status_id' => $statusID,
-                'confidence_score'       => $totalScore,
-                'raw_text'               => $ocrText, // Required for your ML table
-                'address_score'          => $addressScore,
-                'scores'                 => [ // Detailed breakdown for Parsed_Data
-                    'first_name' => $firstNameScore,
-                    'last_name'  => $lastNameScore,
-                    'middle_name' => $middleNameScore,
-                    'address'    => $addressScore
-                ]
-            ]]);
+        // Store in session
+        session(['register.step2' => [
+            'id_file_path'           => $path,
+            'verification_status_id' => $statusID,
+            'confidence_score'       => $totalScore,
+            'ml_confidence'          => $mlConfidence,
+            'ml_check_passed'        => $mlCheckPassed,
+            'verification_method'    => $verificationMethod,
+            'raw_text'               => $ocrText,
+            'address_score'          => $addressScore,
+            'scores'                 => [
+                'first_name' => $firstNameScore,
+                'last_name'  => $lastNameScore,
+                'middle_name' => $middleNameScore,
+                'address'    => $addressScore
+            ]
+        ]]);
 
-            return redirect()->route('register.step3')->with([
-                'ocr_status' => ($statusID == 2 ? 'Verified' : 'Pending'),
-                'ocr_message' => ($statusID == 2 ? 'ID Confirmed!' : 'ID uploaded, pending review.')
-            ]);
-
-        } catch (\Exception $e) {
-            // 5. This catches the "Command did not produce output" error specifically
-            Storage::disk('public')->delete($path); // Clean up
-            
-            \Log::error('OCR_CRASH: ' . $e->getMessage()); // Log the real error for you to see
-
-            return back()->withErrors([
-                'id_file' => 'The system could not process this image. Please make sure the file is a clear, bright photo of your ID card.'
-            ]);
+        // Success messages
+        $message = '';
+        if ($statusID == 2) {
+            $message = 'ID verified successfully! Both ML and text matching passed.';
+        } elseif (!$mlCheckPassed) {
+            $message = 'ID uploaded. ML verification unavailable - pending manual review.';
+        } else {
+            $message = 'ID uploaded. Text matching below threshold - pending manual review.';
         }
+
+        return redirect()->route('register.step3')->with([
+            'ocr_status' => ($statusID == 2 ? 'Verified' : 'Pending'),
+            'ocr_message' => $message
+        ]);
+
+    } catch (\Exception $e) {
+        Storage::disk('public')->delete($path);
+        
+        \Log::error('OCR_PROCESSING_ERROR', [
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
+
+        return back()->withErrors([
+            'id_file' => 'The system could not process this image. Please make sure the file is a clear, bright photo of your ID card.'
+        ]);
     }
+}
     
     public function step3()
     {
@@ -285,10 +361,10 @@ class RegisterController extends Controller
                 'string',
                 'confirmed',
                 Password::min(8)
-                    ->letters()      // Requires at least one letter
-                    ->mixedCase()    // Requires both uppercase and lowercase
-                    ->numbers()      // Requires at least one number
-                    ->symbols(),     // Requires at least one symbol (!, @, #, $, etc.)
+                    ->letters()
+                    ->mixedCase()
+                    ->numbers()
+                    ->symbols(),
             ],
         ]);
 
@@ -306,9 +382,9 @@ class RegisterController extends Controller
             $user = \App\Models\User::create([
                 'Barangay_ID'            => $step1['Barangay_ID'],
                 'Verification_Status_ID' => $step2['verification_status_id'] ?? 3,
-                'Account_Status_ID'      => 1, // Active
+                'Account_Status_ID'      => 1,
                 'Username'               => $request->email,
-                'Password'               => \Illuminate\Support\Facades\Hash::make($request->password),
+                'Password'               => Hash::make($request->password),
                 'First_Name'             => $step1['First_Name'],
                 'Middle_Name'            => $step1['Middle_Name'],
                 'Last_Name'              => $step1['Last_Name'],
@@ -319,31 +395,35 @@ class RegisterController extends Controller
             ]);
 
             // 2. Save to 'ml_ocr_processing' table
-           if (!empty($step2['id_file_path'])) {
+            if (!empty($step2['id_file_path'])) {
                 \App\Models\MlOcrProcessing::create([
                     'User_ID'               => $user->User_ID,
                     'CertificateType_ID'    => 1,
                     'Document_Image_Path'   => $step2['id_file_path'],
-                    'Extracted_Text'        => json_encode(trim(strval($step2['raw_text']))), 
-                    'Parsed_Data'           => json_encode($step2['scores']), 
-                    'Confidence_Score'      => $step2['confidence_score'],
-                    'Address_Match_Status'  => ($step2['address_score'] >= 0.7 ? 'Matched' : 'Discrepancy'),
+                    'Extracted_Text'        => json_encode(trim(strval($step2['raw_text'] ?? ''))),
+                    'Parsed_Data'           => json_encode([
+                        'fuzzy_scores' => $step2['scores'] ?? [],
+                        'ml_confidence' => $step2['ml_confidence'] ?? 0,
+                        'ml_check_passed' => $step2['ml_check_passed'] ?? false,
+                        'verification_method' => $step2['verification_method'] ?? 'unknown'
+                    ]),
+                    'Confidence_Score'      => $step2['confidence_score'] ?? 0,
+                    'Address_Match_Status'  => (($step2['address_score'] ?? 0) >= 0.7 ? 'Matched' : 'Discrepancy'),
                     'Created_Date'          => now(),
                 ]);
             }
 
             DB::commit();
 
-            // 3. Log them in and clean up
-            \Illuminate\Support\Facades\Auth::login($user);
+            Auth::login($user);
             session()->forget('register');
 
             return redirect()->route('dashboard')->with('success', 'Registration complete!');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            // This will stop the reload and show the actual error message on a white screen
-            dd($e->getMessage()); 
+            \Log::error('REGISTRATION_ERROR', ['error' => $e->getMessage()]);
+            return back()->withErrors(['error' => 'Registration failed: ' . $e->getMessage()]);
         }
     }
 
