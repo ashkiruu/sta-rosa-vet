@@ -39,19 +39,10 @@
                         <form action="{{ route('admin.reports.generate') }}" method="POST">
                             @csrf
                             
-                            <div class="mb-4">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Select Week</label>
-                                <select name="week_offset" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                                    <option value="0">Current Week (Week {{ date('W') }}, {{ date('Y') }})</option>
-                                    <option value="1">Last Week (Week {{ date('W', strtotime('-1 week')) }})</option>
-                                    <option value="2">2 Weeks Ago (Week {{ date('W', strtotime('-2 weeks')) }})</option>
-                                    <option value="3">3 Weeks Ago (Week {{ date('W', strtotime('-3 weeks')) }})</option>
-                                    <option value="4">4 Weeks Ago (Week {{ date('W', strtotime('-4 weeks')) }})</option>
-                                </select>
-                            </div>
+                           
 
                             <div class="mb-4">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Or Select Custom Date Range</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-2"> Select Custom Date Range</label>
                                 <div class="grid grid-cols-2 gap-2">
                                     <div>
                                         <label class="text-xs text-gray-500">Start Date</label>

@@ -349,8 +349,18 @@ class AdminController extends Controller
         return redirect()->route('admin.certificates.index')->with('success', 'Certificate deleted.');
     }
 
+    
     private function validateCertificateRequest(Request $request, bool $includeAppointmentId = false): array
     {
+        // Determine service category
+        $serviceType = $request->input('service_type', '');
+        $serviceTypeLower = strtolower($serviceType);
+        
+        $isVaccination = strpos($serviceTypeLower, 'vaccination') !== false || strpos($serviceTypeLower, 'vaccine') !== false;
+        $isDeworming = strpos($serviceTypeLower, 'deworming') !== false;
+        $isCheckup = strpos($serviceTypeLower, 'checkup') !== false || strpos($serviceTypeLower, 'check-up') !== false;
+
+        // Base rules for all service types
         $rules = [
             'pet_name' => 'required|string|max:255',
             'animal_type' => 'required|string|max:100',
@@ -358,25 +368,77 @@ class AdminController extends Controller
             'pet_age' => 'required|string|max:100',
             'pet_breed' => 'required|string|max:255',
             'pet_color' => 'required|string|max:100',
+            'pet_dob' => 'nullable|date',
             'owner_name' => 'required|string|max:255',
             'owner_address' => 'required|string',
             'owner_phone' => 'required|string|max:50',
             'civil_status' => 'required|string|max:50',
             'years_of_residency' => 'required|string|max:100',
+            'owner_birthdate' => 'nullable|date',
             'service_type' => 'required|string|max:255',
-            'vaccination_date' => 'required|date',
-            'vaccine_used' => 'required|string|max:255',
-            'lot_number' => 'required|string|max:100',
+            'service_date' => 'required|date',
+            'next_service_date' => 'nullable|date',
             'veterinarian_name' => 'required|string|max:255',
             'license_number' => 'required|string|max:100',
             'ptr_number' => 'required|string|max:100',
         ];
 
+        // Add vaccination-specific rules
+        if ($isVaccination) {
+            $rules['vaccine_type'] = 'required|in:anti-rabies,other';
+            
+            $vaccineType = $request->input('vaccine_type');
+            if ($vaccineType === 'anti-rabies') {
+                $rules['vaccine_name_rabies'] = 'required|string|max:255';
+                $rules['lot_number'] = 'required|string|max:100';
+            } elseif ($vaccineType === 'other') {
+                $rules['vaccine_name_other'] = 'required|string|max:255';
+                $rules['lot_number_other'] = 'required|string|max:100';
+            }
+        }
+
+        // Add deworming-specific rules
+        if ($isDeworming) {
+            $rules['medicine_used'] = 'nullable|string|max:255';
+            $rules['dosage'] = 'nullable|string|max:100';
+        }
+
+        // Add checkup-specific rules
+        if ($isCheckup) {
+            $rules['findings'] = 'nullable|string';
+            $rules['recommendations'] = 'nullable|string';
+        }
+
         if ($includeAppointmentId) {
             $rules['appointment_id'] = 'required';
         }
 
-        return $request->validate($rules);
+        $validated = $request->validate($rules);
+
+        // Process vaccination data
+        if ($isVaccination) {
+            $vaccineType = $request->input('vaccine_type');
+            $validated['vaccine_type'] = $vaccineType;
+            
+            if ($vaccineType === 'anti-rabies') {
+                $validated['vaccine_name_rabies'] = $request->input('vaccine_name_rabies');
+                $validated['vaccine_used'] = $request->input('vaccine_name_rabies');
+                $validated['lot_number'] = $request->input('lot_number');
+            } elseif ($vaccineType === 'other') {
+                $validated['vaccine_used'] = $request->input('vaccine_name_other');
+                $validated['lot_number'] = $request->input('lot_number_other');
+            }
+        }
+
+        // Map service_date to vaccination_date for backward compatibility
+        if (isset($validated['service_date'])) {
+            $validated['vaccination_date'] = $validated['service_date'];
+        }
+        if (isset($validated['next_service_date'])) {
+            $validated['next_vaccination_date'] = $validated['next_service_date'];
+        }
+
+        return $validated;
     }
 
     private function approveCertificateAndRedirect($id, $petName, $action): \Illuminate\Http\RedirectResponse

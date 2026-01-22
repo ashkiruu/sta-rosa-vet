@@ -74,7 +74,7 @@ class ReportService
     /**
      * Get weekly date range
      */
-    public static function getWeeklyDateRange($weekOffset = 0)
+    /*public static function getWeeklyDateRange($weekOffset = 0)
     {
         $now = Carbon::now()->subWeeks($weekOffset);
         $startOfWeek = $now->copy()->startOfWeek(Carbon::MONDAY);
@@ -87,7 +87,7 @@ class ReportService
             'year' => $startOfWeek->year,
         ];
     }
-
+/*
     /**
      * Get species name by ID
      */
