@@ -95,10 +95,10 @@
                     {{-- Action Footer (matches Step 1–3) --}}
                     <div class="pt-8 flex flex-col md:flex-row items-center md:items-end justify-between border-t border-gray-100 gap-6">
                         <div class="w-full md:w-auto">
-                            <a href="{{ url('/') }}"
-                               class="inline-block w-full md:w-auto bg-gray-500 hover:bg-gray-600 text-white font-black py-4 px-10 rounded-2xl shadow-lg transition-all active:scale-95 uppercase tracking-widest text-sm text-center">
-                                Cancel
-                            </a>
+                            <p class="text-[15px] font-black tracking-tighter mb-2 text-right">
+                                Already have an account?
+                                <a href="{{ route('login') }}" class="text-red-700 hover:underline">Log in here</a>
+                            </p>
                         </div>
 
                         <div class="w-full md:w-auto">
@@ -108,11 +108,6 @@
                             </button>
                         </div>
                     </div>
-
-                    <p class="text-[15px] font-black tracking-tighter mb-2 text-right">
-                        Already have an account?
-                        <a href="{{ route('login') }}" class="text-red-700 hover:underline">Log in here</a>
-                    </p>
                 </form>
 
             </div>
