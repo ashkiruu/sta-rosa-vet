@@ -141,6 +141,27 @@ class AppointmentController extends Controller
     public function getTakenTimes(Request $request)
     {
         $request->validate(['date' => 'required|date']);
+        // ✅ Block booking past time slots when Date is today
+        $selectedDate = Carbon::parse($validated['Date'])->startOfDay();
+        $today = now()->startOfDay();
+
+        if ($selectedDate->equalTo($today)) {
+            // Normalize user time to HH:MM (handles "14:30", "14:30:00", etc.)
+            $selectedTime = Carbon::parse($validated['Time'])->format('H:i');
+
+            // Build full datetime for comparison
+            $selectedDateTime = Carbon::parse($validated['Date'] . ' ' . $selectedTime);
+
+            // Optional: add small grace period (e.g. 5 minutes) to avoid edge clicks
+            $minAllowed = now()->addMinutes(5);
+
+            if ($selectedDateTime->lt($minAllowed)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'Time' => 'Selected time has already passed. Please choose a future time slot.'
+                ]);
+            }
+        }
+
 
         $takenTimes = Appointment::where('Date', $request->date)
             ->whereIn('Status', ['Pending', 'Confirmed', 'Approved'])
