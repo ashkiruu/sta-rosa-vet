@@ -158,9 +158,10 @@
                                         </div>
                                     </div>
                                     
-                                    {{-- Download Buttons --}}
+                                    {{-- Download Buttons - Use specific report IDs --}}
                                     <div class="mt-4 flex flex-wrap gap-3">
-                                        <a href="{{ route('admin.reports.anti-rabies', $report['id']) }}" 
+                                        @if(!empty($report['anti_rabies_id']))
+                                        <a href="{{ route('admin.reports.anti-rabies', $report['anti_rabies_id']) }}" 
                                            target="_blank"
                                            class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -168,8 +169,10 @@
                                             </svg>
                                             Anti-Rabies Report
                                         </a>
+                                        @endif
                                         
-                                        <a href="{{ route('admin.reports.routine-services', $report['id']) }}" 
+                                        @if(!empty($report['routine_services_id']))
+                                        <a href="{{ route('admin.reports.routine-services', $report['routine_services_id']) }}" 
                                            target="_blank"
                                            class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -177,6 +180,7 @@
                                             </svg>
                                             Routine Services Report
                                         </a>
+                                        @endif
                                         
                                         <form action="{{ route('admin.reports.delete', $report['id']) }}" method="POST" class="inline" 
                                               onsubmit="return confirm('Are you sure you want to delete this report?');">

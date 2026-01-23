@@ -1,4 +1,7 @@
-@extends('admin.layouts.app')
+
+
+@extends('layouts.admin')
+
 
 @section('title', 'User Details')
 
@@ -56,7 +59,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="bg-gray-50 rounded-lg p-4">
                             <p class="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-1">Phone Number</p>
-                            <p class="text-gray-800 font-medium">{{ $user->Phone ?? 'Not provided' }}</p>
+                            <p class="text-gray-800 font-medium">{{ $user->Contact_Number ?? 'Not provided' }}</p>
                         </div>
                         
                         <div class="bg-gray-50 rounded-lg p-4">
@@ -77,24 +80,78 @@
                         </div>
                     </div>
 
-                    {{-- OCR Data (if available) --}}
+                   {{-- OCR Data (if available) --}}
                     @if($user->ocrData)
+                        @php
+                            $parsed = json_decode($user->ocrData->Parsed_Data, true);
+                        @endphp
+
                         <div class="mt-6 pt-6 border-t border-gray-200">
                             <h4 class="text-lg font-semibold text-gray-800 mb-4">ID Verification Data</h4>
+
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                @if($user->ocrData->full_name)
+
+                                {{-- Extracted Full Name --}}
+                                @if(data_get($parsed, 'full_name'))
                                     <div class="bg-blue-50 rounded-lg p-4">
-                                        <p class="text-xs text-blue-600 uppercase tracking-wider font-semibold mb-1">Full Name (from ID)</p>
-                                        <p class="text-gray-800 font-medium">{{ $user->ocrData->full_name }}</p>
+                                        <p class="text-xs text-blue-600 uppercase tracking-wider font-semibold mb-1">
+                                            Full Name (from ID)
+                                        </p>
+                                        <p class="text-gray-800 font-medium">
+                                            {{ data_get($parsed, 'full_name') }}
+                                        </p>
                                     </div>
                                 @endif
-                                
-                                @if($user->ocrData->address)
+
+                                {{-- Extracted Address --}}
+                                @if(data_get($parsed, 'address'))
                                     <div class="bg-blue-50 rounded-lg p-4">
-                                        <p class="text-xs text-blue-600 uppercase tracking-wider font-semibold mb-1">Address (from ID)</p>
-                                        <p class="text-gray-800 font-medium">{{ $user->ocrData->address }}</p>
+                                        <p class="text-xs text-blue-600 uppercase tracking-wider font-semibold mb-1">
+                                            Address (from ID)
+                                        </p>
+                                        <p class="text-gray-800 font-medium">
+                                            {{ data_get($parsed, 'address') }}
+                                        </p>
                                     </div>
                                 @endif
+
+                                {{-- Confidence Score --}}
+                                <div class="bg-gray-50 rounded-lg p-4">
+                                    <p class="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-1">
+                                        OCR Confidence Score
+                                    </p>
+                                    <p class="text-gray-800 font-medium">
+                                        {{ number_format($user->ocrData->Confidence_Score * 100, 2) }}%
+                                    </p>
+                                </div>
+
+                                {{-- Address Match Status --}}
+                                <div class="bg-gray-50 rounded-lg p-4">
+                                    <p class="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-1">
+                                        Address Match Status
+                                    </p>
+                                    <p class="font-medium
+                                        {{ $user->ocrData->Address_Match_Status === 'Matched'
+                                            ? 'text-green-600'
+                                            : 'text-red-600' }}">
+                                        {{ $user->ocrData->Address_Match_Status }}
+                                    </p>
+                                </div>
+
+                                @if($user->ocrData && $user->ocrData->Document_Image_Path)
+                                    <div class="mt-6 pt-6 border-t border-gray-200">
+                                        <h4 class="text-lg font-semibold text-gray-800 mb-4">Uploaded ID Image</h4>
+
+                                        <img
+                                            src="{{ Storage::url($user->ocrData->Document_Image_Path) }}"
+                                            alt="Uploaded ID"
+                                            class="w-full max-w-xl rounded-lg border shadow"
+                                        >
+                                    </div>
+                                @else
+                                    <p class="text-sm text-gray-500 mt-4">No uploaded ID image found for this user.</p>
+                                @endif
+
                             </div>
                         </div>
                     @endif
@@ -102,14 +159,14 @@
                     {{-- Action Buttons --}}
                     @if($user->Verification_Status_ID == 1)
                         <div class="mt-6 pt-6 border-t border-gray-200 flex gap-4">
-                            <form action="{{ route('admin.users.approve', $user->User_ID) }}" method="POST" class="flex-1">
+                            <form action="{{ route('admin.user.approve', $user->User_ID) }}" method="POST" class="flex-1">
                                 @csrf
                                 <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition">
                                     ✓ Approve User
                                 </button>
                             </form>
                             
-                            <form action="{{ route('admin.users.reject', $user->User_ID) }}" method="POST" class="flex-1" 
+                            <form action="{{ route('admin.user.reject', $user->User_ID) }}" method="POST" class="flex-1" 
                                   onsubmit="return confirm('Are you sure you want to reject this user?');">
                                 @csrf
                                 <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-lg transition">
