@@ -9,13 +9,23 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\ResetPasswordController;
+use Illuminate\Support\Facades\Auth;
+
 
 
 
 
 Route::get('/', function () {
-    return view('welcome');
+    if (Auth::check()) {
+        return redirect()->route('dashboard');
+    }
+
+    return redirect()->route('login');
 });
+
+// Pre-registration Notice (Attention to all applicants)
+Route::get('/register', [RegisterController::class, 'notice'])->name('register.notice');
+Route::post('/register', [RegisterController::class, 'postNotice'])->name('register.notice.post');
 
 // Registration Routes
 Route::get('/register/step1', [RegisterController::class, 'step1'])->name('register.step1');
@@ -26,6 +36,10 @@ Route::post('/register/step2', [RegisterController::class, 'postStep2'])->name('
 // Registration Step 3
 Route::get('/register/step3', [RegisterController::class, 'step3'])->name('register.step3');
 Route::post('/register/step3', [RegisterController::class, 'postStep3'])->name('register.step3.post');
+
+// Legal pages (public)
+Route::view('/terms', 'legal.terms')->name('terms');
+Route::view('/privacy', 'legal.privacy')->name('privacy');
 
 // Authentication Routes
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
