@@ -128,7 +128,10 @@
                         <label class="flex items-center gap-3 cursor-pointer group">
                             <input type="checkbox" name="terms" required class="w-5 h-5 rounded border-gray-300 text-red-700 focus:ring-red-500 transition-all cursor-pointer">
                             <span class="text-sm font-medium text-gray-600">
-                                I agree to the <a href="#" class="text-blue-600 font-bold hover:underline">Terms and Conditions</a>.
+                                I agree to the
+                                <a href="{{ route('terms') }}" target="_blank" class="text-blue-600 font-bold hover:underline">Terms and Conditions</a>
+                                and
+                                <a href="{{ route('privacy') }}" target="_blank" class="text-blue-600 font-bold hover:underline">Privacy Notice</a>.
                             </span>
                         </label>
                     </div>

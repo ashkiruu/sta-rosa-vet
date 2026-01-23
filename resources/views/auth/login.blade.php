@@ -69,7 +69,7 @@
                         </div>
 
                         <div class="flex items-center justify-end gap-3 pt-2">
-                            <a href="{{ route('register.step1') }}" class="text-[12px] font-black uppercase tracking-widest text-gray-900 hover:underline">
+                            <a href="{{ route('register.notice') }}" class="text-[12px] font-black uppercase tracking-widest text-gray-900 hover:underline">
                                 Register
                             </a>
                             <button type="submit" class="bg-red-800 hover:bg-red-900 text-white font-bold py-2 px-8 rounded-xl shadow-md transition-transform active:scale-95 uppercase text-xs tracking-widest">
