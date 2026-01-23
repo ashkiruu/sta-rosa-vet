@@ -7,6 +7,8 @@ use App\Models\Admin;
 use App\Models\Pet;
 use App\Models\SystemLog;
 use App\Models\Appointment;
+use App\Models\Report;
+use App\Models\ReportType;
 use App\Services\ReportService;
 use App\Services\QRCodeService;
 use App\Services\AdminLogService;
@@ -458,7 +460,7 @@ class AdminController extends Controller
     }
 
     // =====================================================
-    // REPORTS
+    // REPORTS (Updated to use Database)
     // =====================================================
 
     public function reports()
@@ -470,28 +472,41 @@ class AdminController extends Controller
     {
         [$startDate, $endDate, $weekNumber, $year] = $this->getReportDateRange($request);
 
+        // Get data for both report types
         $antiRabiesData = ReportService::getAntiRabiesData($startDate, $endDate);
         $routineServicesData = ReportService::getRoutineServicesData($startDate, $endDate);
+        $summary = ReportService::getWeeklySummary($startDate, $endDate);
 
-        $report = ReportService::createReport([
-            'type' => 'WEEKLY',
+        // Create both reports in database
+        $reports = ReportService::createWeeklyReports([
             'week_number' => $weekNumber,
             'year' => $year,
             'start_date' => $startDate->format('Y-m-d'),
             'end_date' => $endDate->format('Y-m-d'),
             'generated_by' => auth()->user()->First_Name ?? 'Admin',
-            'summary' => ReportService::getWeeklySummary($startDate, $endDate),
+            'summary' => $summary,
             'anti_rabies_count' => count($antiRabiesData),
             'routine_services_count' => count($routineServicesData),
         ]);
 
-        $report['anti_rabies_data'] = $antiRabiesData;
-        $report['routine_services_data'] = $routineServicesData;
+        // Prepare report data for PDF generation
+        $reportData = [
+            'report_number' => $reports['anti_rabies']->Report_Number ?? "RPT-WEEKLY-{$year}-W{$weekNumber}",
+            'week_number' => $weekNumber,
+            'year' => $year,
+            'start_date' => $startDate->format('Y-m-d'),
+            'end_date' => $endDate->format('Y-m-d'),
+            'generated_by' => auth()->user()->First_Name ?? 'Admin',
+            'generated_at' => now()->format('Y-m-d H:i:s'),
+            'anti_rabies_data' => $antiRabiesData,
+            'routine_services_data' => $routineServicesData,
+            'anti_rabies_id' => $reports['anti_rabies']->Report_ID ?? null,
+            'routine_services_id' => $reports['routine_services']->Report_ID ?? null,
+        ];
 
-        ReportService::updateReport($report['id'], [
-            'anti_rabies_pdf' => ReportService::generateAntiRabiesPdf($report),
-            'routine_services_pdf' => ReportService::generateRoutineServicesPdf($report),
-        ]);
+        // Generate PDF files
+        ReportService::generateAntiRabiesPdf($reportData);
+        ReportService::generateRoutineServicesPdf($reportData);
 
         AdminLogService::logReportGeneration('WEEKLY', $weekNumber, $year);
 
@@ -501,12 +516,12 @@ class AdminController extends Controller
 
     public function viewAntiRabiesReport($id)
     {
-        return $this->serveReportPdf($id, 'anti_rabies_pdf', 'getAntiRabiesData', 'generateAntiRabiesPdf');
+        return $this->serveReportPdf($id, 'anti_rabies');
     }
 
     public function viewRoutineServicesReport($id)
     {
-        return $this->serveReportPdf($id, 'routine_services_pdf', 'getRoutineServicesData', 'generateRoutineServicesPdf');
+        return $this->serveReportPdf($id, 'routine_services');
     }
 
     public function deleteReport($id)
@@ -536,31 +551,56 @@ class AdminController extends Controller
         return [$range['start'], $range['end'], $range['week_number'], $range['year']];
     }
 
-    private function serveReportPdf($id, $pdfField, $dataMethod, $generateMethod)
+    private function serveReportPdf($id, $reportType)
     {
-        $report = ReportService::getReport($id);
-        abort_if(!$report, 404, 'Report not found.');
-
-        if (empty($report[$pdfField])) {
-            $startDate = Carbon::parse($report['start_date']);
-            $endDate = Carbon::parse($report['end_date']);
+        // Find the specific report by ID directly
+        $report = Report::with('reportType')->find($id);
+        
+        if (!$report) {
+            abort(404, 'Report not found.');
+        }
+        
+        // Determine if this is the correct report type
+        $isAntiRabies = $report->ReportType_ID === \App\Models\ReportType::ANTI_RABIES;
+        $isRoutineServices = $report->ReportType_ID === \App\Models\ReportType::ROUTINE_SERVICES;
+        
+        // Check if file exists, if not regenerate it
+        $filePath = $report->File_Path;
+        $fullPath = $filePath ? storage_path('app/public/' . $filePath) : null;
+        
+        if (!$fullPath || !file_exists($fullPath)) {
+            // Regenerate the PDF
+            $startDate = $report->Start_Date;
+            $endDate = $report->End_Date;
             
-            $report[str_replace('_pdf', '_data', $pdfField)] = ReportService::$dataMethod($startDate, $endDate);
-            $report[$pdfField] = ReportService::$generateMethod($report);
-            ReportService::updateReport($id, [$pdfField => $report[$pdfField]]);
+            $reportData = [
+                'id' => $report->Report_ID,
+                'report_number' => $report->Report_Number,
+                'week_number' => $report->Week_Number,
+                'year' => $report->Year,
+                'start_date' => $report->Start_Date->format('Y-m-d'),
+                'end_date' => $report->End_Date->format('Y-m-d'),
+                'generated_by' => $report->Generated_By,
+                'generated_at' => $report->Generated_At->format('Y-m-d H:i:s'),
+            ];
+            
+            // Generate based on the actual report type in database, not the route
+            if ($isAntiRabies) {
+                $reportData['anti_rabies_data'] = ReportService::getAntiRabiesData($startDate, $endDate);
+                $reportData['anti_rabies_id'] = $report->Report_ID;
+                $filePath = ReportService::generateAntiRabiesPdf($reportData);
+            } elseif ($isRoutineServices) {
+                $reportData['routine_services_data'] = ReportService::getRoutineServicesData($startDate, $endDate);
+                $reportData['routine_services_id'] = $report->Report_ID;
+                $filePath = ReportService::generateRoutineServicesPdf($reportData);
+            } else {
+                abort(404, 'Unknown report type.');
+            }
+            
+            $fullPath = storage_path('app/public/' . $filePath);
         }
-
-        $pdfPath = storage_path('app/public/' . $report[$pdfField]);
-
-        if (!file_exists($pdfPath)) {
-            $startDate = Carbon::parse($report['start_date']);
-            $endDate = Carbon::parse($report['end_date']);
-            $report[str_replace('_pdf', '_data', $pdfField)] = ReportService::$dataMethod($startDate, $endDate);
-            $report[$pdfField] = ReportService::$generateMethod($report);
-            $pdfPath = storage_path('app/public/' . $report[$pdfField]);
-        }
-
-        return response()->file($pdfPath, ['Content-Type' => 'text/html']);
+        
+        return response()->file($fullPath, ['Content-Type' => 'text/html']);
     }
 
     // =====================================================

@@ -7,18 +7,13 @@ use App\Models\Pet;
 use App\Models\User;
 use App\Models\Barangay;
 use App\Models\Species;
+use App\Models\Report;
+use App\Models\ReportType;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class ReportService
 {
-    /**
-     * Get reports storage path
-     */
-    private static function getReportsPath()
-    {
-        return storage_path('app/reports.json');
-    }
-
     /**
      * Get PDF storage directory
      */
@@ -32,49 +27,20 @@ class ReportService
     }
 
     /**
-     * Load all reports
-     */
-    public static function loadReports()
-    {
-        $path = self::getReportsPath();
-        
-        if (!file_exists($path)) {
-            $directory = dirname($path);
-            if (!is_dir($directory)) {
-                mkdir($directory, 0755, true);
-            }
-            file_put_contents($path, json_encode([], JSON_PRETTY_PRINT));
-            return [];
-        }
-        
-        return json_decode(file_get_contents($path), true) ?? [];
-    }
-
-    /**
-     * Save reports
-     */
-    private static function saveReports($reports)
-    {
-        $path = self::getReportsPath();
-        file_put_contents($path, json_encode($reports, JSON_PRETTY_PRINT));
-    }
-
-    /**
      * Generate report number
      */
     public static function generateReportNumber($type = 'WEEKLY')
     {
         $year = date('Y');
         $week = date('W');
-        $reports = self::loadReports();
-        $count = count($reports) + 1;
+        $count = Report::whereYear('created_at', $year)->count() + 1;
         return "RPT-{$type}-{$year}-W{$week}-" . str_pad($count, 4, '0', STR_PAD_LEFT);
     }
 
     /**
      * Get weekly date range
      */
-    /*public static function getWeeklyDateRange($weekOffset = 0)
+    public static function getWeeklyDateRange($weekOffset = 0)
     {
         $now = Carbon::now()->subWeeks($weekOffset);
         $startOfWeek = $now->copy()->startOfWeek(Carbon::MONDAY);
@@ -87,7 +53,7 @@ class ReportService
             'year' => $startOfWeek->year,
         ];
     }
-/*
+
     /**
      * Get species name by ID
      */
@@ -240,11 +206,9 @@ class ReportService
 
     /**
      * Get weekly statistics summary
-     * FIXED: Now also counts certificates from the JSON file to ensure sync
      */
     public static function getWeeklySummary($startDate, $endDate)
     {
-        // Count from appointments table
         $totalAppointments = Appointment::whereBetween('Date', [$startDate, $endDate])->count();
         $completedAppointments = Appointment::whereBetween('Date', [$startDate, $endDate])
             ->where('Status', 'Completed')->count();
@@ -253,12 +217,7 @@ class ReportService
         $approvedAppointments = Appointment::whereBetween('Date', [$startDate, $endDate])
             ->where('Status', 'Approved')->count();
 
-        // BUGFIX: Also count certificates issued in this period (from JSON)
-        // This handles cases where certificates were created but appointment status wasn't updated
         $certificatesIssued = self::countCertificatesInPeriod($startDate, $endDate);
-        
-        // Use the higher of the two counts to ensure we don't undercount
-        // (in case appointment status and certificate creation are out of sync)
         $completedCount = max($completedAppointments, $certificatesIssued);
 
         return [
@@ -272,7 +231,6 @@ class ReportService
 
     /**
      * Count certificates issued in a date range
-     * This ensures we capture certificates even if appointment status wasn't updated
      */
     private static function countCertificatesInPeriod($startDate, $endDate)
     {
@@ -283,7 +241,6 @@ class ReportService
         $end = Carbon::parse($endDate)->endOfDay();
         
         foreach ($certificates as $cert) {
-            // Check by vaccination_date (the service date)
             if (!empty($cert['vaccination_date'])) {
                 $certDate = Carbon::parse($cert['vaccination_date']);
                 if ($certDate->between($start, $end)) {
@@ -292,7 +249,6 @@ class ReportService
                 }
             }
             
-            // Also check by approved_at date as fallback
             if (!empty($cert['approved_at'])) {
                 $approvedDate = Carbon::parse($cert['approved_at']);
                 if ($approvedDate->between($start, $end)) {
@@ -306,7 +262,6 @@ class ReportService
 
     /**
      * Sync appointment status with certificate
-     * Call this when a certificate is approved to ensure the appointment is marked as Completed
      */
     public static function syncAppointmentStatus($appointmentId)
     {
@@ -320,110 +275,284 @@ class ReportService
     }
 
     /**
-     * Create a new report record
+     * Create a new report record (using database)
      */
     public static function createReport($data)
     {
-        $reports = self::loadReports();
-        
-        $reportId = uniqid('rpt_');
         $reportNumber = self::generateReportNumber($data['type'] ?? 'WEEKLY');
         
-        $report = [
-            'id' => $reportId,
-            'report_number' => $reportNumber,
-            'type' => $data['type'] ?? 'WEEKLY',
-            'week_number' => $data['week_number'] ?? date('W'),
-            'year' => $data['year'] ?? date('Y'),
-            'start_date' => $data['start_date'],
-            'end_date' => $data['end_date'],
-            'generated_by' => $data['generated_by'] ?? 'Admin',
-            'generated_at' => now()->format('Y-m-d H:i:s'),
-            'anti_rabies_pdf' => null,
-            'routine_services_pdf' => null,
-            'summary' => $data['summary'] ?? [],
-            'anti_rabies_count' => $data['anti_rabies_count'] ?? 0,
-            'routine_services_count' => $data['routine_services_count'] ?? 0,
-        ];
+        // Get or create report type
+        $reportTypeId = $data['report_type_id'] ?? null;
         
-        $reports[$reportId] = $report;
-        self::saveReports($reports);
+        if (!$reportTypeId) {
+            // Default to creating both reports, use Anti-Rabies as primary
+            $reportType = ReportType::first();
+            $reportTypeId = $reportType ? $reportType->ReportType_ID : 1;
+        }
         
-        return $report;
+        $report = Report::create([
+            'Report_Number' => $reportNumber,
+            'ReportType_ID' => $reportTypeId,
+            'Week_Number' => $data['week_number'] ?? date('W'),
+            'Year' => $data['year'] ?? date('Y'),
+            'Start_Date' => $data['start_date'],
+            'End_Date' => $data['end_date'],
+            'Generated_By' => $data['generated_by'] ?? 'Admin',
+            'Generated_At' => now(),
+            'File_Path' => null,
+            'Record_Count' => $data['record_count'] ?? 0,
+            'Summary' => $data['summary'] ?? [],
+        ]);
+        
+        // Convert to array format for backward compatibility
+        return self::reportToArray($report);
     }
 
     /**
-     * Get report by ID
+     * Create both Anti-Rabies and Routine Services reports
      */
-    public static function getReport($reportId)
+    public static function createWeeklyReports($data)
     {
-        $reports = self::loadReports();
-        return $reports[$reportId] ?? null;
-    }
-
-    /**
-     * Get all reports
-     */
-    public static function getAllReports()
-    {
-        $reports = self::loadReports();
+        $reports = [];
         
-        usort($reports, function($a, $b) {
-            return strtotime($b['generated_at']) - strtotime($a['generated_at']);
-        });
+        // Create Anti-Rabies Report
+        $antiRabiesType = ReportType::antiRabies();
+        if ($antiRabiesType) {
+            $arReport = Report::create([
+                'Report_Number' => self::generateReportNumber('AR'),
+                'ReportType_ID' => $antiRabiesType->ReportType_ID,
+                'Week_Number' => $data['week_number'] ?? date('W'),
+                'Year' => $data['year'] ?? date('Y'),
+                'Start_Date' => $data['start_date'],
+                'End_Date' => $data['end_date'],
+                'Generated_By' => $data['generated_by'] ?? 'Admin',
+                'Generated_At' => now(),
+                'File_Path' => null,
+                'Record_Count' => $data['anti_rabies_count'] ?? 0,
+                'Summary' => $data['summary'] ?? [],
+            ]);
+            $reports['anti_rabies'] = $arReport;
+        }
+        
+        // Create Routine Services Report
+        $routineType = ReportType::routineServices();
+        if ($routineType) {
+            $rsReport = Report::create([
+                'Report_Number' => self::generateReportNumber('RS'),
+                'ReportType_ID' => $routineType->ReportType_ID,
+                'Week_Number' => $data['week_number'] ?? date('W'),
+                'Year' => $data['year'] ?? date('Y'),
+                'Start_Date' => $data['start_date'],
+                'End_Date' => $data['end_date'],
+                'Generated_By' => $data['generated_by'] ?? 'Admin',
+                'Generated_At' => now(),
+                'File_Path' => null,
+                'Record_Count' => $data['routine_services_count'] ?? 0,
+                'Summary' => $data['summary'] ?? [],
+            ]);
+            $reports['routine_services'] = $rsReport;
+        }
         
         return $reports;
     }
 
     /**
-     * Delete report
+     * Get report by ID (from database)
+     */
+    public static function getReport($reportId)
+    {
+        $report = Report::with('reportType')->find($reportId);
+        
+        if (!$report) {
+            return null;
+        }
+        
+        return self::reportToArray($report);
+    }
+
+    /**
+     * Get all reports (from database)
+     */
+    public static function getAllReports()
+    {
+        $reports = Report::with('reportType')
+            ->orderBy('Generated_At', 'desc')
+            ->get();
+        
+        // Group reports by week/year for display
+        $groupedReports = [];
+        
+        foreach ($reports as $report) {
+            $key = $report->Year . '-' . $report->Week_Number . '-' . $report->Start_Date->format('Y-m-d');
+            
+            if (!isset($groupedReports[$key])) {
+                $groupedReports[$key] = [
+                    'id' => $report->Report_ID,
+                    'report_number' => preg_replace('/-(AR|RS)$/', '', $report->Report_Number),
+                    'type' => 'WEEKLY',
+                    'week_number' => $report->Week_Number,
+                    'year' => $report->Year,
+                    'start_date' => $report->Start_Date->format('Y-m-d'),
+                    'end_date' => $report->End_Date->format('Y-m-d'),
+                    'generated_by' => $report->Generated_By,
+                    'generated_at' => $report->Generated_At->format('Y-m-d H:i:s'),
+                    'summary' => $report->Summary,
+                    'anti_rabies_id' => null,
+                    'anti_rabies_pdf' => null,
+                    'anti_rabies_count' => 0,
+                    'routine_services_id' => null,
+                    'routine_services_pdf' => null,
+                    'routine_services_count' => 0,
+                ];
+            }
+            
+            // Add report type specific data
+            if ($report->isAntiRabies()) {
+                $groupedReports[$key]['anti_rabies_id'] = $report->Report_ID;
+                $groupedReports[$key]['anti_rabies_pdf'] = $report->File_Path;
+                $groupedReports[$key]['anti_rabies_count'] = $report->Record_Count;
+            } elseif ($report->isRoutineServices()) {
+                $groupedReports[$key]['routine_services_id'] = $report->Report_ID;
+                $groupedReports[$key]['routine_services_pdf'] = $report->File_Path;
+                $groupedReports[$key]['routine_services_count'] = $report->Record_Count;
+            }
+        }
+        
+        return array_values($groupedReports);
+    }
+
+    /**
+     * Get reports by type
+     */
+    public static function getReportsByType($reportTypeId)
+    {
+        return Report::with('reportType')
+            ->where('ReportType_ID', $reportTypeId)
+            ->orderBy('Generated_At', 'desc')
+            ->get()
+            ->map(fn($report) => self::reportToArray($report))
+            ->toArray();
+    }
+
+    /**
+     * Delete report (from database)
      */
     public static function deleteReport($reportId)
     {
-        $reports = self::loadReports();
+        // If it's a grouped report ID, delete both associated reports
+        $report = Report::find($reportId);
         
-        if (!isset($reports[$reportId])) {
+        if (!$report) {
             return false;
         }
         
-        if (!empty($reports[$reportId]['anti_rabies_pdf'])) {
-            $pdfFullPath = storage_path('app/public/' . $reports[$reportId]['anti_rabies_pdf']);
-            if (file_exists($pdfFullPath)) {
-                unlink($pdfFullPath);
-            }
-        }
-        
-        if (!empty($reports[$reportId]['routine_services_pdf'])) {
-            $pdfFullPath = storage_path('app/public/' . $reports[$reportId]['routine_services_pdf']);
-            if (file_exists($pdfFullPath)) {
-                unlink($pdfFullPath);
-            }
-        }
-        
-        unset($reports[$reportId]);
-        self::saveReports($reports);
+        // Delete all reports for the same week/year/date range
+        Report::where('Week_Number', $report->Week_Number)
+            ->where('Year', $report->Year)
+            ->where('Start_Date', $report->Start_Date)
+            ->where('End_Date', $report->End_Date)
+            ->each(function ($r) {
+                if ($r->File_Path && file_exists(storage_path('app/public/' . $r->File_Path))) {
+                    unlink(storage_path('app/public/' . $r->File_Path));
+                }
+                $r->delete();
+            });
         
         return true;
     }
 
     /**
-     * Update report record
+     * Delete single report by ID
+     */
+    public static function deleteSingleReport($reportId)
+    {
+        $report = Report::find($reportId);
+        
+        if (!$report) {
+            return false;
+        }
+        
+        // Delete file if exists
+        if ($report->File_Path && file_exists(storage_path('app/public/' . $report->File_Path))) {
+            unlink(storage_path('app/public/' . $report->File_Path));
+        }
+        
+        $report->delete();
+        
+        return true;
+    }
+
+    /**
+     * Update report record (in database)
      */
     public static function updateReport($reportId, $data)
     {
-        $reports = self::loadReports();
+        $report = Report::find($reportId);
         
-        if (!isset($reports[$reportId])) {
+        if (!$report) {
             return null;
         }
         
-        foreach ($data as $key => $value) {
-            $reports[$reportId][$key] = $value;
+        // Map old field names to new ones if needed
+        $updateData = [];
+        
+        if (isset($data['anti_rabies_pdf'])) {
+            if ($report->isAntiRabies()) {
+                $updateData['File_Path'] = $data['anti_rabies_pdf'];
+            }
         }
         
-        self::saveReports($reports);
+        if (isset($data['routine_services_pdf'])) {
+            if ($report->isRoutineServices()) {
+                $updateData['File_Path'] = $data['routine_services_pdf'];
+            }
+        }
         
-        return $reports[$reportId];
+        if (isset($data['File_Path'])) {
+            $updateData['File_Path'] = $data['File_Path'];
+        }
+        
+        if (isset($data['Record_Count'])) {
+            $updateData['Record_Count'] = $data['Record_Count'];
+        }
+        
+        if (isset($data['Summary'])) {
+            $updateData['Summary'] = $data['Summary'];
+        }
+        
+        if (!empty($updateData)) {
+            $report->update($updateData);
+        }
+        
+        return self::reportToArray($report->fresh());
+    }
+
+    /**
+     * Convert Report model to array format for backward compatibility
+     */
+    private static function reportToArray(Report $report): array
+    {
+        return [
+            'id' => $report->Report_ID,
+            'report_number' => $report->Report_Number,
+            'report_type_id' => $report->ReportType_ID,
+            'report_type_name' => $report->reportType->Report_Name ?? 'Unknown',
+            'type' => 'WEEKLY',
+            'week_number' => $report->Week_Number,
+            'year' => $report->Year,
+            'start_date' => $report->Start_Date->format('Y-m-d'),
+            'end_date' => $report->End_Date->format('Y-m-d'),
+            'generated_by' => $report->Generated_By,
+            'generated_at' => $report->Generated_At->format('Y-m-d H:i:s'),
+            'file_path' => $report->File_Path,
+            'record_count' => $report->Record_Count,
+            'summary' => $report->Summary,
+            // Legacy fields for backward compatibility
+            'anti_rabies_pdf' => $report->isAntiRabies() ? $report->File_Path : null,
+            'routine_services_pdf' => $report->isRoutineServices() ? $report->File_Path : null,
+            'anti_rabies_count' => $report->isAntiRabies() ? $report->Record_Count : 0,
+            'routine_services_count' => $report->isRoutineServices() ? $report->Record_Count : 0,
+        ];
     }
 
     /**
@@ -433,7 +562,8 @@ class ReportService
     {
         $html = self::generateAntiRabiesHtml($reportData);
         
-        $filename = 'reports/anti_rabies_' . $reportData['id'] . '.html';
+        $reportId = $reportData['id'] ?? $reportData['anti_rabies_id'] ?? uniqid();
+        $filename = 'reports/anti_rabies_' . $reportId . '.html';
         $fullPath = storage_path('app/public/' . $filename);
         
         $dir = dirname($fullPath);
@@ -442,6 +572,12 @@ class ReportService
         }
         
         file_put_contents($fullPath, $html);
+        
+        // Update the report record with the file path
+        if (isset($reportData['anti_rabies_id'])) {
+            Report::where('Report_ID', $reportData['anti_rabies_id'])
+                ->update(['File_Path' => $filename]);
+        }
         
         return $filename;
     }
@@ -453,7 +589,8 @@ class ReportService
     {
         $html = self::generateRoutineServicesHtml($reportData);
         
-        $filename = 'reports/routine_services_' . $reportData['id'] . '.html';
+        $reportId = $reportData['id'] ?? $reportData['routine_services_id'] ?? uniqid();
+        $filename = 'reports/routine_services_' . $reportId . '.html';
         $fullPath = storage_path('app/public/' . $filename);
         
         $dir = dirname($fullPath);
@@ -463,6 +600,12 @@ class ReportService
         
         file_put_contents($fullPath, $html);
         
+        // Update the report record with the file path
+        if (isset($reportData['routine_services_id'])) {
+            Report::where('Report_ID', $reportData['routine_services_id'])
+                ->update(['File_Path' => $filename]);
+        }
+        
         return $filename;
     }
 
@@ -471,13 +614,15 @@ class ReportService
      */
     public static function generateAntiRabiesHtml($reportData)
     {
-        $reportNumber = $reportData['report_number'] . '-AR';
+        $reportNumber = ($reportData['report_number'] ?? 'RPT-WEEKLY') . '-AR';
         $startDate = Carbon::parse($reportData['start_date'])->format('F d, Y');
         $endDate = Carbon::parse($reportData['end_date'])->format('F d, Y');
         $weekNumber = $reportData['week_number'];
         $year = $reportData['year'];
-        $generatedAt = Carbon::parse($reportData['generated_at'])->format('F d, Y h:i A');
-        $generatedBy = htmlspecialchars($reportData['generated_by']);
+        $generatedAt = isset($reportData['generated_at']) 
+            ? Carbon::parse($reportData['generated_at'])->format('F d, Y h:i A')
+            : now()->format('F d, Y h:i A');
+        $generatedBy = htmlspecialchars($reportData['generated_by'] ?? 'Admin');
         
         $antiRabiesData = $reportData['anti_rabies_data'] ?? [];
 
@@ -601,13 +746,15 @@ HTML;
      */
     public static function generateRoutineServicesHtml($reportData)
     {
-        $reportNumber = $reportData['report_number'] . '-RS';
+        $reportNumber = ($reportData['report_number'] ?? 'RPT-WEEKLY') . '-RS';
         $startDate = Carbon::parse($reportData['start_date'])->format('F d, Y');
         $endDate = Carbon::parse($reportData['end_date'])->format('F d, Y');
         $weekNumber = $reportData['week_number'];
         $year = $reportData['year'];
-        $generatedAt = Carbon::parse($reportData['generated_at'])->format('F d, Y h:i A');
-        $generatedBy = htmlspecialchars($reportData['generated_by']);
+        $generatedAt = isset($reportData['generated_at']) 
+            ? Carbon::parse($reportData['generated_at'])->format('F d, Y h:i A')
+            : now()->format('F d, Y h:i A');
+        $generatedBy = htmlspecialchars($reportData['generated_by'] ?? 'Admin');
         
         $routineServicesData = $reportData['routine_services_data'] ?? [];
 
