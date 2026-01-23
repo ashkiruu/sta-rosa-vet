@@ -118,7 +118,7 @@
         <div class="p-6">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-red-700 text-2xl font-bold">Notifications</h2>
-                <button onclick="toggleNotifications()" class="text-white hover:text-yellow-400">
+                <button onclick="toggleNotifications()" class="text-gray hover:text-yellow-400">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
