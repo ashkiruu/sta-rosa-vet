@@ -1,4 +1,7 @@
-@extends('admin.layouts.app')
+
+
+@extends('layouts.admin')
+
 
 @section('title', 'User Details')
 
@@ -95,6 +98,22 @@
                                         <p class="text-gray-800 font-medium">{{ $user->ocrData->address }}</p>
                                     </div>
                                 @endif
+                                
+
+                                @if($user->ocrData && $user->ocrData->Document_Image_Path)
+                                    <div class="mt-6 pt-6 border-t border-gray-200">
+                                        <h4 class="text-lg font-semibold text-gray-800 mb-4">Uploaded ID Image</h4>
+
+                                        <img
+                                            src="{{ Storage::url($user->ocrData->Document_Image_Path) }}"
+                                            alt="Uploaded ID"
+                                            class="w-full max-w-xl rounded-lg border shadow"
+                                        >
+                                    </div>
+                                @else
+                                    <p class="text-sm text-gray-500 mt-4">No uploaded ID image found for this user.</p>
+                                @endif
+
                             </div>
                         </div>
                     @endif
@@ -102,14 +121,14 @@
                     {{-- Action Buttons --}}
                     @if($user->Verification_Status_ID == 1)
                         <div class="mt-6 pt-6 border-t border-gray-200 flex gap-4">
-                            <form action="{{ route('admin.users.approve', $user->User_ID) }}" method="POST" class="flex-1">
+                            <form action="{{ route('admin.user.approve', $user->User_ID) }}" method="POST" class="flex-1">
                                 @csrf
                                 <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition">
                                     ✓ Approve User
                                 </button>
                             </form>
                             
-                            <form action="{{ route('admin.users.reject', $user->User_ID) }}" method="POST" class="flex-1" 
+                            <form action="{{ route('admin.user.reject', $user->User_ID) }}" method="POST" class="flex-1" 
                                   onsubmit="return confirm('Are you sure you want to reject this user?');">
                                 @csrf
                                 <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-lg transition">
