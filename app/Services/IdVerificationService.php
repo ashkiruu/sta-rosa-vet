@@ -18,7 +18,6 @@ class IDVerificationService
         $this->timeout = (int) config('ml.timeout', 60);
     }
 
-
     public function verifyIDAuthenticity(string $imagePath): array
     {
         try {
@@ -41,18 +40,25 @@ class IDVerificationService
                 ];
             }
 
-            // ✅ Add API key header
             $headers = [];
             if (!empty($this->apiKey)) {
                 $headers['X-ML-API-KEY'] = $this->apiKey;
             }
-            // Check if url is being used
+
             Log::info('ML_API_TARGET', [
                 'url' => $this->baseUrl . '/verify-id'
-            ]);      
+            ]);
 
-            $response = Http::timeout($this->timeout)
-                ->withHeaders($headers)
+            // Build HTTP client
+            $http = Http::timeout($this->timeout)->withHeaders($headers);
+
+            // Use custom CA bundle if configured, otherwise use system default
+            $caBundle = env('CURL_CA_BUNDLE');
+            if ($caBundle && file_exists($caBundle)) {
+                $http = $http->withOptions(['verify' => $caBundle]);
+            }
+
+            $response = $http
                 ->attach('image', $imageContent, basename($imagePath))
                 ->post($this->baseUrl . '/verify-id');
 
@@ -73,7 +79,6 @@ class IDVerificationService
                 ];
             }
 
-            // Better error message for debugging
             Log::error('ML_API_HTTP_ERROR', [
                 'status' => $response->status(),
                 'body' => $response->body()
@@ -116,7 +121,5 @@ class IDVerificationService
                 'error' => 'ML API error: ' . $e->getMessage()
             ];
         }
-
-
     }
 }

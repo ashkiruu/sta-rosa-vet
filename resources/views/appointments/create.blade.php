@@ -34,6 +34,77 @@
                             </div>
                         </div>
 
+                        {{-- Appointment Limit Info Banner --}}
+                        @if(isset($appointmentLimitInfo))
+                            @if(!$appointmentLimitInfo['can_book'])
+                                <div class="mb-10 bg-yellow-50 border-l-4 border-yellow-500 p-5 rounded-r-xl">
+                                    <div class="flex items-start gap-3">
+                                        <span class="text-2xl">⚠️</span>
+                                        <div>
+                                            <h3 class="text-yellow-800 font-black uppercase text-[10px] tracking-widest mb-2">All Pets Have Pending Appointments</h3>
+                                            <p class="text-sm text-yellow-700 font-medium">{{ $appointmentLimitInfo['message'] }}</p>
+                                            <div class="mt-3 flex flex-wrap gap-4 text-xs">
+                                                <span class="bg-yellow-100 px-3 py-1 rounded-full font-bold text-yellow-800">
+                                                    🐾 Total Pets: {{ $appointmentLimitInfo['pet_count'] }}
+                                                </span>
+                                                <span class="bg-yellow-100 px-3 py-1 rounded-full font-bold text-yellow-800">
+                                                    ⏳ Pending Appointments: {{ $appointmentLimitInfo['pending_count'] }}
+                                                </span>
+                                                <span class="bg-yellow-100 px-3 py-1 rounded-full font-bold text-yellow-800">
+                                                    ✅ Available Pets: {{ $appointmentLimitInfo['available_count'] }}
+                                                </span>
+                                            </div>
+                                            @if($appointmentLimitInfo['pet_count'] === 0)
+                                                <a href="{{ route('pets.create') }}" class="inline-flex items-center mt-4 px-4 py-2 bg-yellow-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-yellow-700 transition-all">
+                                                    Register Your First Pet →
+                                                </a>
+                                            @else
+                                                <a href="{{ route('appointments.index') }}" class="inline-flex items-center mt-4 px-4 py-2 bg-yellow-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-yellow-700 transition-all">
+                                                    View Your Appointments →
+                                                </a>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                            @elseif($appointmentLimitInfo['pending_count'] > 0)
+                                <div class="mb-10 bg-blue-50 border-l-4 border-blue-500 p-5 rounded-r-xl">
+                                    <div class="flex items-start gap-3">
+                                        <span class="text-2xl">ℹ️</span>
+                                        <div>
+                                            <h3 class="text-blue-800 font-black uppercase text-[10px] tracking-widest mb-2">Some Pets Have Pending Appointments</h3>
+                                            <p class="text-sm text-blue-700 font-medium">You can still book for pets without pending appointments. Each pet can only have one pending appointment at a time.</p>
+                                            <div class="mt-3 flex flex-wrap gap-4 text-xs">
+                                                <span class="bg-blue-100 px-3 py-1 rounded-full font-bold text-blue-800">
+                                                    🐾 Total Pets: {{ $appointmentLimitInfo['pet_count'] }}
+                                                </span>
+                                                <span class="bg-blue-100 px-3 py-1 rounded-full font-bold text-blue-800">
+                                                    ⏳ Pending: {{ $appointmentLimitInfo['pending_count'] }}
+                                                </span>
+                                                <span class="bg-green-100 px-3 py-1 rounded-full font-bold text-green-800">
+                                                    ✅ Available: {{ $appointmentLimitInfo['available_count'] }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @else
+                                <div class="mb-10 bg-green-50 border-l-4 border-green-500 p-5 rounded-r-xl">
+                                    <div class="flex items-start gap-3">
+                                        <span class="text-2xl">✅</span>
+                                        <div>
+                                            <h3 class="text-green-800 font-black uppercase text-[10px] tracking-widest mb-2">All Pets Available</h3>
+                                            <p class="text-sm text-green-700 font-medium">{{ $appointmentLimitInfo['message'] }}</p>
+                                            <div class="mt-3 flex flex-wrap gap-4 text-xs">
+                                                <span class="bg-green-100 px-3 py-1 rounded-full font-bold text-green-800">
+                                                    🐾 Registered Pets: {{ $appointmentLimitInfo['pet_count'] }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+                        @endif
+
                         {{-- Validation Errors --}}
                         @if ($errors->any())
                             <div class="mb-10 bg-red-50 border-l-4 border-red-600 p-5 rounded-r-xl">
@@ -50,7 +121,7 @@
                             @csrf
 
                             {{-- Section 1: Service Selection --}}
-                            <section>
+                            <section class="{{ isset($appointmentLimitInfo) && !$appointmentLimitInfo['can_book'] ? 'opacity-50 pointer-events-none' : '' }}">
                                 <div class="flex items-center gap-3 mb-6">
                                     <span class="text-red-700 font-black uppercase text-xs tracking-widest">01. Select Service</span>
                                 </div>
@@ -58,7 +129,7 @@
                                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                                     @foreach($services as $service)
                                         <label class="relative group cursor-pointer h-full">
-                                            <input type="radio" name="Service_ID" value="{{ $service->Service_ID }}" class="peer hidden" {{ old('Service_ID') == $service->Service_ID ? 'checked' : '' }} required>
+                                            <input type="radio" name="Service_ID" value="{{ $service->Service_ID }}" class="peer hidden" {{ old('Service_ID') == $service->Service_ID ? 'checked' : '' }} required {{ isset($appointmentLimitInfo) && !$appointmentLimitInfo['can_book'] ? 'disabled' : '' }}>
                                             <div class="h-full min-h-[80px] flex flex-col justify-center border-2 border-gray-100 rounded-2xl p-5 transition-all 
                                                         hover:border-red-600 hover:bg-red-50/50
                                                         peer-checked:border-red-600 peer-checked:bg-red-50/50">
@@ -73,7 +144,7 @@
                             </section>
 
                             {{-- Section 2: Date & Time --}}
-                            <section>
+                            <section class="{{ isset($appointmentLimitInfo) && !$appointmentLimitInfo['can_book'] ? 'opacity-50 pointer-events-none' : '' }}">
                                 <div class="flex items-center gap-3 mb-6">
                                     <span class="text-red-700 font-black uppercase text-xs tracking-widest">02. Schedule Slot</span>
                                 </div>
@@ -127,6 +198,9 @@
                             <section>
                                 <div class="flex items-center gap-3 mb-6">
                                     <span class="text-red-700 font-black uppercase text-xs tracking-widest">03. Choose Patient</span>
+                                    @if(isset($appointmentLimitInfo) && $appointmentLimitInfo['pending_count'] > 0)
+                                        <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">(Pets with pending appointments are disabled)</span>
+                                    @endif
                                 </div>
 
                                 @if($pets->isEmpty())
@@ -139,21 +213,36 @@
                                 @else
                                     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                                         @foreach($pets as $pet)
-                                            <label class="cursor-pointer group h-full">
-                                                <input type="radio" name="Pet_ID" value="{{ $pet->Pet_ID }}" class="peer hidden" {{ old('Pet_ID') == $pet->Pet_ID ? 'checked' : '' }} required>
+                                            @php
+                                                $hasPendingAppointment = isset($appointmentLimitInfo) && in_array($pet->Pet_ID, $appointmentLimitInfo['pets_with_pending']);
+                                            @endphp
+                                            <label class="cursor-pointer group h-full {{ $hasPendingAppointment ? 'opacity-50 cursor-not-allowed' : '' }}">
+                                                <input type="radio" name="Pet_ID" value="{{ $pet->Pet_ID }}" class="peer hidden" {{ old('Pet_ID') == $pet->Pet_ID && !$hasPendingAppointment ? 'checked' : '' }} {{ $hasPendingAppointment ? 'disabled' : 'required' }}>
                                                 
-                                                <div class="h-full min-h-[110px] p-4 bg-white border-2 border-gray-100 rounded-2xl text-center transition-all flex flex-col items-center justify-center
-                                                            group-hover:border-red-600 group-hover:bg-red-50/50
-                                                            peer-checked:border-red-600 peer-checked:bg-red-50/50">
+                                                <div class="h-full min-h-[110px] p-4 bg-white border-2 rounded-2xl text-center transition-all flex flex-col items-center justify-center relative
+                                                            {{ $hasPendingAppointment 
+                                                                ? 'border-gray-200 bg-gray-50' 
+                                                                : 'border-gray-100 group-hover:border-red-600 group-hover:bg-red-50/50 peer-checked:border-red-600 peer-checked:bg-red-50/50' }}">
+                                                    
+                                                    {{-- Pending Badge --}}
+                                                    @if($hasPendingAppointment)
+                                                        <div class="absolute -top-2 -right-2 bg-yellow-500 text-white text-[8px] font-black px-2 py-1 rounded-full uppercase tracking-wider shadow-sm">
+                                                            Pending
+                                                        </div>
+                                                    @endif
                                                     
                                                     {{-- Paw Icon Integration --}}
-                                                    <div class="w-10 h-10 mb-3 bg-gray-50 rounded-xl flex items-center justify-center text-lg transition-colors group-hover:bg-white peer-checked:bg-white">
+                                                    <div class="w-10 h-10 mb-3 bg-gray-50 rounded-xl flex items-center justify-center text-lg transition-colors {{ !$hasPendingAppointment ? 'group-hover:bg-white peer-checked:bg-white' : '' }}">
                                                         🐾
                                                     </div>
 
-                                                    <div class="font-black text-gray-700 text-[10px] uppercase truncate tracking-widest transition-colors group-hover:text-red-700 peer-checked:text-red-700">
+                                                    <div class="font-black text-[10px] uppercase truncate tracking-widest transition-colors {{ $hasPendingAppointment ? 'text-gray-400' : 'text-gray-700 group-hover:text-red-700 peer-checked:text-red-700' }}">
                                                         {{ $pet->Pet_Name }}
                                                     </div>
+                                                    
+                                                    @if($hasPendingAppointment)
+                                                        <p class="text-[8px] text-gray-400 mt-1 uppercase tracking-wide">Has appointment</p>
+                                                    @endif
                                                 </div>
                                             </label>
                                         @endforeach
@@ -173,9 +262,13 @@
                                 </p>
 
                                 <button type="submit" id="submitBtn"
-                                    class="w-full md:w-64 bg-red-700 hover:bg-red-800 text-white font-black py-4 rounded-2xl shadow-lg transition-all active:scale-95 uppercase tracking-widest text-sm disabled:opacity-50"
-                                    {{ $pets->isEmpty() ? 'disabled' : '' }}>
-                                    Continue
+                                    class="w-full md:w-64 bg-red-700 hover:bg-red-800 text-white font-black py-4 rounded-2xl shadow-lg transition-all active:scale-95 uppercase tracking-widest text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                    {{ $pets->isEmpty() || (isset($appointmentLimitInfo) && !$appointmentLimitInfo['can_book']) ? 'disabled' : '' }}>
+                                    @if(isset($appointmentLimitInfo) && !$appointmentLimitInfo['can_book'])
+                                        Limit Reached
+                                    @else
+                                        Continue
+                                    @endif
                                 </button>
                             </div>
                         </form>

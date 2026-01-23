@@ -221,6 +221,19 @@
                                 >
                             </div>
 
+                            <!-- Breed -->
+                            <div class="mb-4">
+                                <label class="form-label">Breed <span class="text-gray-400 text-xs font-normal">(Optional)</span></label>
+                                <input 
+                                    type="text" 
+                                    name="Breed" 
+                                    class="form-input" 
+                                    placeholder="e.g., Labrador, Persian, Mixed"
+                                    value="{{ old('Breed') }}"
+                                >
+                                <p class="text-xs text-gray-500 mt-1">Leave blank or enter "Mixed" if unknown</p>
+                            </div>
+
                             <!-- Reproductive Status -->
                             <div class="mb-4">
                                 <label class="form-label">Reproductive Status</label>

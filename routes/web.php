@@ -59,9 +59,12 @@ Route::middleware('auth')->group(function () {
     Route::delete('/pets/{id}', [PetController::class, 'destroy'])->name('pets.destroy');
 
     // Appointments
+    
     Route::get('/appointments', [AppointmentController::class, 'index'])->name('appointments.index');
     Route::get('/appointments/create', [AppointmentController::class, 'create'])->name('appointments.create');
     Route::post('/appointments', [AppointmentController::class, 'store'])->name('appointments.store');
+    Route::get('/appointments/check-limit', [AppointmentController::class, 'checkAppointmentLimit'])
+    ->name('appointments.checkLimit');
     
     Route::post('/appointments/preview', [AppointmentController::class, 'preview'])->name('appointments.preview');
     Route::post('/appointments/confirm', [AppointmentController::class, 'confirm'])->name('appointments.confirm');
@@ -179,3 +182,6 @@ Route::get('/reset-password/{token}', [ResetPasswordController::class, 'showRese
 Route::post('/reset-password', [ResetPasswordController::class, 'reset'])
     ->middleware('guest')
     ->name('password.update');
+
+
+    

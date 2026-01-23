@@ -29,6 +29,7 @@ class PetController extends Controller
             'Age' => 'required|integer|min:0',
             'Species_ID' => 'required',
             'other_species' => 'required_if:Species_ID,0|nullable|string|max:255',
+            'Breed' => 'nullable|string|max:255',
             'Reproductive_Status' => 'required|in:Intact,Neutered,Spayed,Unknown',
             'medical_history' => 'nullable|string|max:1000',
         ]);
@@ -44,7 +45,16 @@ class PetController extends Controller
         $pet->Sex = $request->Sex;
         $pet->Age = $request->Age;
         $pet->Species_ID = $request->Species_ID;
-        $pet->Breed = $request->other_species;
+        
+        // Handle breed: use the Breed field if provided, otherwise use other_species for "Other" species
+        if ($request->filled('Breed')) {
+            $pet->Breed = $request->Breed;
+        } elseif ($request->filled('other_species')) {
+            $pet->Breed = $request->other_species;
+        } else {
+            $pet->Breed = null;
+        }
+        
         $pet->Color = '';
         $pet->Date_of_Birth = now()->subMonths($request->Age);
         $pet->Reproductive_Status = $request->Reproductive_Status;

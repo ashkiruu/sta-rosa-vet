@@ -55,7 +55,7 @@
                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
                                     </div>
                                 </div>
-                                <p class="text-xs text-gray-400 mt-1">Leave empty to use week selection above</p>
+                                
                             </div>
                             
                             <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-semibold transition flex items-center justify-center gap-2">

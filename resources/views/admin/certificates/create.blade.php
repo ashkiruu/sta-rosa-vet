@@ -50,7 +50,34 @@
                     $vaccineType = 'other';
                 }
             }
+            
+            // Check for missing pet data that staff needs to fill
+            $petBreed = old('pet_breed', $certificate['pet_breed'] ?? $appointment->pet->Breed ?? '');
+            $petColor = old('pet_color', $certificate['pet_color'] ?? $appointment->pet->Color ?? '');
+            $breedMissing = empty($petBreed);
+            $colorMissing = empty($petColor);
         @endphp
+
+        {{-- Alert for missing pet information --}}
+        @if($breedMissing || $colorMissing)
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-yellow-700">
+                            <strong>Missing pet information:</strong> The following fields were not provided during registration and need to be filled in:
+                            @if($breedMissing) <span class="font-semibold">Breed</span>@endif
+                            @if($breedMissing && $colorMissing), @endif
+                            @if($colorMissing) <span class="font-semibold">Color</span>@endif
+                        </p>
+                    </div>
+                </div>
+            </div>
+        @endif
 
         <form method="POST" action="{{ isset($certificate) ? route('admin.certificates.update', $certificate['id']) : route('admin.certificates.store') }}">
             @csrf
@@ -132,16 +159,34 @@
                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Breed *</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Breed *
+                                @if($breedMissing)
+                                    <span class="ml-2 px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded-full">⚠️ Required - Not provided by owner</span>
+                                @endif
+                            </label>
                             <input type="text" name="pet_breed" required
-                                   value="{{ old('pet_breed', $certificate['pet_breed'] ?? $appointment->pet->Breed ?? '') }}"
-                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                   placeholder="{{ $breedMissing ? 'Please fill in the breed (e.g., Labrador, Aspin, Mixed)' : '' }}"
+                                   value="{{ $petBreed }}"
+                                   class="w-full px-4 py-2 border {{ $breedMissing ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300' }} rounded-lg focus:ring-2 focus:ring-blue-500">
+                            @if($breedMissing)
+                                <p class="text-xs text-yellow-600 mt-1">This field was not filled during pet registration. Please enter the breed.</p>
+                            @endif
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Color *</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Color *
+                                @if($colorMissing)
+                                    <span class="ml-2 px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded-full">⚠️ Required - Not provided by owner</span>
+                                @endif
+                            </label>
                             <input type="text" name="pet_color" required
-                                   value="{{ old('pet_color', $certificate['pet_color'] ?? $appointment->pet->Color ?? '') }}"
-                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                   placeholder="{{ $colorMissing ? 'Please fill in the color (e.g., Brown, Black & White)' : '' }}"
+                                   value="{{ $petColor }}"
+                                   class="w-full px-4 py-2 border {{ $colorMissing ? 'border-yellow-400 bg-yellow-50' : 'border-gray-300' }} rounded-lg focus:ring-2 focus:ring-blue-500">
+                            @if($colorMissing)
+                                <p class="text-xs text-yellow-600 mt-1">This field was not filled during pet registration. Please enter the color.</p>
+                            @endif
                         </div>
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>

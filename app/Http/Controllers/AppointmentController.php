@@ -37,8 +37,11 @@ class AppointmentController extends Controller
     {
         $pets = Pet::where('Owner_ID', $this->userId())->get();
         $services = ServiceType::all();
+        
+        // Get appointment limit info for the view
+        $appointmentLimitInfo = $this->getAppointmentLimitInfo();
 
-        return view('appointments.create', compact('pets', 'services'));
+        return view('appointments.create', compact('pets', 'services', 'appointmentLimitInfo'));
     }
 
     public function show($id)
@@ -53,7 +56,13 @@ class AppointmentController extends Controller
 
     public function preview(Request $request)
     {
+        // Validate first to get the Pet_ID
         $validated = $this->validateAppointmentRequest($request);
+        
+        // Check pending appointment limit for this specific pet
+        if ($limitError = $this->checkPendingAppointmentLimit($validated['Pet_ID'])) {
+            return back()->withErrors($limitError)->withInput();
+        }
         
         if ($error = $this->checkAppointmentConflicts($validated)) {
             return back()->withErrors($error)->withInput();
@@ -68,7 +77,13 @@ class AppointmentController extends Controller
 
     public function confirm(Request $request)
     {
+        // Validate first to get the Pet_ID
         $validated = $this->validateAppointmentRequest($request);
+        
+        // Check pending appointment limit for this specific pet
+        if ($limitError = $this->checkPendingAppointmentLimit($validated['Pet_ID'])) {
+            return redirect()->route('appointments.create')->withErrors($limitError)->withInput();
+        }
         
         if ($error = $this->checkAppointmentConflicts($validated)) {
             return redirect()->route('appointments.create')->withErrors($error)->withInput();
@@ -82,7 +97,13 @@ class AppointmentController extends Controller
 
     public function store(Request $request)
     {
+        // Validate first to get the Pet_ID
         $validated = $this->validateAppointmentRequest($request, true);
+        
+        // Check pending appointment limit for this specific pet
+        if ($limitError = $this->checkPendingAppointmentLimit($validated['Pet_ID'])) {
+            return back()->withErrors($limitError)->withInput();
+        }
         
         if ($error = $this->checkAppointmentConflicts($validated)) {
             return back()->withErrors($error)->withInput();
@@ -155,6 +176,15 @@ class AppointmentController extends Controller
     public function getClinicSchedule()
     {
         return response()->json($this->loadSchedule());
+    }
+
+    /**
+     * API endpoint to check appointment limit status
+     */
+    public function checkAppointmentLimit()
+    {
+        $info = $this->getAppointmentLimitInfo();
+        return response()->json($info);
     }
 
     public function checkStatus($id)
@@ -376,6 +406,99 @@ class AppointmentController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * Check if user has reached their pending appointment limit
+     * Each pet can only have one pending appointment at a time
+     */
+    private function checkPendingAppointmentLimit(?int $petId = null): ?array
+    {
+        $userId = $this->userId();
+        
+        // Count user's pets
+        $petCount = Pet::where('Owner_ID', $userId)->count();
+        
+        if ($petCount === 0) {
+            return ['limit' => 'You must register at least one pet before booking an appointment.'];
+        }
+        
+        // If a specific pet is being booked, check if that pet already has a pending appointment
+        if ($petId) {
+            $petHasPending = Appointment::where('User_ID', $userId)
+                ->where('Pet_ID', $petId)
+                ->where('Status', 'Pending')
+                ->exists();
+            
+            if ($petHasPending) {
+                $pet = Pet::find($petId);
+                $petName = $pet ? $pet->Pet_Name : 'This pet';
+                return [
+                    'limit' => "{$petName} already has a pending appointment. Each pet can only have one pending appointment at a time. Please wait for it to be processed or select a different pet."
+                ];
+            }
+        }
+        
+        // Also check if ALL pets have pending appointments (no available pets to book for)
+        $petsWithPending = Appointment::where('User_ID', $userId)
+            ->where('Status', 'Pending')
+            ->distinct()
+            ->pluck('Pet_ID')
+            ->toArray();
+        
+        $availablePets = Pet::where('Owner_ID', $userId)
+            ->whereNotIn('Pet_ID', $petsWithPending)
+            ->count();
+        
+        if ($availablePets === 0) {
+            return [
+                'limit' => "All your pets already have pending appointments. Each pet can only have one pending appointment at a time. Please wait for your current appointment(s) to be processed before booking new ones."
+            ];
+        }
+        
+        return null;
+    }
+
+    /**
+     * Get appointment limit information for display in views
+     */
+    private function getAppointmentLimitInfo(): array
+    {
+        $userId = $this->userId();
+        
+        $petCount = Pet::where('Owner_ID', $userId)->count();
+        $pendingCount = Appointment::where('User_ID', $userId)
+            ->where('Status', 'Pending')
+            ->count();
+        
+        // Get pets that already have pending appointments
+        $petsWithPending = Appointment::where('User_ID', $userId)
+            ->where('Status', 'Pending')
+            ->distinct()
+            ->pluck('Pet_ID')
+            ->toArray();
+        
+        // Get available pets (those without pending appointments)
+        $availablePets = Pet::where('Owner_ID', $userId)
+            ->whereNotIn('Pet_ID', $petsWithPending)
+            ->get();
+        
+        $availableCount = $availablePets->count();
+        $canBook = $availableCount > 0;
+        
+        return [
+            'pet_count' => $petCount,
+            'pending_count' => $pendingCount,
+            'available_pets' => $availablePets,
+            'available_count' => $availableCount,
+            'pets_with_pending' => $petsWithPending,
+            'can_book' => $canBook,
+            'message' => $canBook 
+                ? "You have {$availableCount} pet(s) available for booking."
+                : ($petCount === 0 
+                    ? "Please register a pet first to book appointments."
+                    : "All your pets have pending appointments. Wait for them to be processed.")
+        ];
     }
 
     private function createAppointment(array $data): Appointment
