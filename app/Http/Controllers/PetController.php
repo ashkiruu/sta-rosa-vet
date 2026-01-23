@@ -81,6 +81,16 @@ class PetController extends Controller
             ->where('Owner_ID', Auth::user()->User_ID)
             ->firstOrFail();
 
+        $hasPendingAppointments = \DB::table('appointments')
+            ->where('Pet_ID', $id)
+            ->where('Status', 'Pending')
+            ->exists();
+
+        if ($hasPendingAppointments) {
+            return redirect()->route('pets.index')
+                ->with('error', "Cannot remove {$pet->Pet_Name}. There is currently a pending appointment scheduled.");
+        }
+
         $pet->delete();
 
         return redirect()->route('pets.index')
