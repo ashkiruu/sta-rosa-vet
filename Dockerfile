@@ -72,6 +72,7 @@ WORKDIR /var/www/html
 
 # Copy app code
 COPY . .
+RUN php artisan config:clear && php artisan cache:clear
 
 # Copy vendor + built assets
 COPY --from=vendor /app/vendor ./vendor
