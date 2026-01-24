@@ -19,15 +19,12 @@ WORKDIR /app
 # Copy composer files first (better caching)
 COPY composer.json composer.lock ./
 
-# Copy minimum app files needed for artisan scripts during composer install
-COPY artisan artisan
-COPY bootstrap bootstrap
-COPY config config
 
 # Some packages may read .env during discovery; keep safe (optional)
 # COPY .env.example .env
 
-RUN composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
+RUN composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-scripts
+
 
 
 # =========================
@@ -80,15 +77,29 @@ COPY . .
 COPY --from=vendor /app/vendor ./vendor
 COPY --from=frontend /app/public/build ./public/build
 
+# Provide safe defaults so artisan doesn't require real secrets/DB at build time
+ENV APP_ENV=production \
+    APP_DEBUG=false \
+    APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= \
+    CACHE_STORE=array \
+    SESSION_DRIVER=array \
+    QUEUE_CONNECTION=sync \
+    DB_CONNECTION=sqlite \
+    DB_DATABASE=/tmp/database.sqlite
+
+RUN touch /tmp/database.sqlite \
+ && php artisan package:discover --ansi
+
+
 # Permissions for Laravel
 RUN mkdir -p storage bootstrap/cache \
  && chown -R www-data:www-data storage bootstrap/cache \
  && chmod -R ug+rwx storage bootstrap/cache
 
-# Optional: optimize caches at build time (safe if .env not required)
-RUN php artisan config:clear || true \
- && php artisan route:clear || true \
- && php artisan view:clear || true
+RUN php artisan config:clear --ansi \
+ && php artisan route:clear --ansi \
+ && php artisan view:clear --ansi
+
 
 EXPOSE 8080
 CMD ["apache2-foreground"]
