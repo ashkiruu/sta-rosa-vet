@@ -1,154 +1,193 @@
 @extends('layouts.admin')
+
 @section('page_title', 'Activity Logs')
+
 @section('content')
-<div class="mb-6">
-    <h2 class="text-2xl font-bold text-gray-800">Admin Activity Logs</h2>
-    <p class="text-gray-500 mt-1">Monitor all actions performed by staff and administrators</p>
-</div>
-
-{{-- Filters --}}
-<div class="bg-white rounded-xl shadow-sm border p-4 mb-6">
-    <form action="{{ route('admin.logs') }}" method="GET" class="grid grid-cols-1 md:grid-cols-5 gap-4">
-        {{-- Admin Filter --}}
-        <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1">Filter by Admin</label>
-            <select name="admin_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
-                <option value="">All Admins</option>
-                @foreach($admins as $admin)
-                    <option value="{{ $admin->User_ID }}" {{ request('admin_id') == $admin->User_ID ? 'selected' : '' }}>
-                        {{ $admin->user->First_Name ?? 'Unknown' }} {{ $admin->user->Last_Name ?? '' }}
-                    </option>
-                @endforeach
-            </select>
-        </div>
-
-        {{-- Action Filter --}}
-        <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1">Filter by Action</label>
-            <select name="action" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
-                <option value="">All Actions</option>
-                @foreach($actionTypes as $action)
-                    <option value="{{ $action }}" {{ request('action') == $action ? 'selected' : '' }}>
-                        {{ str_replace('_', ' ', $action) }}
-                    </option>
-                @endforeach
-            </select>
-        </div>
-
-        {{-- Date From --}}
-        <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1">From Date</label>
-            <input type="date" name="date_from" value="{{ request('date_from') }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
-        </div>
-
-        {{-- Date To --}}
-        <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1">To Date</label>
-            <input type="date" name="date_to" value="{{ request('date_to') }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
-        </div>
-
-        {{-- Buttons --}}
-        <div class="flex items-end gap-2">
-            <button type="submit" class="flex-1 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm">
-                <i class="fas fa-filter mr-1"></i> Filter
-            </button>
-            <a href="{{ route('admin.logs') }}" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
-                <i class="fas fa-times"></i>
-            </a>
-        </div>
-    </form>
-</div>
-
-{{-- Activity Log Table --}}
-<div class="bg-white rounded-xl shadow-sm border">
-    <div class="p-4 border-b bg-gray-50 flex items-center justify-between">
-        <h3 class="font-semibold text-gray-700">
-            <i class="fas fa-history text-purple-500 mr-2"></i> Activity Log
-        </h3>
-        <span class="text-sm text-gray-500">{{ $logs->total() }} total records</span>
+<div class="min-h-screen py-4">
+    {{-- Header --}}
+    <div class="mb-8">
+        <h1 class="text-3xl font-black text-gray-900 uppercase tracking-tight">System Audit Trail</h1>
+        <p class="text-[10px] font-bold text-purple-600 uppercase tracking-[0.2em]">Monitor real-time administrative operations</p>
     </div>
-    <div class="overflow-x-auto">
-        <table class="w-full">
-            <thead class="bg-gray-50 border-b">
-                <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admin</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200">
-                @forelse($logs as $log)
-                <tr class="hover:bg-gray-50">
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="text-sm text-gray-900">{{ $log->Timestamp->format('M d, Y') }}</div>
-                        <div class="text-xs text-gray-500">{{ $log->Timestamp->format('h:i:s A') }}</div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="flex items-center">
-                            <div class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold mr-2">
-                                {{ substr($log->user->First_Name ?? 'A', 0, 1) }}
-                            </div>
-                            <div>
-                                <p class="text-sm font-medium text-gray-800">
+
+    {{-- Advanced Filters --}}
+    <div class="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-8 mb-8">
+        <form action="{{ route('admin.logs') }}" method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+            {{-- Admin Filter --}}
+            <div class="space-y-2">
+                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Operator</label>
+                <div class="relative">
+                    <select name="admin_id" class="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:ring-2 focus:ring-purple-500 transition-all appearance-none">
+                        <option value="">All Personnel</option>
+                        @foreach($admins as $admin)
+                            <option value="{{ $admin->User_ID }}" {{ request('admin_id') == $admin->User_ID ? 'selected' : '' }}>
+                                {{ $admin->user->First_Name ?? 'Unknown' }} {{ $admin->user->Last_Name ?? '' }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <i class="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 text-[10px] pointer-events-none"></i>
+                </div>
+            </div>
+
+            {{-- Action Filter --}}
+            <div class="space-y-2">
+                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Event Type</label>
+                <div class="relative">
+                    <select name="action" class="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:ring-2 focus:ring-purple-500 transition-all appearance-none">
+                        <option value="">All Events</option>
+                        @foreach($actionTypes as $action)
+                            <option value="{{ $action }}" {{ request('action') == $action ? 'selected' : '' }}>
+                                {{ str_replace('_', ' ', $action) }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <i class="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 text-[10px] pointer-events-none"></i>
+                </div>
+            </div>
+
+            {{-- Date From --}}
+            <div class="space-y-2">
+                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Date Start</label>
+                <input type="date" name="date_from" value="{{ request('date_from') }}" class="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:ring-2 focus:ring-purple-500 transition-all">
+            </div>
+
+            {{-- Date To --}}
+            <div class="space-y-2">
+                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Date End</label>
+                <input type="date" name="date_to" value="{{ request('date_to') }}" class="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-xs font-bold text-gray-700 focus:ring-2 focus:ring-purple-500 transition-all">
+            </div>
+
+            {{-- Filter Actions --}}
+            <div class="flex items-end gap-2">
+                <button type="submit" class="flex-1 bg-gray-900 hover:bg-purple-600 text-white h-[44px] rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md">
+                    Apply Filter
+                </button>
+                <a href="{{ route('admin.logs') }}" class="w-[44px] h-[44px] bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-xl flex items-center justify-center transition-all">
+                    <i class="fas fa-undo-alt text-xs"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+
+    {{-- Activity Log Table --}}
+    <div class="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
+        <div class="p-8 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
+            <h3 class="text-[10px] font-black text-gray-700 uppercase tracking-[0.2em] flex items-center">
+                <span class="w-2 h-2 bg-purple-500 rounded-full mr-2 animate-pulse"></span>
+                Event Registry
+            </h3>
+            <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest bg-white px-4 py-1.5 rounded-full border border-gray-100">
+                {{ number_format($logs->total()) }} Records Found
+            </span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full border-collapse">
+                <thead>
+                    <tr class="bg-white">
+                        <th class="px-8 py-5 text-left text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">Timestamp</th>
+                        <th class="px-8 py-5 text-left text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">Operator</th>
+                        <th class="px-8 py-5 text-left text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">Action Type</th>
+                        <th class="px-8 py-5 text-left text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">Data Description</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    @forelse($logs as $log)
+                    <tr class="hover:bg-gray-50/80 transition-all">
+                        <td class="px-8 py-6 whitespace-nowrap">
+                            <div class="text-[11px] font-black text-gray-900 uppercase tracking-tighter">{{ $log->Timestamp->format('M d, Y') }}</div>
+                            <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{{ $log->Timestamp->format('h:i:s A') }}</div>
+                        </td>
+                        <td class="px-8 py-6 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="h-9 w-9 rounded-xl bg-gray-900 flex items-center justify-center text-white text-[10px] font-black shadow-sm mr-3">
+                                    {{ substr($log->user->First_Name ?? 'A', 0, 1) }}
+                                </div>
+                                <span class="text-[11px] font-black text-gray-700 uppercase tracking-tight">
                                     {{ $log->user->First_Name ?? 'Unknown' }} {{ $log->user->Last_Name ?? '' }}
+                                </span>
+                            </div>
+                        </td>
+                        <td class="px-8 py-6 whitespace-nowrap">
+                            @php
+                                $actionClass = 'bg-gray-100 text-gray-500 border-gray-200';
+                                $icon = 'fa-circle';
+                                if (str_contains($log->Action, 'APPROVED') || str_contains($log->Action, 'CREATED')) {
+                                    $actionClass = 'bg-green-50 text-green-700 border-green-100';
+                                    $icon = 'fa-plus-circle';
+                                } elseif (str_contains($log->Action, 'REJECTED') || str_contains($log->Action, 'DELETED') || str_contains($log->Action, 'REMOVED')) {
+                                    $actionClass = 'bg-red-50 text-red-700 border-red-100';
+                                    $icon = 'fa-exclamation-triangle';
+                                } elseif (str_contains($log->Action, 'UPDATED') || str_contains($log->Action, 'MODIFIED')) {
+                                    $actionClass = 'bg-blue-50 text-blue-700 border-blue-100';
+                                    $icon = 'fa-edit';
+                                } elseif (str_contains($log->Action, 'GENERATED')) {
+                                    $actionClass = 'bg-purple-50 text-purple-700 border-purple-100';
+                                    $icon = 'fa-cog';
+                                }
+                            @endphp
+                            <span class="inline-flex items-center px-4 py-1.5 text-[9px] font-black rounded-full border {{ $actionClass }} uppercase tracking-widest">
+                                <i class="fas {{ $icon }} mr-2"></i>
+                                {{ str_replace('_', ' ', $log->Action) }}
+                            </span>
+                        </td>
+                        <td class="px-8 py-6">
+                            <div class="group relative">
+                                <p class="text-[11px] font-bold text-gray-500 leading-relaxed max-w-sm truncate uppercase tracking-tight" title="{{ $log->Description }}">
+                                    {{ $log->Description ?? 'N/A' }}
                                 </p>
                             </div>
-                        </div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        @php
-                            $actionClass = 'bg-gray-100 text-gray-700';
-                            if (str_contains($log->Action, 'APPROVED') || str_contains($log->Action, 'CREATED')) {
-                                $actionClass = 'bg-green-100 text-green-700';
-                            } elseif (str_contains($log->Action, 'REJECTED') || str_contains($log->Action, 'DELETED') || str_contains($log->Action, 'REMOVED')) {
-                                $actionClass = 'bg-red-100 text-red-700';
-                            } elseif (str_contains($log->Action, 'UPDATED') || str_contains($log->Action, 'MODIFIED')) {
-                                $actionClass = 'bg-blue-100 text-blue-700';
-                            } elseif (str_contains($log->Action, 'GENERATED')) {
-                                $actionClass = 'bg-purple-100 text-purple-700';
-                            }
-                        @endphp
-                        <span class="px-2 py-1 text-xs font-medium rounded-full {{ $actionClass }}">
-                            {{ str_replace('_', ' ', $log->Action) }}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4">
-                        <p class="text-sm text-gray-600 max-w-md truncate" title="{{ $log->Description }}">
-                            {{ $log->Description ?? '-' }}
-                        </p>
-                    </td>
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="4" class="px-6 py-12 text-center text-gray-500">
-                        <i class="fas fa-clipboard-list fa-3x text-gray-300 mb-3"></i>
-                        <p class="font-medium">No activity logs found</p>
-                        <p class="text-sm mt-1">Admin actions will appear here once they start performing tasks.</p>
-                    </td>
-                </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
-    
-    {{-- Pagination --}}
-    @if($logs->hasPages())
-    <div class="p-4 border-t bg-gray-50">
-        {{ $logs->withQueryString()->links() }}
-    </div>
-    @endif
-</div>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="4" class="px-8 py-24 text-center">
+                            <div class="w-20 h-20 bg-gray-50 rounded-[2rem] flex items-center justify-center mb-6 mx-auto border border-gray-100">
+                                <i class="fas fa-clipboard-list text-3xl text-gray-200"></i>
+                            </div>
+                            <h3 class="text-xs font-black text-gray-900 uppercase tracking-[0.2em]">No Events Found</h3>
+                            <p class="text-[10px] font-bold text-gray-400 uppercase mt-2 italic">Refine your filters or wait for system activity</p>
+                        </td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
 
-{{-- Legend --}}
-<div class="mt-6 bg-gray-50 border rounded-lg p-4">
-    <h4 class="text-sm font-semibold text-gray-700 mb-3"><i class="fas fa-info-circle mr-1"></i> Action Types Legend</h4>
-    <div class="flex flex-wrap gap-3">
-        <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">APPROVED / CREATED</span>
-        <span class="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">REJECTED / DELETED</span>
-        <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">UPDATED / MODIFIED</span>
-        <span class="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-700">GENERATED</span>
-        <span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700">OTHER</span>
+        {{-- Pagination --}}
+        @if($logs->hasPages())
+        <div class="px-8 py-6 border-t border-gray-50 bg-gray-50/30">
+            {{ $logs->withQueryString()->links() }}
+        </div>
+        @endif
+    </div>
+
+    {{-- Action Legend --}}
+    <div class="mt-8 bg-gray-600 rounded-[2.5rem] p-8 text-white relative overflow-hidden">
+        <div class="relative z-10">
+            <h4 class="text-[10px] font-black uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                <i class="fas fa-layer-group text-purple-400"></i> Event Classification Legend
+            </h4>
+            <div class="flex flex-wrap gap-4">
+                <div class="bg-white/5 border border-white/10 px-4 py-3 rounded-2xl flex items-center gap-3">
+                    <span class="w-3 h-3 bg-green-500 rounded-full shadow-[0_0_10px_rgba(34,197,94,0.5)]"></span>
+                    <span class="text-[9px] font-black uppercase tracking-widest text-white">Approval / Creation</span>
+                </div>
+                <div class="bg-white/5 border border-white/10 px-4 py-3 rounded-2xl flex items-center gap-3">
+                    <span class="w-3 h-3 bg-red-500 rounded-full shadow-[0_0_10px_rgba(239,68,68,0.5)]"></span>
+                    <span class="text-[9px] font-black uppercase tracking-widest text-white">Deletion / Rejection</span>
+                </div>
+                <div class="bg-white/5 border border-white/10 px-4 py-3 rounded-2xl flex items-center gap-3">
+                    <span class="w-3 h-3 bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]"></span>
+                    <span class="text-[9px] font-black uppercase tracking-widest text-white">Modification</span>
+                </div>
+                <div class="bg-white/5 border border-white/10 px-4 py-3 rounded-2xl flex items-center gap-3">
+                    <span class="w-3 h-3 bg-purple-500 rounded-full shadow-[0_0_10px_rgba(168,85,247,0.5)]"></span>
+                    <span class="text-[9px] font-black uppercase tracking-widest text-white">System Generation</span>
+                </div>
+            </div>
+        </div>
+        <i class="fas fa-fingerprint absolute -right-4 -bottom-4 text-9xl text-white/5 -rotate-12"></i>
     </div>
 </div>
 @endsection

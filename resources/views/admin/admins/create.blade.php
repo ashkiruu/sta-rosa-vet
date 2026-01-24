@@ -1,123 +1,158 @@
 @extends('layouts.admin')
+
 @section('page_title', 'Create Admin Account')
+
 @section('content')
-<div class="mb-6">
-    <a href="{{ route('admin.admins.index') }}" class="text-purple-600 hover:text-purple-800">
-        <i class="fas fa-arrow-left mr-2"></i> Back to Admin List
-    </a>
-</div>
+<div class="min-h-screen py-4">
+    {{-- Back Navigation --}}
+    <div class="mb-8">
+        <a href="{{ route('admin.admins.index') }}" class="group inline-flex items-center text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-purple-600 transition-colors">
+            <i class="fas fa-arrow-left mr-2 group-hover:-translate-x-1 transition-transform"></i>
+            Return to Directory
+        </a>
+    </div>
 
-<div class="max-w-2xl">
-    <div class="bg-white rounded-xl shadow-sm border p-6">
-        <div class="mb-6">
-            <h2 class="text-xl font-bold text-gray-800">Add New Admin Account</h2>
-            <p class="text-gray-500 mt-1">Grant administrative privileges to a verified user</p>
-        </div>
-
-        @if($eligibleUsers->isEmpty())
-            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
-                <i class="fas fa-exclamation-triangle text-yellow-500 fa-2x mb-2"></i>
-                <p class="text-yellow-800 font-medium">No eligible users found</p>
-                <p class="text-yellow-600 text-sm mt-1">All verified users are already admins, or there are no verified users in the system.</p>
+    <div class="max-w-3xl mx-auto">
+        <div class="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
+            {{-- Form Header --}}
+            <div class="bg-gray-900 px-10 py-8 flex justify-between items-center">
+                <div>
+                    <h2 class="text-xl font-black text-white uppercase tracking-tight">Privilege Escalation</h2>
+                    <p class="text-[10px] font-bold text-purple-400 uppercase tracking-[0.2em] mt-1">Grant administrative access to verified accounts</p>
+                </div>
+                <div class="h-12 w-12 bg-purple-600/20 rounded-2xl flex items-center justify-center border border-purple-500/30">
+                    <i class="fas fa-shield-alt text-purple-400"></i>
+                </div>
             </div>
-        @else
-            <form action="{{ route('admin.admins.store') }}" method="POST">
-                @csrf
-                
-                {{-- User Selection --}}
-                <div class="mb-6">
-                    <label for="user_id" class="block text-sm font-medium text-gray-700 mb-2">
-                        Select User <span class="text-red-500">*</span>
-                    </label>
-                    <select name="user_id" id="user_id" required class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                        <option value="">-- Choose a verified user --</option>
-                        @foreach($eligibleUsers as $user)
-                            <option value="{{ $user->User_ID }}" {{ old('user_id') == $user->User_ID ? 'selected' : '' }}>
-                                {{ $user->First_Name }} {{ $user->Last_Name }} ({{ $user->Email }})
-                            </option>
-                        @endforeach
-                    </select>
-                    @error('user_id')
-                        <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                    @enderror
-                    <p class="text-xs text-gray-500 mt-1">
-                        <i class="fas fa-info-circle mr-1"></i> Only verified users who are not already admins are shown.
-                    </p>
-                </div>
 
-                {{-- Role Selection --}}
-                <div class="mb-6">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Admin Role <span class="text-red-500">*</span>
-                    </label>
-                    <div class="space-y-3">
-                        <label class="flex items-start p-4 border rounded-lg cursor-pointer hover:bg-gray-50 {{ old('admin_role', 'staff') === 'staff' ? 'border-purple-500 bg-purple-50' : 'border-gray-200' }}">
-                            <input type="radio" name="admin_role" value="staff" {{ old('admin_role', 'staff') === 'staff' ? 'checked' : '' }} class="mt-1 mr-3 text-purple-600 focus:ring-purple-500">
-                            <div>
-                                <p class="font-medium text-gray-800">
-                                    <i class="fas fa-user text-green-500 mr-2"></i> Staff
-                                </p>
-                                <p class="text-sm text-gray-500 mt-1">
-                                    Can verify users, manage appointments, create certificates, and generate reports. All actions are logged.
-                                </p>
-                            </div>
-                        </label>
-                        <label class="flex items-start p-4 border rounded-lg cursor-pointer hover:bg-gray-50 {{ old('admin_role') === 'admin' ? 'border-purple-500 bg-purple-50' : 'border-gray-200' }}">
-                            <input type="radio" name="admin_role" value="admin" {{ old('admin_role') === 'admin' ? 'checked' : '' }} class="mt-1 mr-3 text-purple-600 focus:ring-purple-500">
-                            <div>
-                                <p class="font-medium text-gray-800">
-                                    <i class="fas fa-user-tie text-blue-500 mr-2"></i> Administrator
-                                </p>
-                                <p class="text-sm text-gray-500 mt-1">
-                                    Same permissions as Staff. Can be expanded for additional responsibilities in the future.
-                                </p>
-                            </div>
-                        </label>
+            <div class="p-10">
+                @if($eligibleUsers->isEmpty())
+                    <div class="bg-amber-50 border border-amber-100 rounded-[2rem] p-10 text-center">
+                        <div class="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-user-slash text-amber-500 text-xl"></i>
+                        </div>
+                        <h4 class="text-xs font-black text-amber-900 uppercase tracking-widest">No Candidates Available</h4>
+                        <p class="text-[10px] font-bold text-amber-700 uppercase mt-2 leading-relaxed italic">
+                            All verified users currently hold admin status, <br>or no verified accounts exist in the registry.
+                        </p>
                     </div>
-                    @error('admin_role')
-                        <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                    @enderror
-                </div>
+                @else
+                    <form action="{{ route('admin.admins.store') }}" method="POST" class="space-y-8">
+                        @csrf
+                        
+                        {{-- User Selection --}}
+                        <div>
+                            <label for="user_id" class="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 ml-1">
+                                1. Target Account <span class="text-purple-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <select name="user_id" id="user_id" required 
+                                    class="w-full appearance-none bg-gray-50 border-none rounded-2xl px-6 py-4 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-purple-500 transition-all cursor-pointer">
+                                    <option value="">-- Select from verified personnel --</option>
+                                    @foreach($eligibleUsers as $user)
+                                        <option value="{{ $user->User_ID }}" {{ old('user_id') == $user->User_ID ? 'selected' : '' }}>
+                                            {{ $user->First_Name }} {{ $user->Last_Name }} — {{ $user->Email }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <div class="absolute inset-y-0 right-0 flex items-center pr-6 pointer-events-none text-gray-400">
+                                    <i class="fas fa-chevron-down text-xs"></i>
+                                </div>
+                            </div>
+                            @error('user_id')
+                                <p class="text-red-500 text-[9px] font-black uppercase mt-2 ml-1 tracking-widest">{{ $message }}</p>
+                            @enderror
+                        </div>
 
-                {{-- Info Notice --}}
-                <div class="mb-6 bg-gray-50 border rounded-lg p-4">
-                    <h4 class="text-sm font-semibold text-gray-700 mb-2">
-                        <i class="fas fa-shield-alt text-purple-500 mr-1"></i> Important Notes
-                    </h4>
-                    <ul class="text-sm text-gray-600 space-y-1">
-                        <li>• The selected user will gain immediate access to the admin panel</li>
-                        <li>• All actions performed by this admin will be logged in the system</li>
-                        <li>• Only you (Super Admin) can remove their admin privileges</li>
-                        <li>• The user will use their existing login credentials</li>
-                    </ul>
-                </div>
+                        {{-- Role Selection --}}
+                        <div>
+                            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 ml-1">
+                                2. Define Authority Level <span class="text-purple-500">*</span>
+                            </label>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {{-- Staff Role --}}
+                                <label class="relative group cursor-pointer">
+                                    <input type="radio" name="admin_role" value="staff" {{ old('admin_role', 'staff') === 'staff' ? 'checked' : '' }} class="peer hidden">
+                                    <div class="h-full p-6 border-2 border-gray-50 bg-gray-50 rounded-[1.5rem] transition-all peer-checked:border-purple-600 peer-checked:bg-white peer-checked:shadow-md group-hover:bg-white">
+                                        <div class="flex items-center gap-3 mb-3">
+                                            <div class="w-8 h-8 rounded-lg bg-green-100 text-green-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                <i class="fas fa-user text-xs"></i>
+                                            </div>
+                                            <span class="text-xs font-black text-gray-900 uppercase tracking-widest">Staff Member</span>
+                                        </div>
+                                        <p class="text-[9px] font-bold text-gray-400 leading-relaxed uppercase">Operation-centric access. verification, appointment logs, and reporting. full activity auditing enabled.</p>
+                                    </div>
+                                    <div class="absolute top-4 right-4 opacity-0 peer-checked:opacity-100 transition-opacity">
+                                        <i class="fas fa-check-circle text-purple-600 text-lg"></i>
+                                    </div>
+                                </label>
 
-                {{-- Submit Buttons --}}
-                <div class="flex items-center justify-end gap-3">
-                    <a href="{{ route('admin.admins.index') }}" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
-                        Cancel
-                    </a>
-                    <button type="submit" class="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
-                        <i class="fas fa-user-plus mr-2"></i> Create Admin Account
-                    </button>
-                </div>
-            </form>
-        @endif
+                                {{-- Admin Role --}}
+                                <label class="relative group cursor-pointer">
+                                    <input type="radio" name="admin_role" value="admin" {{ old('admin_role') === 'admin' ? 'checked' : '' }} class="peer hidden">
+                                    <div class="h-full p-6 border-2 border-gray-50 bg-gray-50 rounded-[1.5rem] transition-all peer-checked:border-purple-600 peer-checked:bg-white peer-checked:shadow-md group-hover:bg-white">
+                                        <div class="flex items-center gap-3 mb-3">
+                                            <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                <i class="fas fa-user-tie text-xs"></i>
+                                            </div>
+                                            <span class="text-xs font-black text-gray-900 uppercase tracking-widest">Administrator</span>
+                                        </div>
+                                        <p class="text-[9px] font-bold text-gray-400 leading-relaxed uppercase">Management-centric access. inherited staff permissions with future oversight and system configuration modules.</p>
+                                    </div>
+                                    <div class="absolute top-4 right-4 opacity-0 peer-checked:opacity-100 transition-opacity">
+                                        <i class="fas fa-check-circle text-purple-600 text-lg"></i>
+                                    </div>
+                                </label>
+                            </div>
+                            @error('admin_role')
+                                <p class="text-red-500 text-[9px] font-black uppercase mt-2 ml-1 tracking-widest">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        {{-- Security Policy --}}
+                        <div class="bg-purple-50 rounded-2xl p-6 border border-purple-100 relative overflow-hidden">
+                            <i class="fas fa-fingerprint absolute -right-2 -bottom-2 text-6xl text-purple-600/5"></i>
+                            <h4 class="text-[9px] font-black text-purple-900 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                <i class="fas fa-user-shield"></i> Security Protocol Awareness
+                            </h4>
+                            <ul class="space-y-2">
+                                <li class="flex items-start gap-2 text-[9px] font-bold text-purple-700/80 uppercase">
+                                    <span class="text-purple-400">•</span> Account inherits existing verified credentials.
+                                </li>
+                                <li class="flex items-start gap-2 text-[9px] font-bold text-purple-700/80 uppercase">
+                                    <span class="text-purple-400">•</span> All administrative operations are irreversibly logged.
+                                </li>
+                                <li class="flex items-start gap-2 text-[9px] font-bold text-purple-700/80 uppercase">
+                                    <span class="text-purple-400">•</span> Access termination can only be executed by Root Admins.
+                                </li>
+                            </ul>
+                        </div>
+
+                        {{-- Footer Actions --}}
+                        <div class="flex flex-col sm:flex-row items-center justify-end gap-4 pt-4 border-t border-gray-50">
+                            <a href="{{ route('admin.admins.index') }}" 
+                               class="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-colors">
+                                Abort Transaction
+                            </a>
+                            <button type="submit" 
+                                    class="w-full sm:w-auto px-10 py-4 bg-gray-900 hover:bg-purple-600 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-3">
+                                <i class="fas fa-plus-circle"></i>
+                                Provision Account
+                            </button>
+                        </div>
+                    </form>
+                @endif
+            </div>
+        </div>
     </div>
 </div>
 
+{{-- Script for visual feedback on radio selection --}}
 <script>
-    // Highlight selected role
     document.querySelectorAll('input[name="admin_role"]').forEach(radio => {
         radio.addEventListener('change', function() {
-            document.querySelectorAll('input[name="admin_role"]').forEach(r => {
-                r.closest('label').classList.remove('border-purple-500', 'bg-purple-50');
-                r.closest('label').classList.add('border-gray-200');
-            });
-            if (this.checked) {
-                this.closest('label').classList.remove('border-gray-200');
-                this.closest('label').classList.add('border-purple-500', 'bg-purple-50');
-            }
+            // Script logic preserved for behavior, though Peer-checked CSS handles most styling
+            console.log("Role updated to: " + this.value);
         });
     });
 </script>
