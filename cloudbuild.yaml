@@ -1,0 +1,21 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'asia-southeast1-docker.pkg.dev/$PROJECT_ID/staging/sta-rosa-vet-web:$COMMIT_SHA', '.']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'asia-southeast1-docker.pkg.dev/$PROJECT_ID/staging/sta-rosa-vet-web:$COMMIT_SHA']
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      [
+        'run','deploy','sta-rosa-vet-web-staging',
+        '--image','asia-southeast1-docker.pkg.dev/$PROJECT_ID/staging/sta-rosa-vet-web:$COMMIT_SHA',
+        '--region','asia-southeast1',
+        '--platform','managed',
+        '--allow-unauthenticated',
+        '--service-account','sta-rosa-vet-staging-sa@$PROJECT_ID.iam.gserviceaccount.com'
+      ]
+
+images:
+  - 'asia-southeast1-docker.pkg.dev/$PROJECT_ID/staging/sta-rosa-vet-web:$COMMIT_SHA'
