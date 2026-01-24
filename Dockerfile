@@ -98,6 +98,11 @@ RUN php artisan config:clear --ansi \
  && php artisan view:clear --ansi \
  && php artisan package:discover --ansi
 
+ # Fix Laravel permissions (CRITICAL for Cloud Run)
+RUN mkdir -p storage/framework/{cache,sessions,views} bootstrap/cache \
+ && chown -R www-data:www-data storage bootstrap/cache \
+ && chmod -R 775 storage bootstrap/cache
+
 
 
 EXPOSE 8080
