@@ -33,3 +33,4 @@ class ReportTypeSeeder extends Seeder
         }
     }
 }
+//

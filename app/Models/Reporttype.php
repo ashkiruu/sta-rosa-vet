@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class ReportType extends Model
+class Reporttype extends Model
 {
     /**
      * The table associated with the model.
@@ -69,3 +69,4 @@ class ReportType extends Model
         return $query->where('Report_Name', $name);
     }
 }
+//
