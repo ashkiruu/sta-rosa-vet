@@ -9,15 +9,31 @@
                     <h2 class="text-4xl font-black text-gray-900 uppercase tracking-tight">Register</h2>
                     <p class="text-red-700 font-bold uppercase text-xs tracking-[0.2em] mt-2 mb-8">Step 3: Account Setup</p>
 
-                    {{-- Centered Progress Bar --}}
-                    <div class="flex items-center justify-center w-full max-w-md relative">
+                    {{-- Centered Progress Bar (Notice -> 1 -> 2 -> 3) --}}
+                    <div class="flex items-center justify-center w-full max-w-md relative mx-auto">
+                        {{-- Background Line: Gray base --}}
                         <div class="absolute top-1/2 left-0 w-full h-0.5 bg-gray-300 -translate-y-1/2 z-0"></div>
+
                         <div class="flex justify-between w-full relative z-10">
-                            {{-- Step 1 & 2 Completed --}}
-                            <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-400 text-white font-black border-4 border-white">1</div>
-                            <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-400 text-white font-black border-4 border-white">2</div>
-                            {{-- Step 3 Active --}}
-                            <div class="flex items-center justify-center w-10 h-10 rounded-full bg-red-700 text-white font-black shadow-lg border-4 border-white">3</div>
+                            {{-- Notice - Inactive (Gray) --}}
+                            <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-400 text-white font-black border-4 border-white transition-all duration-300">
+                                !
+                            </div>
+
+                            {{-- Step 1 - Inactive (Gray) --}}
+                            <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-400 text-white font-black border-4 border-white transition-all duration-300">
+                                1
+                            </div>
+
+                            {{-- Step 2 - Inactive (Gray) --}}
+                            <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-400 text-white font-black border-4 border-white transition-all duration-300">
+                                2
+                            </div>
+
+                            {{-- Step 3 - THE ONLY HIGHLIGHTED STEP (Red) --}}
+                            <div class="flex items-center justify-center w-10 h-10 rounded-full bg-red-700 text-white font-black shadow-lg border-4 border-white transition-all duration-300 scale-110">
+                                3
+                            </div>
                         </div>
                     </div>
                 </div>

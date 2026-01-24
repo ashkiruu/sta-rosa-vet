@@ -9,19 +9,31 @@
                     <h2 class="text-4xl font-black text-gray-900 uppercase tracking-tight">Register</h2>
                     <p class="text-red-700 font-bold uppercase text-xs tracking-[0.2em] mt-2 mb-8">Step 1: Personal Profile</p>
 
-                    {{-- Centered Progress Bar Style --}}
-                    <div class="flex items-center justify-center w-full max-w-md relative">
-                        {{-- Connecting Line --}}
+                    {{-- Centered Progress Bar (Notice -> 1 -> 2 -> 3) --}}
+                    <div class="flex items-center justify-center w-full max-w-md relative mx-auto">
+                        {{-- Background Line: Gray base --}}
                         <div class="absolute top-1/2 left-0 w-full h-0.5 bg-gray-300 -translate-y-1/2 z-0"></div>
-                        
-                        {{-- Steps --}}
+
                         <div class="flex justify-between w-full relative z-10">
-                            {{-- Step 1 Active --}}
-                            <div class="flex items-center justify-center w-10 h-10 rounded-full bg-red-700 text-white font-black shadow-lg border-4 border-white">1</div>
-                            {{-- Step 2 Inactive --}}
-                            <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-400 text-white font-black border-4 border-white">2</div>
-                            {{-- Step 3 Inactive --}}
-                            <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-400 text-white font-black border-4 border-white">3</div>
+                            {{-- Notice - Inactive/Passed (Gray) --}}
+                            <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-400 text-white font-black border-4 border-white transition-all duration-300">
+                                !
+                            </div>
+
+                            {{-- Step 1 - THE ONLY HIGHLIGHTED STEP (Red) --}}
+                            <div class="flex items-center justify-center w-10 h-10 rounded-full bg-red-700 text-white font-black shadow-lg border-4 border-white transition-all duration-300 scale-110">
+                                1
+                            </div>
+
+                            {{-- Step 2 - Inactive (Gray) --}}
+                            <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-400 text-white font-black border-4 border-white">
+                                2
+                            </div>
+
+                            {{-- Step 3 - Inactive (Gray) --}}
+                            <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-400 text-white font-black border-4 border-white">
+                                3
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -102,19 +114,29 @@
                     </div>
 
                     {{-- Action Footer --}}
-                    <div class="pt-10 flex flex-col md:flex-row items-center justify-between border-t border-gray-100 gap-6">
-                        <p class="text-sm text-gray-500 font-medium">
-                            Already have an account? 
-                            <a href="{{ route('login') }}" class="text-red-700 font-black hover:text-red-800 hover:underline transition ml-1">
-                                Log in here
-                            </a>
-                        </p>
+                    <div class="pt-10 border-t border-gray-100">
+                        {{-- Login Link (Centered above buttons) --}}
 
-                        <button type="submit" 
-                            class="w-full md:w-64 bg-red-700 hover:bg-red-800 text-white font-black py-4 rounded-2xl shadow-lg transition-all active:scale-95 uppercase tracking-widest text-sm">
-                            Next Step
-                        </button>
+                        <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+                            {{-- Back Button (to Notice) --}}
+                            <a href="{{ route('register.notice') }}" 
+                                class="w-full md:w-auto bg-gray-500 hover:bg-gray-600 text-white font-black py-4 px-12 rounded-2xl shadow-lg transition-all active:scale-95 uppercase tracking-widest text-sm text-center">
+                                Back
+                            </a>
+
+                            {{-- Next Button --}}
+                            <button type="submit" 
+                                class="w-full md:w-64 bg-red-700 hover:bg-red-800 text-white font-black py-4 rounded-2xl shadow-lg transition-all active:scale-95 uppercase tracking-widest text-sm">
+                                Next Step
+                            </button>
+                        </div>
                     </div>
+                    <p class="text-sm text-gray-500 font-medium text-right">
+                        Already have an account? 
+                        <a href="{{ route('login') }}" class="text-red-700 font-black hover:text-red-800 hover:underline transition ml-1">
+                            Log in here
+                        </a>
+                    </p>
                 </form>
             </div>
         </div>

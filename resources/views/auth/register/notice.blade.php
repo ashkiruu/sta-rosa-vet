@@ -45,19 +45,19 @@
                                 Important Legal & Privacy Notice
                             </h3>
 
-                            <p class="mt-3 text-gray-700 leading-relaxed">
+                            <p class="mt-3 text-gray-700 text-justify leading-relaxed">
                                 By using this system, you confirm that the information you submit is true, accurate, and that you are authorized
                                 to provide it. Submitting false information, using another person’s identity, or uploading a valid ID without
                                 the owner’s knowledge and consent may constitute misrepresentation and may lead to legal consequences under
                                 applicable Philippine laws, including Republic Act No. 10173 (Data Privacy Act of 2012).
                             </p>
 
-                            <p class="mt-3 text-gray-700 leading-relaxed">
+                            <p class="mt-3 text-gray-700 text-justify leading-relaxed">
                                 This system collects personal data solely for legitimate purposes related to account creation and identity
                                 verification. Your data will be processed and accessed only by authorized personnel for official transactions.
                             </p>
 
-                            <p class="mt-3 text-gray-700 leading-relaxed">
+                            <p class="mt-3 text-gray-700 text-justify leading-relaxed">
                                 If you have doubts, concerns, or questions about authorization or privacy, please contact the clinic/admin before proceeding.
                             </p>
 
@@ -109,7 +109,6 @@
                         </div>
                     </div>
                 </form>
-
             </div>
         </div>
     </div>
