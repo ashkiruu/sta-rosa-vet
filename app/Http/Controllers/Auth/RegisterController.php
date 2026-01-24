@@ -231,8 +231,15 @@ class RegisterController extends Controller
         // ============================================
         try {
             $ocr = new \thiagoalessio\TesseractOCR\TesseractOCR($absolutePath);
-            $ocr->executable('C:\Program Files\Tesseract-OCR\tesseract.exe');
+
+            if (stripos(PHP_OS, 'WIN') === 0) {
+                $ocr->executable('C:\Program Files\Tesseract-OCR\tesseract.exe');
+            } else {
+                $ocr->executable('/usr/bin/tesseract');
+            }
+
             $ocrText = $ocr->run();
+
 
             if (empty(trim($ocrText))) {
                 Storage::disk('public')->delete($path);
@@ -531,13 +538,14 @@ class RegisterController extends Controller
         try {
              $ocr = new \thiagoalessio\TesseractOCR\TesseractOCR($absolutePath);
 
-            if (app()->environment('local')) {
+            if (stripos(PHP_OS, 'WIN') === 0) {
                 $ocr->executable('C:\Program Files\Tesseract-OCR\tesseract.exe');
             } else {
-                $ocr->executable('/usr/bin/tesseract'); // Cloud Run/Linux
+                $ocr->executable('/usr/bin/tesseract');
             }
 
             $ocrText = $ocr->run();
+
 
 
             if (empty(trim($ocrText))) {
