@@ -15,7 +15,10 @@ steps:
         'run', '--rm',
         'asia-southeast1-docker.pkg.dev/$PROJECT_ID/staging/sta-rosa-vet-web:$COMMIT_SHA',
         'bash', '-lc',
-        'php -v && php -m | head -n 20 && apache2ctl -t'
+        'php -v && php -m | head -n 20 && apache2ctl -t',
+        'which tesseract && tesseract --version'
+
+        
       ]
 
   # 3) Push only if smoke test passes

@@ -529,12 +529,19 @@ class RegisterController extends Controller
         $absolutePath = storage_path('app/public/' . $path);
 
         try {
-            $ocr = new TesseractOCR($absolutePath);
-            $ocr->executable('C:\Program Files\Tesseract-OCR\tesseract.exe'); 
+             $ocr = new \thiagoalessio\TesseractOCR\TesseractOCR($absolutePath);
+
+            if (app()->environment('local')) {
+                $ocr->executable('C:\Program Files\Tesseract-OCR\tesseract.exe');
+            } else {
+                $ocr->executable('/usr/bin/tesseract'); // Cloud Run/Linux
+            }
+
             $ocrText = $ocr->run();
 
+
             if (empty(trim($ocrText))) {
-                Storage::disk('public')->delete($wpath);
+                Storage::disk('public')->delete($path);
                 return back()->withErrors(['id_file' => 'No readable text found. Please upload a clearer photo.']);
             }
 
