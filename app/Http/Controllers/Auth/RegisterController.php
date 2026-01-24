@@ -215,7 +215,7 @@ class RegisterController extends Controller
 
                 return back()->withErrors([
                     'id_file' => 'The uploaded document does not appear to be a valid government-issued ID. Please upload a clear photo of your PhilSys, UMID, Driver\'s License, or other official ID card.'
-                ]);
+                ])->withInput();
             }
             
             // ✅ ML Check Passed
@@ -246,7 +246,7 @@ class RegisterController extends Controller
                 
                 return back()->withErrors([
                     'id_file' => 'No readable text found. Please ensure you are uploading a clear photo of your ID.'
-                ]);
+                ])->withInput();
             }
             
             // Normalization
@@ -272,10 +272,8 @@ class RegisterController extends Controller
                 ]);
 
                 return back()->withErrors([
-                    'id_file' => 'This system is designed exclusively for Sta. Rosa City pet owners. 
-                    Based on the submitted ID, your address does not appear to be within Sta. Rosa. 
-                    Please contact your local City Veterinary Office for further assistance.'
-                ]);
+                    'id_file' => 'This system is designed exclusively for Sta. Rosa City pet owners. Based on the submitted ID, your address does not appear to be within Sta. Rosa. Please contact your local City Veterinary Office for further assistance.'
+                ])->withInput();
             }
 
             // User Input
@@ -342,7 +340,7 @@ class RegisterController extends Controller
                 Storage::disk('public')->delete($path);
                 return back()->withErrors([
                     'id_file' => 'The uploaded document does not appear to match your registered name. Please upload a valid ID.'
-                ]);
+                ])->withInput();
             }
 
             // Comprehensive logging
@@ -414,7 +412,7 @@ class RegisterController extends Controller
 
             return back()->withErrors([
                 'id_file' => 'The system could not process this image. Please make sure the file is a clear, bright photo of your ID card.'
-            ]);
+            ])->withInput();
         }
     }
     
@@ -588,7 +586,7 @@ class RegisterController extends Controller
         } catch (\Exception $e) {
             Storage::disk('public')->delete($path);
             return back()->withErrors(['id_file' => 'Error processing ID: ' . $e->getMessage()]);
-        }
+        };
     }
 }
 

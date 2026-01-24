@@ -44,6 +44,19 @@
 
                 <form method="POST" action="{{ isset($isReverifying) ? route('verify.process') : route('register.step2.post') }}" enctype="multipart/form-data" class="space-y-8">
                     @csrf
+                    @if ($errors->any())
+                        <div class="w-full rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-red-800">
+                            <div class="font-black uppercase text-xs tracking-widest mb-2">
+                                Verification failed
+                            </div>
+                            <ul class="list-disc pl-5 text-sm font-semibold space-y-1">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
 
                     {{-- Landscape Content Grid --}}
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
