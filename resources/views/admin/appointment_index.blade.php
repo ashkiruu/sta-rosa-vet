@@ -31,6 +31,12 @@
             </div>
         @endif
 
+        @if(session('info'))
+            <div class="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded-lg mb-6">
+                {{ session('info') }}
+            </div>
+        @endif
+
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {{-- Calendar Section --}}
             <div class="lg:col-span-1">
@@ -104,6 +110,7 @@
                         });
                         $pendingToday = $todayAppointments->where('Status', 'Pending')->count();
                         $approvedToday = $todayAppointments->where('Status', 'Approved')->count();
+                        $qrReleasedToday = $todayAppointments->where('qr_released', true)->count();
                     @endphp
                     <div class="space-y-3">
                         <div class="flex justify-between items-center">
@@ -117,6 +124,10 @@
                         <div class="flex justify-between items-center">
                             <span class="text-green-600">Approved</span>
                             <span class="font-bold text-green-600">{{ $approvedToday }}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-blue-600">QR Released</span>
+                            <span class="font-bold text-blue-600">{{ $qrReleasedToday }}</span>
                         </div>
                     </div>
                 </div>
@@ -511,6 +522,20 @@
                 </span>`;
             }
             
+            // QR Release Status Badge
+            let qrBadge = '';
+            if (appt.Status === 'Approved') {
+                if (appt.qr_released) {
+                    qrBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 ml-1">
+                        📱 QR Sent
+                    </span>`;
+                } else {
+                    qrBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 ml-1">
+                        ⏳ QR Pending
+                    </span>`;
+                }
+            }
+            
             let actionButtons = '';
             if (appt.Status === 'Pending') {
                 actionButtons = `
@@ -529,8 +554,24 @@
                         </form>
                     </div>
                 `;
-            } else {
-                actionButtons = '<p class="text-gray-400 text-xs italic mt-2">No actions available</p>';
+            } else if (appt.Status === 'Approved') {
+                if (appt.qr_released) {
+                    actionButtons = `
+                        <p class="text-blue-600 text-xs font-medium mt-2">✓ QR code has been sent to patient</p>
+                    `;
+                } else {
+                    actionButtons = `
+                        <div class="flex gap-2 mt-2">
+                            <form action="/admin/appointments/${appt.Appointment_ID}/release-qr" method="POST" class="inline">
+                                <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-xs font-medium transition shadow-sm">
+                                    📱 Release QR Code
+                                </button>
+                            </form>
+                        </div>
+                        <p class="text-gray-400 text-xs italic mt-1">Click when patient arrives</p>
+                    `;
+                }
             }
             
             html += `
@@ -559,7 +600,7 @@
                             </div>
                         </div>
                         <div class="text-right">
-                            <div class="mb-2">${statusBadge}</div>
+                            <div class="mb-2">${statusBadge}${qrBadge}</div>
                             ${actionButtons}
                         </div>
                     </div>

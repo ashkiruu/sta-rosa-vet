@@ -47,9 +47,30 @@
                         @php
                             $token = substr(md5($appointment->Appointment_ID . '-' . $appointment->User_ID . '-' . $appointment->Date . config('app.key', 'veterinary-clinic-secret')), 0, 16);
                             $verificationUrl = url("/appointments/verify/{$appointment->Appointment_ID}/{$token}");
+                            
+                            $localPath = 'qrcodes/appointment_' . $appointment->Appointment_ID . '.png';
+                            $storagePath = storage_path('app/public/' . $localPath);
+                            $fileExists = file_exists($storagePath);
+                            
                             $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=' . urlencode($verificationUrl);
                         @endphp
-                        <img src="{{ $qrApiUrl }}" alt="QR Code" class="w-56 h-56 md:w-64 md:h-64 mx-auto" id="qrImage">
+                        
+                        @if($qrCodeUrl && $fileExists)
+                            <img 
+                                src="{{ $qrCodeUrl }}" 
+                                alt="Appointment QR Code" 
+                                class="w-56 h-56 md:w-64 md:h-64 mx-auto"
+                                id="qrImage"
+                                onerror="this.onerror=null; this.src='{{ $qrApiUrl }}';"
+                            >
+                        @else
+                            <img 
+                                src="{{ $qrApiUrl }}" 
+                                alt="Appointment QR Code" 
+                                class="w-56 h-56 md:w-64 md:h-64 mx-auto"
+                                id="qrImage"
+                            >
+                        @endif
                     </div>
 
                     {{-- Live Status --}}
@@ -120,10 +141,19 @@
                 </div>
             </div>
         </div>
+        
+        {{-- Storage Link Warning (for developers) --}}
+        @if(!$fileExists && $qrCodeUrl)
+        <div class="mt-4 p-3 bg-orange-100 border border-orange-300 rounded-lg text-sm text-orange-800">
+            <strong>Note:</strong> If QR codes aren't displaying from local storage, run: 
+            <code class="bg-orange-200 px-1 rounded">php artisan storage:link</code>
+        </div>
+        @endif
     </div>
 
     <script>
         const appointmentId = {{ $appointment->Appointment_ID }};
+        const checkInterval = 3000;
         let isChecking = true;
 
         async function checkAttendanceStatus() {

@@ -141,27 +141,6 @@ class AppointmentController extends Controller
     public function getTakenTimes(Request $request)
     {
         $request->validate(['date' => 'required|date']);
-        // ✅ Block booking past time slots when Date is today
-        $selectedDate = Carbon::parse($validated['Date'])->startOfDay();
-        $today = now()->startOfDay();
-
-        if ($selectedDate->equalTo($today)) {
-            // Normalize user time to HH:MM (handles "14:30", "14:30:00", etc.)
-            $selectedTime = Carbon::parse($validated['Time'])->format('H:i');
-
-            // Build full datetime for comparison
-            $selectedDateTime = Carbon::parse($validated['Date'] . ' ' . $selectedTime);
-
-            // Optional: add small grace period (e.g. 5 minutes) to avoid edge clicks
-            $minAllowed = now()->addMinutes(5);
-
-            if ($selectedDateTime->lt($minAllowed)) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
-                    'Time' => 'Selected time has already passed. Please choose a future time slot.'
-                ]);
-            }
-        }
-
 
         $takenTimes = Appointment::where('Date', $request->date)
             ->whereIn('Status', ['Pending', 'Confirmed', 'Approved'])
@@ -221,6 +200,7 @@ class AppointmentController extends Controller
         $response = [
             'status' => $appointment->Status,
             'appointment_id' => $appointment->Appointment_ID,
+            'qr_released' => QRCodeService::isQRCodeReleased($appointment),
         ];
 
         if ($appointment->Status === 'Completed') {
@@ -240,6 +220,9 @@ class AppointmentController extends Controller
     {
         $appointment = $this->findUserAppointment($id, ['Approved', 'Completed']);
         
+        // Check if QR code has been released by admin
+        $qrReleased = QRCodeService::isQRCodeReleased($appointment);
+        
         if ($appointment->Status === 'Completed') {
             return redirect()->route('appointments.verify', [
                 'id' => $appointment->Appointment_ID,
@@ -247,8 +230,16 @@ class AppointmentController extends Controller
             ]);
         }
 
-        $qrCodeUrl = QRCodeService::getQRCodeUrl($appointment) 
-            ?? $this->generateQRCode($appointment);
+        // If QR not released yet, show waiting page
+        if (!$qrReleased) {
+            return view('appointments.qrcode_waiting', compact('appointment'));
+        }
+
+        // QR is released, show the QR code
+        $qrCodeUrl = QRCodeService::getQRCodeUrl($appointment);
+        
+        // Mark the QR notification as seen
+        QRCodeService::markQRNotificationSeen($appointment->Appointment_ID);
 
         return view('appointments.qrcode', compact('appointment', 'qrCodeUrl'));
     }
@@ -257,8 +248,12 @@ class AppointmentController extends Controller
     {
         $appointment = $this->findUserAppointment($id, ['Approved', 'Completed']);
         
-        $path = QRCodeService::getQRCodePath($appointment) 
-            ?? QRCodeService::generateForAppointment($appointment);
+        // Check if QR code has been released
+        if (!QRCodeService::isQRCodeReleased($appointment)) {
+            return back()->with('error', 'QR Code has not been released yet. Please wait for the receptionist.');
+        }
+        
+        $path = QRCodeService::getQRCodePath($appointment);
 
         if ($path) {
             return response()->download(
@@ -289,7 +284,19 @@ class AppointmentController extends Controller
             return $this->verifyView(true, $appointment, null, $message);
         }
 
+        // Record attendance (this now checks if QR was released)
         $attendance = QRCodeService::recordAttendance($appointment);
+        
+        // Check if QR code wasn't released yet
+        if (isset($attendance['error']) && isset($attendance['not_released'])) {
+            return $this->verifyView(
+                true, 
+                $appointment, 
+                $attendance,
+                $attendance['message']
+            );
+        }
+
         $message = $attendance['already_checked_in']
             ? "Already checked in at {$attendance['check_in_time']}"
             : 'Successfully checked in!';
@@ -329,6 +336,12 @@ class AppointmentController extends Controller
                     $seenNotifications[$userId][] = $key;
                 }
             }
+        }
+        
+        // Mark QR release notifications as seen
+        $qrNotifications = QRCodeService::getQRNotificationsForUser($userId);
+        foreach ($qrNotifications as $notification) {
+            QRCodeService::markQRNotificationSeen($notification['appointment_id']);
         }
 
         $this->saveSeenNotifications($seenNotifications);
@@ -666,7 +679,7 @@ class AppointmentController extends Controller
         $userId = $this->userId();
         $seenNotifications = $this->loadSeenNotifications()[$userId] ?? [];
 
-        // Approved appointment notifications
+        // Approved appointment notifications (without QR - just approval notice)
         foreach ($this->getUserAppointments() as $apt) {
             if ($apt->updated_at->diffInDays(now()) > self::NOTIFICATION_EXPIRY_DAYS) continue;
             if ($apt->Status !== 'Approved') continue;
@@ -680,9 +693,24 @@ class AppointmentController extends Controller
                 'type' => 'success',
                 'title' => 'Appointment Approved! 🎉',
                 'message' => "Your appointment for {$apt->pet->Pet_Name} on {$apt->Date->format('M d, Y')} at " .
-                    Carbon::parse($apt->Time)->format('h:i A') . " has been approved! Your QR code is ready.",
+                    Carbon::parse($apt->Time)->format('h:i A') . " has been approved! Please proceed to the clinic and check in at the reception desk.",
                 'time' => $apt->updated_at->diffForHumans(),
-                'qr_link' => route('appointments.qrcode', $apt->Appointment_ID),
+                'show_qr_link' => false, // Don't show QR link until released
+            ];
+        }
+        
+        // QR Code Release Notifications (when admin releases the QR)
+        $qrNotifications = QRCodeService::getUnseenQRNotificationsForUser($userId);
+        foreach ($qrNotifications as $qrNotification) {
+            $notifications[] = [
+                'id' => $qrNotification['appointment_id'],
+                'key' => "qr_release_{$qrNotification['appointment_id']}_{$qrNotification['released_at']}",
+                'type' => 'qr_ready',
+                'title' => 'QR Code Ready! 📱',
+                'message' => "Your QR code for {$qrNotification['pet_name']}'s appointment is ready! Tap to view and scan.",
+                'time' => Carbon::parse($qrNotification['released_at'])->diffForHumans(),
+                'qr_link' => route('appointments.qrcode', $qrNotification['appointment_id']),
+                'show_qr_link' => true,
             ];
         }
 

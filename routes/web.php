@@ -142,6 +142,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/appointments', [AdminController::class, 'appointments'])->name('appointment_index');
     Route::post('/appointments/{id}/approve', [AdminController::class, 'approveAppointment'])->name('appointments.approve');
     Route::post('/appointments/{id}/reject', [AdminController::class, 'rejectAppointment'])->name('appointments.reject');
+    Route::post('/appointments/{id}/release-qr', [AdminController::class, 'releaseQRCode'])
+    ->name('appointments.release-qr');
 
     // 3. Schedule Management
     Route::post('/schedule/toggle', [AdminController::class, 'toggleDateStatus'])->name('schedule.toggle');

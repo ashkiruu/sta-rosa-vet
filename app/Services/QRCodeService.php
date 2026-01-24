@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Appointment;
 use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 
 class QRCodeService
 {
@@ -128,6 +129,161 @@ class QRCodeService
 
     /**
      * =====================================================
+     * QR CODE RELEASE SYSTEM
+     * =====================================================
+     */
+
+    /**
+     * Get QR release notifications file path
+     */
+    private static function getQRReleaseNotificationsPath()
+    {
+        return storage_path('app/qr_release_notifications.json');
+    }
+
+    /**
+     * Load all QR release notifications
+     */
+    public static function loadQRReleaseNotifications()
+    {
+        $path = self::getQRReleaseNotificationsPath();
+        
+        if (!file_exists($path)) {
+            $directory = dirname($path);
+            if (!is_dir($directory)) {
+                mkdir($directory, 0755, true);
+            }
+            file_put_contents($path, json_encode([], JSON_PRETTY_PRINT));
+            return [];
+        }
+        
+        return json_decode(file_get_contents($path), true) ?? [];
+    }
+
+    /**
+     * Save QR release notifications
+     */
+    private static function saveQRReleaseNotifications($notifications)
+    {
+        $path = self::getQRReleaseNotificationsPath();
+        file_put_contents($path, json_encode($notifications, JSON_PRETTY_PRINT));
+    }
+
+    /**
+     * Check if QR code has been released for an appointment
+     */
+    public static function isQRCodeReleased(Appointment $appointment)
+    {
+        $notifications = self::loadQRReleaseNotifications();
+        $appointmentId = $appointment->Appointment_ID;
+        
+        return isset($notifications[$appointmentId]) && $notifications[$appointmentId]['released'] === true;
+    }
+
+    /**
+     * Release QR code for an appointment (Admin action)
+     * This generates the QR code and creates a notification for the user
+     */
+    public static function releaseQRCode(Appointment $appointment, $releasedBy = 'Admin')
+    {
+        // Load relationships if not loaded
+        if (!$appointment->relationLoaded('pet')) {
+            $appointment->load(['pet', 'service', 'user']);
+        }
+
+        $appointmentId = $appointment->Appointment_ID;
+        
+        // Generate the QR code
+        $qrPath = self::generateForAppointment($appointment);
+        
+        if (!$qrPath) {
+            return [
+                'success' => false,
+                'message' => 'Failed to generate QR code.',
+            ];
+        }
+        
+        // Create/update the release notification
+        $notifications = self::loadQRReleaseNotifications();
+        
+        $notifications[$appointmentId] = [
+            'appointment_id' => $appointmentId,
+            'user_id' => $appointment->User_ID,
+            'pet_name' => $appointment->pet->Pet_Name ?? 'N/A',
+            'service' => $appointment->service->Service_Name ?? 'N/A',
+            'scheduled_date' => $appointment->Date instanceof Carbon 
+                ? $appointment->Date->format('Y-m-d') 
+                : $appointment->Date,
+            'scheduled_time' => $appointment->Time,
+            'released' => true,
+            'released_at' => now()->format('Y-m-d H:i:s'),
+            'released_by' => $releasedBy,
+            'qr_path' => $qrPath,
+            'seen' => false,
+        ];
+        
+        self::saveQRReleaseNotifications($notifications);
+        
+        return [
+            'success' => true,
+            'message' => 'QR code released successfully!',
+            'qr_path' => $qrPath,
+        ];
+    }
+
+    /**
+     * Get QR release notification for a specific appointment
+     */
+    public static function getQRReleaseNotification($appointmentId)
+    {
+        $notifications = self::loadQRReleaseNotifications();
+        return $notifications[$appointmentId] ?? null;
+    }
+
+    /**
+     * Get all unreleased QR notifications for a user (for display in their notifications)
+     */
+    public static function getUnseenQRNotificationsForUser($userId)
+    {
+        $notifications = self::loadQRReleaseNotifications();
+        
+        return array_filter($notifications, function($notification) use ($userId) {
+            return $notification['user_id'] == $userId 
+                && $notification['released'] === true 
+                && $notification['seen'] === false;
+        });
+    }
+
+    /**
+     * Get all QR notifications for a user
+     */
+    public static function getQRNotificationsForUser($userId)
+    {
+        $notifications = self::loadQRReleaseNotifications();
+        
+        return array_filter($notifications, function($notification) use ($userId) {
+            return $notification['user_id'] == $userId && $notification['released'] === true;
+        });
+    }
+
+    /**
+     * Mark QR notification as seen
+     */
+    public static function markQRNotificationSeen($appointmentId)
+    {
+        $notifications = self::loadQRReleaseNotifications();
+        
+        if (isset($notifications[$appointmentId])) {
+            $notifications[$appointmentId]['seen'] = true;
+            self::saveQRReleaseNotifications($notifications);
+            return true;
+        }
+        
+        return false;
+    }
+
+    /**
+     * =====================================================
      * ATTENDANCE LOGGING SYSTEM (JSON-based, no database)
      * =====================================================
      */
@@ -173,10 +329,19 @@ class QRCodeService
      * 
      * @param Appointment $appointment
      * @param string $scannedBy (optional) Who scanned it
-     * @return array Attendance record
+     * @return array Attendance record or error
      */
     public static function recordAttendance(Appointment $appointment, $scannedBy = 'Receptionist')
     {
+        // First, check if QR code has been released
+        if (!self::isQRCodeReleased($appointment)) {
+            return [
+                'error' => true,
+                'not_released' => true,
+                'message' => 'QR code has not been released yet. Please check in at the reception desk.',
+            ];
+        }
+        
         $logs = self::loadAttendanceLogs();
         $appointmentId = $appointment->Appointment_ID;
         
@@ -196,7 +361,7 @@ class QRCodeService
             'owner_name' => ($appointment->user->First_Name ?? '') . ' ' . ($appointment->user->Last_Name ?? ''),
             'owner_id' => $appointment->User_ID,
             'service' => $appointment->service->Service_Name ?? 'N/A',
-            'scheduled_date' => $appointment->Date instanceof \Carbon\Carbon 
+            'scheduled_date' => $appointment->Date instanceof Carbon 
                 ? $appointment->Date->format('Y-m-d') 
                 : $appointment->Date,
             'scheduled_time' => $appointment->Time,
@@ -235,7 +400,7 @@ class QRCodeService
     public static function getAttendanceByDate($date)
     {
         $logs = self::loadAttendanceLogs();
-        $dateStr = $date instanceof \Carbon\Carbon ? $date->format('Y-m-d') : $date;
+        $dateStr = $date instanceof Carbon ? $date->format('Y-m-d') : $date;
         
         return array_filter($logs, function($record) use ($dateStr) {
             return ($record['check_in_date'] ?? '') === $dateStr;

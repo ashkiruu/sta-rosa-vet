@@ -102,18 +102,6 @@
                             <p class="text-[11px] font-black text-gray-800 uppercase tracking-wider">{{ $appointment->Location }}</p>
                         </div>
 
-                        {{-- Action Area --}}
-                        <div class="space-y-4">
-                            @if($appointment->Status == 'Approved')
-                                <a href="{{ route('appointments.qrcode', $appointment->Appointment_ID) }}" 
-                                   class="flex items-center justify-center gap-3 w-full bg-green-600 hover:bg-green-700 text-white font-black py-5 rounded-2xl shadow-lg transition-all active:scale-95 uppercase tracking-widest text-[10px]">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                                    </svg>
-                                    Generate Entry QR Code
-                                </a>
-                            @endif
-
                             @if($appointment->Status == 'Pending')
                                 <form method="POST" action="{{ route('appointments.cancel', $appointment->Appointment_ID) }}" 
                                       onsubmit="return confirm('Are you sure you want to cancel this appointment?');">

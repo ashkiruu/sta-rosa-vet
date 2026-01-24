@@ -141,6 +141,8 @@ class AdminController extends Controller
             ->map(fn($apt) => tap($apt, function ($a) {
                 $a->Date = Carbon::parse($a->Date)->format('Y-m-d');
                 $a->Time = Carbon::parse($a->Time)->format('H:i');
+                // Add QR release status
+                $a->qr_released = QRCodeService::isQRCodeReleased($a);
             }));
 
         return view('admin.appointment_index', [
@@ -159,10 +161,9 @@ class AdminController extends Controller
 
         $appointment->update(['Status' => 'Approved']);
         
-        $qrPath = QRCodeService::generateForAppointment($appointment);
-        \Log::info($qrPath 
-            ? "QR Code generated for appointment {$id}: {$qrPath}" 
-            : "Failed to generate QR Code for appointment {$id}");
+        // NOTE: QR code is NO LONGER generated here
+        // It will be generated when admin clicks "Release QR Code"
+        \Log::info("Appointment {$id} approved. QR code will be released when patient arrives.");
 
         AdminLogService::logAppointmentAction(
             $id, 'approved', 
@@ -171,7 +172,41 @@ class AdminController extends Controller
         );
 
         return back()->with('success', 
-            "Appointment for {$appointment->pet->Pet_Name} has been approved! QR code generated.");
+            "Appointment for {$appointment->pet->Pet_Name} has been approved! Release QR code when patient arrives.");
+    }
+
+    /**
+     * Release QR code for an approved appointment
+     * Called when patient arrives at the clinic
+     */
+    public function releaseQRCode($id)
+    {
+        $appointment = Appointment::with(['pet', 'user', 'service'])->findOrFail($id);
+
+        if ($appointment->Status !== 'Approved') {
+            return back()->with('error', 'QR code can only be released for approved appointments.');
+        }
+
+        // Check if already released
+        if (QRCodeService::isQRCodeReleased($appointment)) {
+            return back()->with('info', 'QR code has already been released for this appointment.');
+        }
+
+        // Release the QR code
+        $adminName = auth()->user()->First_Name ?? 'Admin';
+        $result = QRCodeService::releaseQRCode($appointment, $adminName);
+
+        if (!$result['success']) {
+            return back()->with('error', $result['message']);
+        }
+
+        AdminLogService::log(
+            'QR_CODE_RELEASED', 
+            "QR code released for {$appointment->pet->Pet_Name}'s appointment (ID: {$id})"
+        );
+
+        return back()->with('success', 
+            "QR code released for {$appointment->pet->Pet_Name}! The patient has been notified.");
     }
 
     public function rejectAppointment($id)
