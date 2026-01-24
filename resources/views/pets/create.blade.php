@@ -1,149 +1,34 @@
 <x-dashboardheader-layout>
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Register Pet</title>
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
-        <style>
-            body {
-                font-family: 'Inter', sans-serif;
-                background-color: #1a1a1a;
-                min-height: 100vh;
-            }
-            
-            /* Paw print background pattern */
-            body::before {
-                content: '';
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cellipse cx='40' cy='28' rx='6' ry='8'/%3E%3Cellipse cx='26' cy='36' rx='5' ry='6'/%3E%3Cellipse cx='54' cy='36' rx='5' ry='6'/%3E%3Cellipse cx='30' cy='50' rx='4' ry='5'/%3E%3Cellipse cx='50' cy='50' rx='4' ry='5'/%3E%3Cellipse cx='40' cy='58' rx='10' ry='8'/%3E%3C/g%3E%3C/svg%3E");
-                pointer-events: none;
-                z-index: 0;
-            }
-            
-            .main-card {
-                background: linear-gradient(135deg, #e8b4b8 0%, #d4a0a5 100%);
-                border-radius: 16px;
-                padding: 24px;
-                position: relative;
-                z-index: 1;
-            }
-            
-            .form-section-header {
-                background: #fbbf24;
-                color: #1f2937;
-                font-weight: 600;
-                font-size: 14px;
-                padding: 10px 16px;
-                border-radius: 8px 8px 0 0;
-            }
-            
-            .form-section-body {
-                background: white;
-                padding: 24px;
-                border-radius: 0 0 8px 8px;
-            }
-            
-            .form-input {
-                width: 100%;
-                padding: 12px 16px;
-                border: none;
-                border-radius: 20px;
-                background: #f3f4f6;
-                font-size: 14px;
-                color: #374151;
-                outline: none;
-                transition: all 0.2s;
-            }
-            
-            .form-input:focus {
-                background: #e5e7eb;
-                box-shadow: 0 0 0 2px #fbbf24;
-            }
-            
-            .form-input::placeholder {
-                color: #9ca3af;
-            }
-            
-            .form-label {
-                display: block;
-                font-size: 13px;
-                font-weight: 500;
-                color: #374151;
-                margin-bottom: 8px;
-            }
-            
-            .form-select {
-                width: 100%;
-                padding: 12px 16px;
-                border: none;
-                border-radius: 20px;
-                background: #f3f4f6;
-                font-size: 14px;
-                color: #374151;
-                outline: none;
-                cursor: pointer;
-                appearance: none;
-                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
-                background-repeat: no-repeat;
-                background-position: right 16px center;
-                background-size: 16px;
-            }
-            
-            .form-select:focus {
-                background-color: #e5e7eb;
-                box-shadow: 0 0 0 2px #fbbf24;
-            }
-            
-            .back-btn {
-                width: 48px;
-                height: 48px;
-                background: #fbbf24;
-                border-radius: 8px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: #92400e;
-                font-size: 20px;
-                font-weight: bold;
-                text-decoration: none;
-                transition: background 0.2s;
-            }
-            
-            .back-btn:hover {
-                background: #f59e0b;
-            }
-            
-            .submit-btn {
-                background: #dc2626;
-                color: white;
-                padding: 12px 48px;
-                border-radius: 8px;
-                font-weight: 600;
-                font-size: 14px;
-                border: none;
-                cursor: pointer;
-                transition: background 0.2s;
-            }
-            
-            .submit-btn:hover {
-                background: #b91c1c;
-            }
-        </style>
-    </head>
-    <body>
+    <div class="max-w-5xl mx-auto px-4 py-10">
+        {{-- Breadcrumbs inspired by Appointment Design --}}
+        <div class="text-black text-[10px] py-4 px-2 uppercase font-black tracking-[0.2em] mb-4">
+            <a href="{{ route('dashboard') }}" class="hover:text-red-700 transition-colors">Dashboard</a> 
+            <span class="mx-2 text-gray-300">/</span>
+            <a href="{{ route('pets.index') }}" class="hover:text-red-700 transition-colors">My Pets</a> 
+            <span class="mx-2 text-gray-300">/</span>
+            <span class="font-black uppercase tracking-widest text-red-700">Add New Pet</span>
+        </div>
+        
+        {{-- Main Flattened Card --}}
+        <div class="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 overflow-hidden">
+            <div class="p-8 md:p-12">
+                {{-- Header Section --}}
+                <div class="flex flex-col items-center justify-center mb-10">
+                    <h2 class="text-4xl font-black text-gray-900 uppercase tracking-tight">Register Pet</h2>
+                    <p class="text-red-700 font-bold uppercase text-xs tracking-[0.2em] mt-2">New Pet Profile</p>
+                    
+                    {{-- Decorative Divider --}}
+                    <div class="w-24 h-1 bg-red-700 mt-6 rounded-full"></div>
+                </div>
 
-        <div class="container mx-auto mt-8 px-4 max-w-2xl pb-12 relative z-10">
-            <div class="main-card">
-                
+                {{-- Error Handling --}}
                 @if ($errors->any())
-                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4">
-                        <ul class="list-disc list-inside">
+                    <div class="bg-red-50 border-l-4 border-red-600 text-red-700 p-4 rounded-xl mb-8">
+                        <div class="flex items-center mb-2">
+                            <i class="fas fa-exclamation-circle mr-2"></i>
+                            <span class="font-black uppercase text-xs tracking-widest">Please correct the following:</span>
+                        </div>
+                        <ul class="list-disc list-inside text-sm font-medium">
                             @foreach ($errors->all() as $error)
                                 <li>{{ $error }}</li>
                             @endforeach
@@ -151,181 +36,170 @@
                     </div>
                 @endif
 
-                <form method="POST" action="{{ route('pets.store') }}" enctype="multipart/form-data">
+                <form method="POST" action="{{ route('pets.store') }}" enctype="multipart/form-data" class="space-y-8">
                     @csrf
 
-                    <!-- Pet Information Section -->
-                    <div class="mb-6">
-                        <div class="form-section-header">Pet Information</div>
-                        <div class="form-section-body">
-                            
-                            <!-- Pet Name and Sex Row -->
-                            <div class="grid grid-cols-2 gap-4 mb-4">
-                                <div>
-                                    <label class="form-label">Pet Name</label>
-                                    <input 
-                                        type="text" 
-                                        name="Pet_Name" 
-                                        class="form-input" 
-                                        placeholder="Batumbakal"
-                                        value="{{ old('Pet_Name') }}"
-                                        required
-                                    >
-                                </div>
-                                <div>
-                                    <label class="form-label">Sex ( M or F )</label>
-                                    <select name="Sex" id="sexSelect" class="form-select" required>
-                                        <option value="" disabled {{ old('Sex') ? '' : 'selected' }}>Select</option>
-                                        <option value="Male" {{ old('Sex') == 'Male' ? 'selected' : '' }}>M</option>
-                                        <option value="Female" {{ old('Sex') == 'Female' ? 'selected' : '' }}>F</option>
-                                    </select>
-                                </div>
-                            </div>
+                    {{-- Form Grid --}}
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
+                        
+                        {{-- Pet Name --}}
+                        <div class="md:col-span-2">
+                            <label class="block text-red-700 font-black uppercase text-[10px] tracking-widest mb-2">Pet Name</label>
+                            <input 
+                                type="text" 
+                                name="Pet_Name" 
+                                class="block w-full border-gray-200 focus:border-red-500 focus:ring-red-500 rounded-xl bg-gray-50/50 py-3 px-4 font-medium" 
+                                placeholder="e.g. Batumbakal"
+                                value="{{ old('Pet_Name') }}"
+                                required
+                            >
+                        </div>
 
-                            <!-- Age and Species Row -->
-                            <div class="grid grid-cols-2 gap-4 mb-4">
-                                <div>
-                                    <label class="form-label">Age ( months )</label>
-                                    <input 
-                                        type="number" 
-                                        name="Age" 
-                                        class="form-input" 
-                                        placeholder="23"
-                                        value="{{ old('Age') }}"
-                                        min="0"
-                                        required
-                                    >
-                                </div>
-                                <div>
-                                    <label class="form-label">Species</label>
-                                    <select name="Species_ID" id="speciesSelect" class="form-select" required>
-                                        <option value="" disabled {{ old('Species_ID') ? '' : 'selected' }}>Select</option>
-                                        @foreach($species as $sp)
-                                            <option value="{{ $sp->Species_ID }}" {{ old('Species_ID') == $sp->Species_ID ? 'selected' : '' }}>
-                                                {{ $sp->Species_Name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
+                        {{-- Sex --}}
+                        <div>
+                            <label class="block text-red-700 font-black uppercase text-[10px] tracking-widest mb-2">Sex</label>
+                            <select name="Sex" id="sexSelect" class="block w-full border-gray-200 focus:border-red-500 focus:ring-red-500 rounded-xl bg-gray-50/50 py-3 px-4 font-medium" required>
+                                <option value="" disabled {{ old('Sex') ? '' : 'selected' }}>Select Sex</option>
+                                <option value="Male" {{ old('Sex') == 'Male' ? 'selected' : '' }}>Male (M)</option>
+                                <option value="Female" {{ old('Sex') == 'Female' ? 'selected' : '' }}>Female (F)</option>
+                            </select>
+                        </div>
 
-                            <!-- Other Species (conditional) -->
-                            <div class="mb-4" id="otherSpeciesDiv" style="display: none;">
-                                <label class="form-label">If other species ( <span class="italic text-gray-500">Please specify</span> )</label>
+                        {{-- Age --}}
+                        <div>
+                            <label class="block text-red-700 font-black uppercase text-[10px] tracking-widest mb-2">Age (Months)</label>
+                            <input 
+                                type="number" 
+                                name="Age" 
+                                class="block w-full border-gray-200 focus:border-red-500 focus:ring-red-500 rounded-xl bg-gray-50/50 py-3 px-4 font-medium" 
+                                placeholder="23"
+                                value="{{ old('Age') }}"
+                                min="0"
+                                required
+                            >
+                        </div>
+
+                        {{-- Species --}}
+                        <div>
+                            <label class="block text-red-700 font-black uppercase text-[10px] tracking-widest mb-2">Species</label>
+                            <select name="Species_ID" id="speciesSelect" class="block w-full border-gray-200 focus:border-red-500 focus:ring-red-500 rounded-xl bg-gray-50/50 py-3 px-4 font-medium" required>
+                                <option value="" disabled {{ old('Species_ID') ? '' : 'selected' }}>Select Species</option>
+                                @foreach($species as $sp)
+                                    <option value="{{ $sp->Species_ID }}" {{ old('Species_ID') == $sp->Species_ID ? 'selected' : '' }}>
+                                        {{ $sp->Species_Name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        {{-- Breed --}}
+                        <div>
+                            <label class="block text-gray-400 font-black uppercase text-[10px] tracking-widest mb-2">Breed (Optional)</label>
+                            <input 
+                                type="text" 
+                                name="Breed" 
+                                class="block w-full border-gray-200 focus:border-red-500 focus:ring-red-500 rounded-xl bg-gray-50/50 py-3 px-4 font-medium" 
+                                placeholder="e.g. Labrador, Mixed"
+                                value="{{ old('Breed') }}"
+                            >
+                        </div>
+
+                        {{-- Conditional: Other Species --}}
+                        <div class="md:col-span-3 transition-all duration-300" id="otherSpeciesDiv" style="display: none;">
+                            <div class="bg-amber-50 border border-amber-100 p-4 rounded-2xl">
+                                <label class="block text-amber-700 font-black uppercase text-[10px] tracking-widest mb-2">Specify Other Species</label>
                                 <input 
                                     type="text" 
                                     name="other_species" 
-                                    class="form-input" 
+                                    class="block w-full border-amber-200 focus:border-amber-500 focus:ring-amber-500 rounded-xl bg-white py-3 px-4 font-medium" 
                                     placeholder="Enter species name"
                                     value="{{ old('other_species') }}"
                                 >
                             </div>
+                        </div>
 
-                            <!-- Breed -->
-                            <div class="mb-4">
-                                <label class="form-label">Breed <span class="text-gray-400 text-xs font-normal">(Optional)</span></label>
-                                <input 
-                                    type="text" 
-                                    name="Breed" 
-                                    class="form-input" 
-                                    placeholder="e.g., Labrador, Persian, Mixed"
-                                    value="{{ old('Breed') }}"
-                                >
-                                <p class="text-xs text-gray-500 mt-1">Leave blank or enter "Mixed" if unknown</p>
-                            </div>
-
-                            <!-- Reproductive Status -->
-                            <div class="mb-4">
-                                <label class="form-label">Reproductive Status</label>
-                                <select name="Reproductive_Status" id="reproductiveStatus" class="form-select" required>
-                                    <option value="" disabled {{ old('Reproductive_Status') ? '' : 'selected' }}>Select</option>
-                                    <option value="Intact" {{ old('Reproductive_Status') == 'Intact' ? 'selected' : '' }}>Intact (Not neutered/spayed)</option>
-                                    <option value="Neutered" id="neuteredOption" {{ old('Reproductive_Status') == 'Neutered' ? 'selected' : '' }} style="display: none;">Neutered</option>
-                                    <option value="Spayed" id="spayedOption" {{ old('Reproductive_Status') == 'Spayed' ? 'selected' : '' }} style="display: none;">Spayed</option>
-                                    <option value="Unknown" {{ old('Reproductive_Status') == 'Unknown' ? 'selected' : '' }}>Unknown</option> 
-                                </select>
-                                <p class="text-xs text-gray-500 mt-1" id="reproductiveHint">
-                                    Select the sex first to see neutered/spayed options
-                                </p>
-                            </div>
+                        {{-- Reproductive Status --}}
+                        <div class="md:col-span-3">
+                            <label class="block text-red-700 font-black uppercase text-[10px] tracking-widest mb-2">Reproductive Status</label>
+                            <select name="Reproductive_Status" id="reproductiveStatus" class="block w-full border-gray-200 focus:border-red-500 focus:ring-red-500 rounded-xl bg-gray-50/50 py-3 px-4 font-medium" required>
+                                <option value="" disabled {{ old('Reproductive_Status') ? '' : 'selected' }}>Select Status</option>
+                                <option value="Intact" {{ old('Reproductive_Status') == 'Intact' ? 'selected' : '' }}>Intact (Not neutered/spayed)</option>
+                                <option value="Neutered" id="neuteredOption" {{ old('Reproductive_Status') == 'Neutered' ? 'selected' : '' }} style="display: none;">Neutered</option>
+                                <option value="Spayed" id="spayedOption" {{ old('Reproductive_Status') == 'Spayed' ? 'selected' : '' }} style="display: none;">Spayed</option>
+                                <option value="Unknown" {{ old('Reproductive_Status') == 'Unknown' ? 'selected' : '' }}>Unknown</option> 
+                            </select>
+                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-tight mt-3 flex items-center" id="reproductiveHint">
+                                <i class="fas fa-info-circle mr-2 text-red-500"></i> Select the sex first to see status options
+                            </p>
                         </div>
                     </div>
 
-                    <!-- Action Buttons -->
-                    <div class="flex justify-between items-center">
-                        <a href="{{ route('pets.index') }}" class="back-btn">
-                            ←
-                        </a>
-                        <button type="submit" class="submit-btn">
-                            Add
-                        </button>
+                    {{-- Action Footer --}}
+                    <div class="pt-10 border-t border-gray-100">
+                        <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+                            {{-- Back Button --}}
+                            <a href="{{ route('pets.index') }}" 
+                                class="w-full md:w-auto bg-gray-500 hover:bg-gray-600 text-white font-black py-4 px-12 rounded-2xl shadow-lg transition-all active:scale-95 uppercase tracking-widest text-sm text-center">
+                                Back
+                            </a>
+
+                            {{-- Submit Button --}}
+                            <button type="submit" 
+                                class="w-full md:w-64 bg-red-700 hover:bg-red-800 text-white font-black py-4 rounded-2xl shadow-lg transition-all active:scale-95 uppercase tracking-widest text-sm">
+                                Register Pet
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
         </div>
+    </div>
 
-        <script>
-            const speciesSelect = document.getElementById('speciesSelect');
-            const otherSpeciesDiv = document.getElementById('otherSpeciesDiv');
-            const sexSelect = document.getElementById('sexSelect');
-            const reproductiveStatus = document.getElementById('reproductiveStatus');
-            const neuteredOption = document.getElementById('neuteredOption');
-            const spayedOption = document.getElementById('spayedOption');
-            const reproductiveHint = document.getElementById('reproductiveHint');
+    <script>
+        const speciesSelect = document.getElementById('speciesSelect');
+        const otherSpeciesDiv = document.getElementById('otherSpeciesDiv');
+        const sexSelect = document.getElementById('sexSelect');
+        const reproductiveStatus = document.getElementById('reproductiveStatus');
+        const neuteredOption = document.getElementById('neuteredOption');
+        const spayedOption = document.getElementById('spayedOption');
+        const reproductiveHint = document.getElementById('reproductiveHint');
+        
+        speciesSelect.addEventListener('change', function() {
+            const selectedText = this.options[this.selectedIndex].text;
+            otherSpeciesDiv.style.display = (selectedText === 'Other') ? 'block' : 'none';
+        });
+
+        if (speciesSelect.options[speciesSelect.selectedIndex]?.text === 'Other') {
+            otherSpeciesDiv.style.display = 'block';
+        }
+
+        sexSelect.addEventListener('change', function() {
+            const sex = this.value;
+            reproductiveStatus.value = '';
             
-            // Species select handler
-            speciesSelect.addEventListener('change', function() {
-                const selectedText = this.options[this.selectedIndex].text;
-                if (selectedText === 'Other') {
-                    otherSpeciesDiv.style.display = 'block';
-                } else {
-                    otherSpeciesDiv.style.display = 'none';
-                }
-            });
-
-            // Check species on page load
-            const selectedSpeciesText = speciesSelect.options[speciesSelect.selectedIndex]?.text;
-            if (selectedSpeciesText === 'Other') {
-                otherSpeciesDiv.style.display = 'block';
-            }
-
-            // Sex select handler - updates reproductive status options
-            sexSelect.addEventListener('change', function() {
-                const sex = this.value;
-                
-                // Reset reproductive status
-                reproductiveStatus.value = '';
-                
-                if (sex === 'Male') {
-                    // Show Neutered, hide Spayed
-                    neuteredOption.style.display = 'block';
-                    spayedOption.style.display = 'none';
-                    reproductiveHint.textContent = 'Neutered = surgically sterilized male';
-                } else if (sex === 'Female') {
-                    // Show Spayed, hide Neutered
-                    neuteredOption.style.display = 'none';
-                    spayedOption.style.display = 'block';
-                    reproductiveHint.textContent = 'Spayed = surgically sterilized female';
-                } else {
-                    // Hide both
-                    neuteredOption.style.display = 'none';
-                    spayedOption.style.display = 'none';
-                    reproductiveHint.textContent = 'Select the sex first to see neutered/spayed options';
-                }
-            });
-
-            // Check sex on page load
-            const selectedSex = sexSelect.value;
-            if (selectedSex === 'Male') {
+            if (sex === 'Male') {
                 neuteredOption.style.display = 'block';
                 spayedOption.style.display = 'none';
-                reproductiveHint.textContent = 'Neutered = surgically sterilized male';
-            } else if (selectedSex === 'Female') {
+                reproductiveHint.innerHTML = '<i class="fas fa-mars mr-2 text-blue-500"></i> Neutered = surgically sterilized male';
+            } else if (sex === 'Female') {
                 neuteredOption.style.display = 'none';
                 spayedOption.style.display = 'block';
-                reproductiveHint.textContent = 'Spayed = surgically sterilized female';
+                reproductiveHint.innerHTML = '<i class="fas fa-venus mr-2 text-pink-500"></i> Spayed = surgically sterilized female';
+            } else {
+                neuteredOption.style.display = 'none';
+                spayedOption.style.display = 'none';
+                reproductiveHint.innerHTML = '<i class="fas fa-info-circle mr-2 text-red-500"></i> Select sex first to see options';
             }
-        </script>
-    </body>
-    </html>
+        });
+
+        // Load state
+        const initialSex = sexSelect.value;
+        if (initialSex === 'Male') {
+            neuteredOption.style.display = 'block';
+            reproductiveHint.innerHTML = '<i class="fas fa-mars mr-2 text-blue-500"></i> Neutered = surgically sterilized male';
+        } else if (initialSex === 'Female') {
+            spayedOption.style.display = 'block';
+            reproductiveHint.innerHTML = '<i class="fas fa-venus mr-2 text-pink-500"></i> Spayed = surgically sterilized female';
+        }
+    </script>
 </x-dashboardheader-layout>
