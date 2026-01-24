@@ -3,9 +3,9 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\Reporttype;
+use App\Models\ReportType;
 
-class ReporttypeSeeder extends Seeder
+class ReportTypeSeeder extends Seeder
 {
     /**
      * Run the database seeds.
@@ -26,7 +26,7 @@ class ReporttypeSeeder extends Seeder
         ];
 
         foreach ($reportTypes as $type) {
-            Reporttype::updateOrCreate(
+            ReportType::updateOrCreate(
                 ['ReportType_ID' => $type['ReportType_ID']],
                 $type
             );

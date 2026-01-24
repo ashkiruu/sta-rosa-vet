@@ -1,10 +1,32 @@
 steps:
+  # 1) Build the image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'asia-southeast1-docker.pkg.dev/$PROJECT_ID/staging/sta-rosa-vet-web:$COMMIT_SHA', '.']
+    args:
+      [
+        'build',
+        '-t', 'asia-southeast1-docker.pkg.dev/$PROJECT_ID/staging/sta-rosa-vet-web:$COMMIT_SHA',
+        '.'
+      ]
 
+  # 2) Smoke test: container can start Apache and load PHP (fast fail)
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'asia-southeast1-docker.pkg.dev/$PROJECT_ID/staging/sta-rosa-vet-web:$COMMIT_SHA']
+    args:
+      [
+        'run', '--rm',
+        'asia-southeast1-docker.pkg.dev/$PROJECT_ID/staging/sta-rosa-vet-web:$COMMIT_SHA',
+        'bash', '-lc',
+        'php -v && php -m | head -n 20 && apache2ctl -t'
+      ]
 
+  # 3) Push only if smoke test passes
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      [
+        'push',
+        'asia-southeast1-docker.pkg.dev/$PROJECT_ID/staging/sta-rosa-vet-web:$COMMIT_SHA'
+      ]
+
+  # 4) Deploy only if push succeeds
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args:
@@ -22,5 +44,3 @@ images:
 
 options:
   logging: CLOUD_LOGGING_ONLY
-
-

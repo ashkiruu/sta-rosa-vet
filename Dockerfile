@@ -68,17 +68,18 @@ ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
  && sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
 
-WORKDIR /var/www/html
 
 # Copy app code
-COPY . .
-RUN php artisan config:clear && php artisan cache:clear
+WORKDIR /var/www/html
 
-# Copy vendor + built assets
+# Copy app code first
+COPY . .
+
+# Copy vendor + built assets BEFORE running artisan
 COPY --from=vendor /app/vendor ./vendor
 COPY --from=frontend /app/public/build ./public/build
 
-# Provide safe defaults so artisan doesn't require real secrets/DB at build time
+# Provide safe defaults BEFORE artisan (so it won't crash)
 ENV APP_ENV=production \
     APP_DEBUG=false \
     APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= \
@@ -88,18 +89,15 @@ ENV APP_ENV=production \
     DB_CONNECTION=sqlite \
     DB_DATABASE=/tmp/database.sqlite
 
-RUN touch /tmp/database.sqlite \
+RUN touch /tmp/database.sqlite
+
+# Now artisan commands are safe
+RUN php artisan config:clear --ansi \
+ && php artisan cache:clear --ansi \
+ && php artisan route:clear --ansi \
+ && php artisan view:clear --ansi \
  && php artisan package:discover --ansi
 
-
-# Permissions for Laravel
-RUN mkdir -p storage bootstrap/cache \
- && chown -R www-data:www-data storage bootstrap/cache \
- && chmod -R ug+rwx storage bootstrap/cache
-
-RUN php artisan config:clear --ansi \
- && php artisan route:clear --ansi \
- && php artisan view:clear --ansi
 
 
 EXPOSE 8080
