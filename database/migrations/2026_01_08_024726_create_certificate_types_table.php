@@ -9,14 +9,18 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
-     * 
-     * This migration updates certificate_types to match service_types
      */
     public function up(): void
     {
-        // Clear existing certificate types and add service-matching ones
-        DB::table('certificate_types')->truncate();
-        
+        // 1. CREATE THE TABLE FIRST
+        Schema::create('certificate_types', function (Blueprint $table) {
+            $table->id('CertificateType_ID'); // Matches your Seeder
+            $table->string('Certificate_Name');
+            $table->text('Description')->nullable();
+            $table->timestamps();
+        });
+
+        // 2. NOW ADD THE DATA
         $types = [
             [
                 'CertificateType_ID' => 1,
@@ -49,33 +53,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Restore original certificate types (ID documents)
-        DB::table('certificate_types')->truncate();
-        
-        $types = [
-            [
-                'CertificateType_ID' => 1,
-                'Certificate_Name' => 'National ID',
-                'Description' => 'Philippine Identification System (PhilSys) Card',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'CertificateType_ID' => 2,
-                'Certificate_Name' => 'Voters ID',
-                'Description' => 'COMELEC Voter Identification Card',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'CertificateType_ID' => 3,
-                'Certificate_Name' => 'Drivers License',
-                'Description' => 'LTO Driver License Card',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-        ];
-
-        DB::table('certificate_types')->insert($types);
+        // Be careful: Your previous down method was dropping 'admins'
+        // Change it to drop the table this migration created
+        Schema::dropIfExists('certificate_types');
     }
 };

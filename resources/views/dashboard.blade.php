@@ -1,8 +1,8 @@
 <x-dashboardheader-layout>
     @section('title', 'Dashboard')
 
-    <div class="min-h-screen py-8 bg-cover bg-fixed" style="background-image: url('{{ asset('images/PawsBackground.png') }}');">
-        <div class="max-w-5xl mx-auto px-4">
+    <div class="min-h-screen py-8 bg-transparent">
+            <div class="max-w-5xl mx-auto px-4">
             
             {{-- Header Card --}}
             <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-8 border border-gray-100">

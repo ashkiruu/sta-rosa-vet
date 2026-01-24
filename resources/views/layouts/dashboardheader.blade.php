@@ -341,6 +341,14 @@
             {{-- Content Area: This is where your Appointment/Pet forms will appear --}}
             <div class="w-full flex-1 flex flex-col items-center">
                 {{ $slot }}
+                <div class="container mx-auto px-4 flex flex-col items-center justify-center">
+                {{-- Divider Line (Optional: adds a subtle professional touch for transparency) --}}
+                <div class="w-full max-w-xs md:max-w-md h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent mb-6"></div>
+                
+                <p class="text-xs md:text-sm text-gray-500 font-medium tracking-wide">
+                    &copy; {{ date('Y') }} City Veterinary Office. All rights reserved.
+                </p>
+            </div>
             </div>
         </div>
     </main>

@@ -17,18 +17,22 @@ return new class extends Migration
         Schema::dropIfExists('certificates');
 
         Schema::create('certificates', function (Blueprint $table) {
-            $table->increments('Certificate_ID');
+            $table->bigIncrements('Certificate_ID'); 
             $table->string('Certificate_Number', 100)->unique();
-            $table->integer('Appointment_ID')->unsigned()->nullable();
-            $table->integer('Pet_ID')->unsigned()->nullable();
-            $table->integer('Owner_ID')->unsigned()->nullable();
-            $table->integer('CertificateType_ID')->unsigned();
+
+            // MATCHING THE PARENT TYPES:
+            // Use unsignedInteger if parent uses increments()
+            // Use unsignedBigInteger if parent uses id()
+            $table->unsignedInteger('Appointment_ID')->nullable(); // Matches increments()
+            $table->unsignedInteger('Pet_ID')->nullable();         // Matches increments()
+            $table->unsignedInteger('Owner_ID')->nullable();       // Matches increments()
+            $table->unsignedBigInteger('CertificateType_ID');      // Matches id()
             
             // Service Information
             $table->string('Service_Type', 255);
-            $table->string('Service_Category', 50); // vaccination, deworming, checkup, other
+            $table->string('Service_Category', 50); 
             
-            // Pet Information (stored in certificate for historical record)
+            // Pet Information
             $table->string('Pet_Name', 255);
             $table->string('Animal_Type', 100);
             $table->string('Pet_Gender', 50);
@@ -37,7 +41,7 @@ return new class extends Migration
             $table->string('Pet_Color', 100);
             $table->date('Pet_DOB')->nullable();
             
-            // Owner Information (stored in certificate for historical record)
+            // Owner Information
             $table->string('Owner_Name', 255);
             $table->text('Owner_Address');
             $table->string('Owner_Phone', 50);
@@ -49,16 +53,12 @@ return new class extends Migration
             $table->date('Service_Date')->nullable();
             $table->date('Next_Service_Date')->nullable();
             
-            // Vaccination-specific fields
-            $table->string('Vaccine_Type', 100)->nullable(); // anti-rabies, other
+            // Medical Fields
+            $table->string('Vaccine_Type', 100)->nullable();
             $table->string('Vaccine_Used', 255)->nullable();
             $table->string('Lot_Number', 100)->nullable();
-            
-            // Deworming-specific fields
             $table->string('Medicine_Used', 255)->nullable();
             $table->string('Dosage', 100)->nullable();
-            
-            // Checkup-specific fields
             $table->text('Findings')->nullable();
             $table->text('Recommendations')->nullable();
             

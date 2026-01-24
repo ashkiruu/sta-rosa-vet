@@ -12,13 +12,9 @@ return new class extends Migration {
     {
         Schema::create('calendar_time', function (Blueprint $table) {
             $table->increments('Slot_ID'); 
-            // 'Val' stores the 24-hour format (e.g., 08:10) for logic/database comparison
             $table->string('Slot_Val', 10)->unique(); 
-            // 'Display' stores the human-readable format (e.g., 08:10 AM) for the UI
             $table->string('Slot_Display', 20); 
-            // Toggle to disable specific slots if the clinic is partially closed
             $table->boolean('Is_Active')->default(true); 
-            
             $table->timestamps();
         });
     }
@@ -28,6 +24,7 @@ return new class extends Migration {
      */
     public function down(): void
     {
-        Schema::dropIfExists('master_time_slots');
+        // FIX: Change this to match the table created in the up() method
+        Schema::dropIfExists('calendar_time');
     }
 };
