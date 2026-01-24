@@ -3,14 +3,11 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
-
+use Illuminate\Support\Facades\URL;
 use App\Services\CleanupService;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
         //
@@ -18,6 +15,16 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // ✅ Force HTTPS URL generation on Cloud Run
+        if (app()->environment(['staging', 'production'])) {
+            URL::forceScheme('https');
+
+            // Optional but nice: makes URL generation consistent
+            if (config('app.url')) {
+                URL::forceRootUrl(config('app.url'));
+            }
+        }
+
         // Run cleanup randomly (1% chance per request)
         if (rand(1, 100) === 1) {
             try {
@@ -28,7 +35,3 @@ class AppServiceProvider extends ServiceProvider
         }
     }
 }
-
-
-
-    

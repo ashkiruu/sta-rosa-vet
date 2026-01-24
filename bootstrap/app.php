@@ -11,12 +11,16 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // ✅ Cloud Run / reverse proxy support (prevents HTTP URL generation on HTTPS requests)
+        $middleware->trustProxies(at: '*');
+
         $middleware->alias([
             'verified' => \App\Http\Middleware\VerifiedUser::class,
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
             'superadmin' => \App\Http\Middleware\SuperAdminMiddleware::class,
         ]);
     })
+
     ->withExceptions(function (Exceptions $exceptions): void {
         //
     })->create();
