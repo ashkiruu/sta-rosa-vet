@@ -26,7 +26,7 @@ class ReportTypeSeeder extends Seeder
         ];
 
         foreach ($reportTypes as $type) {
-            ReportType::updateOrCreate(
+            Reporttype::updateOrCreate(
                 ['ReportType_ID' => $type['ReportType_ID']],
                 $type
             );
