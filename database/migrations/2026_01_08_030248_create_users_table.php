@@ -21,6 +21,7 @@ return new class extends Migration {
             $table->string('Email', 255);
             $table->text('Address');
             $table->dateTime('Registration_Date');
+            $table->rememberToken();
 
             // foreign keys
             $table->foreign('Barangay_ID')->references('Barangay_ID')->on('barangays');
