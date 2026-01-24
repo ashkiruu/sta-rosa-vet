@@ -11,15 +11,12 @@ use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\ResetPasswordController;
 use Illuminate\Support\Facades\Auth;
 
-
-
-
-
 Route::get('/', function () {
     if (Auth::check()) {
+        // Always redirect authenticated users to dashboard
+        // The dashboard will show verification status
         return redirect()->route('dashboard');
     }
-
     return redirect()->route('login');
 });
 
@@ -30,10 +27,8 @@ Route::post('/register', [RegisterController::class, 'postNotice'])->name('regis
 // Registration Routes
 Route::get('/register/step1', [RegisterController::class, 'step1'])->name('register.step1');
 Route::post('/register/step1', [RegisterController::class, 'postStep1']);
-// Registration Step 2
 Route::get('/register/step2', [RegisterController::class, 'step2'])->name('register.step2');
 Route::post('/register/step2', [RegisterController::class, 'postStep2'])->name('register.step2.post');
-// Registration Step 3
 Route::get('/register/step3', [RegisterController::class, 'step3'])->name('register.step3');
 Route::post('/register/step3', [RegisterController::class, 'postStep3'])->name('register.step3.post');
 
@@ -46,25 +41,47 @@ Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
-
 // PUBLIC ROUTE - QR Code Verification (NO AUTH REQUIRED!)
-// This must be outside auth middleware so receptionist can scan
 Route::get('/appointments/verify/{id}/{token}', [AppointmentController::class, 'verifyAppointment'])
     ->name('appointments.verify');
 
-    
+// Forgot Password Routes
+Route::get('/forgot-password', [ForgotPasswordController::class, 'showForm'])
+    ->middleware('guest')
+    ->name('password.request');
+Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLink'])
+    ->middleware('guest')
+    ->name('password.email');
+Route::get('/reset-password/{token}', [ResetPasswordController::class, 'showResetForm'])
+    ->middleware('guest')
+    ->name('password.reset');
+Route::post('/reset-password', [ResetPasswordController::class, 'reset'])
+    ->middleware('guest')
+    ->name('password.update');
 
-
-// Protected Routes
+// ============================================================================
+// AUTHENTICATED ROUTES - Accessible to ALL authenticated users (verified or not)
+// ============================================================================
 Route::middleware('auth')->group(function () {
+    // Dashboard - Always accessible to authenticated users
     Route::get('/dashboard', function () {
         return view('dashboard');
     })->name('dashboard');
 
-    // Verify Process
+    // Verification Pages - Accessible to all authenticated users
+    Route::get('/verification-pending', function () {
+        return view('verification.pending');
+    })->name('verification.pending');
+
+    // Verify Process - Accessible to all authenticated users
     Route::get('/verify-account', [RegisterController::class, 'showReverifyForm'])->name('verify.reverify');
     Route::post('/verify-account', [RegisterController::class, 'processReverify'])->name('verify.process');
+});
 
+// ============================================================================
+// VERIFIED USER ROUTES - Features require verification
+// ============================================================================
+Route::middleware(['auth', 'verified'])->group(function () {
     // Pet Management Routes
     Route::get('/pets', [PetController::class, 'index'])->name('pets.index');
     Route::get('/pets/create', [PetController::class, 'create'])->name('pets.create');
@@ -73,12 +90,11 @@ Route::middleware('auth')->group(function () {
     Route::delete('/pets/{id}', [PetController::class, 'destroy'])->name('pets.destroy');
 
     // Appointments
-    
     Route::get('/appointments', [AppointmentController::class, 'index'])->name('appointments.index');
     Route::get('/appointments/create', [AppointmentController::class, 'create'])->name('appointments.create');
     Route::post('/appointments', [AppointmentController::class, 'store'])->name('appointments.store');
     Route::get('/appointments/check-limit', [AppointmentController::class, 'checkAppointmentLimit'])
-    ->name('appointments.checkLimit');
+        ->name('appointments.checkLimit');
     
     Route::post('/appointments/preview', [AppointmentController::class, 'preview'])->name('appointments.preview');
     Route::post('/appointments/confirm', [AppointmentController::class, 'confirm'])->name('appointments.confirm');
@@ -127,8 +143,10 @@ Route::middleware('auth')->group(function () {
         ->name('certificates.view');
 });
 
-// Admin-Only Routes (Both Normal Admin and Super Admin can access)
-Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+// ============================================================================
+// ADMIN ROUTES - ADDED 'verified' MIDDLEWARE
+// ============================================================================
+Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     // Admin Dashboard Overview
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
     Route::get('/users/{id}', [AdminController::class, 'showUser'])->name('user.show'); 
@@ -143,7 +161,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/appointments/{id}/approve', [AdminController::class, 'approveAppointment'])->name('appointments.approve');
     Route::post('/appointments/{id}/reject', [AdminController::class, 'rejectAppointment'])->name('appointments.reject');
     Route::post('/appointments/{id}/release-qr', [AdminController::class, 'releaseQRCode'])
-    ->name('appointments.release-qr');
+        ->name('appointments.release-qr');
 
     // 3. Schedule Management
     Route::post('/schedule/toggle', [AdminController::class, 'toggleDateStatus'])->name('schedule.toggle');
@@ -169,8 +187,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::delete('/reports/{id}', [AdminController::class, 'deleteReport'])->name('reports.delete');
 });
 
-// Super Admin Only Routes
-Route::middleware(['auth', 'admin', 'superadmin'])->prefix('admin')->name('admin.')->group(function () {
+// ============================================================================
+// SUPER ADMIN ONLY ROUTES - ADDED 'verified' MIDDLEWARE
+// ============================================================================
+Route::middleware(['auth', 'verified', 'admin', 'superadmin'])->prefix('admin')->name('admin.')->group(function () {
     // Admin Management (Super Admin Only)
     Route::get('/admins', [AdminController::class, 'adminsIndex'])->name('admins.index');
     Route::get('/admins/create', [AdminController::class, 'adminsCreate'])->name('admins.create');
@@ -181,23 +201,3 @@ Route::middleware(['auth', 'admin', 'superadmin'])->prefix('admin')->name('admin
     // Activity Logs (Super Admin Only)
     Route::get('/logs', [AdminController::class, 'activityLogs'])->name('logs');
 });
-
-// Forgot Password Routes
-Route::get('/forgot-password', [ForgotPasswordController::class, 'showForm'])
-    ->middleware('guest')
-    ->name('password.request');
-
-Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLink'])
-    ->middleware('guest')
-    ->name('password.email');
-
-Route::get('/reset-password/{token}', [ResetPasswordController::class, 'showResetForm'])
-    ->middleware('guest')
-    ->name('password.reset');
-
-Route::post('/reset-password', [ResetPasswordController::class, 'reset'])
-    ->middleware('guest')
-    ->name('password.update');
-
-
-    

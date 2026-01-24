@@ -43,6 +43,43 @@ class User extends Authenticatable
     }
 
     /**
+ * Check if user is verified
+ */
+public function isVerified(): bool
+{
+    return $this->Verification_Status_ID == 2; // 2 = Verified
+}
+
+/**
+ * Get verification status name
+ */
+public function getVerificationStatusName(): string
+{
+    return match($this->Verification_Status_ID) {
+        1 => 'Pending Verification',
+        2 => 'Verified',
+        3 => 'Not Verified',
+        default => 'Unknown'
+    };
+}
+
+/**
+ * Check if verification is pending
+ */
+public function isVerificationPending(): bool
+{
+    return $this->Verification_Status_ID == 1;
+}
+
+/**
+ * Check if verification was rejected
+ */
+public function isVerificationRejected(): bool
+{
+    return $this->Verification_Status_ID == 3;
+}
+
+    /**
      * Relationship with Pets
      */
     public function pets()
