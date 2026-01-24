@@ -1,8 +1,9 @@
-# ---- Build stage (Composer) ----
-FROM composer:2 AS vendor
-WORKDIR /app
-COPY composer.json composer.lock ./
-RUN composer install --no-dev --prefer-dist --no-interaction --no-progress
+# Install Composer in runtime stage (so PHP extensions like exif are available)
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Install PHP dependencies
+RUN composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
+
 
 # ---- Runtime stage (PHP + Apache) ----
 FROM php:8.2-apache
@@ -25,8 +26,6 @@ WORKDIR /var/www/html
 # Copy app source
 COPY . .
 
-# Copy vendor from build stage
-COPY --from=vendor /app/vendor ./vendor
 
 # Permissions for Laravel storage/cache
 RUN chown -R www-data:www-data storage bootstrap/cache
