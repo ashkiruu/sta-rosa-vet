@@ -15,8 +15,20 @@ RUN apt-get update && apt-get install -y \
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
+
+# Copy composer files first (better caching)
 COPY composer.json composer.lock ./
+
+# Copy minimum app files needed for artisan scripts during composer install
+COPY artisan artisan
+COPY bootstrap bootstrap
+COPY config config
+
+# Some packages may read .env during discovery; keep safe (optional)
+# COPY .env.example .env
+
 RUN composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
+
 
 # =========================
 # 2) Frontend stage (Vite build)
