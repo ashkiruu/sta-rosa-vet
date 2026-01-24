@@ -1,207 +1,150 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Appointment QR Code</title>
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="bg-gray-100 min-h-screen">
-    <!-- Header -->
-    <nav class="bg-gradient-to-r from-red-800 to-red-700 text-white px-6 py-3">
-        <div class="container mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
-                    <span class="text-red-700 font-bold text-lg">🐾</span>
-                </div>
-                <div>
-                    <h1 class="font-bold text-lg">City Veterinary Office</h1>
-                    <p class="text-xs text-red-200">Appointment QR Code</p>
-                </div>
-            </div>
-            <a href="{{ route('appointments.index') }}" class="text-white hover:underline text-sm">
-                ← Back to Appointments
-            </a>
-        </div>
-    </nav>
-
-    <div class="container mx-auto mt-8 px-4 max-w-lg pb-12">
-        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-            <!-- Header -->
-            <div class="bg-green-500 text-white px-6 py-4 text-center">
-                <h2 class="text-xl font-bold">Appointment Confirmed</h2>
-                <p class="text-green-100 text-sm">Show this QR code at the clinic</p>
-            </div>
-
-            <!-- QR Code Section -->
-            <div class="p-6 text-center">
-                <div class="mb-4">
-                    <p class="text-gray-500 text-sm">Reference Number</p>
-                    <p class="text-2xl font-bold text-gray-800">VET-{{ str_pad($appointment->Appointment_ID, 6, '0', STR_PAD_LEFT) }}</p>
-                </div>
-
-                {{-- QR Code Display with Multiple Fallbacks --}}
-                <div class="bg-white p-4 rounded-lg inline-block border-2 border-gray-200 mb-4">
-                    @php
-                        // Generate the verification URL (same as QRCodeService)
-                        $token = substr(md5($appointment->Appointment_ID . '-' . $appointment->User_ID . '-' . $appointment->Date . config('app.key', 'veterinary-clinic-secret')), 0, 16);
-                        $verificationUrl = url("/appointments/verify/{$appointment->Appointment_ID}/{$token}");
-                        
-                        // Try multiple image sources
-                        $localPath = 'qrcodes/appointment_' . $appointment->Appointment_ID . '.png';
-                        $storagePath = storage_path('app/public/' . $localPath);
-                        $fileExists = file_exists($storagePath);
-                        
-                        // Generate QR code URL using external API as reliable fallback
-                        $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=' . urlencode($verificationUrl);
-                    @endphp
-                    
-                    {{-- Primary: Try local storage URL --}}
-                    @if($qrCodeUrl && $fileExists)
-                        <img 
-                            src="{{ $qrCodeUrl }}" 
-                            alt="Appointment QR Code" 
-                            class="w-64 h-64 mx-auto"
-                            id="qrImage"
-                            onerror="this.onerror=null; this.src='{{ $qrApiUrl }}';"
-                        >
-                    @else
-                        {{-- Fallback: Use QR Server API directly --}}
-                        <img 
-                            src="{{ $qrApiUrl }}" 
-                            alt="Appointment QR Code" 
-                            class="w-64 h-64 mx-auto"
-                            id="qrImage"
-                        >
-                    @endif
-                </div>
-
-                <p class="text-gray-600 text-sm mb-4">
-                    Scan this QR code to verify your appointment
-                </p>
-
-                <!-- Status Indicator -->
-                <div id="statusIndicator" class="mb-4">
-                    <div class="inline-flex items-center gap-2 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-full text-sm">
-                        <span class="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
-                        <span>Waiting for check-in...</span>
-                    </div>
-                </div>
-
-                {{-- Download Button - Always show since we can generate QR on-the-fly --}}
-                <a href="{{ route('appointments.qrcode.download', $appointment->Appointment_ID) }}" 
-                   class="inline-flex items-center gap-2 bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    Download QR Code
-                </a>
-            </div>
-
-            <!-- Appointment Details -->
-            <div class="border-t border-gray-200 px-6 py-4">
-                <h3 class="font-semibold text-gray-700 mb-3">Appointment Details</h3>
-                <div class="space-y-2 text-sm">
-                    <div class="flex justify-between">
-                        <span class="text-gray-500">Pet</span>
-                        <span class="font-medium text-gray-800">🐾 {{ $appointment->pet->Pet_Name }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-500">Service</span>
-                        <span class="font-medium text-gray-800">{{ $appointment->service->Service_Name }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-500">Date</span>
-                        <span class="font-medium text-gray-800">{{ \Carbon\Carbon::parse($appointment->Date)->format('F d, Y') }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-500">Time</span>
-                        <span class="font-medium text-gray-800">{{ \Carbon\Carbon::parse($appointment->Time)->format('h:i A') }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-500">Status</span>
-                        <span id="appointmentStatus" class="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">
-                            {{ $appointment->Status }}
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Instructions -->
-            <div class="bg-yellow-50 px-6 py-4 border-t border-yellow-100">
-                <h4 class="font-semibold text-yellow-800 mb-2">📋 Instructions</h4>
-                <ul class="text-sm text-yellow-700 space-y-1">
-                    <li>• Please arrive 10 minutes before your scheduled time</li>
-                    <li>• Show this QR code to the receptionist upon arrival</li>
-                    <li>• Bring your pet's vaccination records if applicable</li>
-                    <li>• Keep your pet on a leash or in a carrier</li>
-                </ul>
-            </div>
-        </div>
+<x-dashboardheader-layout>
+    <div class="max-w-6xl mx-auto px-4 py-10">
         
-        {{-- Storage Link Warning (for developers) --}}
-        @if(!$fileExists && $qrCodeUrl)
-        <div class="mt-4 p-3 bg-orange-100 border border-orange-300 rounded-lg text-sm text-orange-800">
-            <strong>Note:</strong> If QR codes aren't displaying from local storage, run: 
-            <code class="bg-orange-200 px-1 rounded">php artisan storage:link</code>
+        {{-- Breadcrumbs --}}
+        <div class="flex items-center gap-2 mb-6 ml-4">
+            <a href="{{ route('dashboard') }}" class="text-[10px] font-black uppercase tracking-widest text-black hover:text-red-700 transition">Dashboard</a>
+            <span class="text-black text-[10px]">/</span>
+            <a href="{{ route('appointments.index') }}" class="text-[10px] font-black uppercase tracking-widest text-black hover:text-red-700 transition">My Appointments</a>
+            <span class="text-black text-[10px]">/</span>
+            <span class="text-[10px] font-black uppercase tracking-widest text-red-700">Digital Pass</span>
         </div>
-        @endif
+
+        {{-- Main Pass Container --}}
+        <div class="bg-white rounded-[2.5rem] shadow-2xl border-2 border-gray-100 overflow-hidden">
+            <div class="flex flex-col lg:flex-row min-h-[650px]">
+                
+                {{-- AT MOST LEFT: Important Reminders (Lightened Red Sidebar) --}}
+                <div class="lg:w-1/4 bg-red-50 p-10 flex flex-col justify-center border-r-2 border-red-100">
+                    <h4 class="text-red-700 font-black uppercase text-3xl leading-none tracking-tighter mb-8 border-l-4 border-red-700 pl-4">
+                        Important<br>Reminders
+                    </h4>
+                    <ul class="space-y-8">
+                        <li class="flex flex-col gap-1">
+                            <span class="text-[10px] font-black text-red-400 uppercase tracking-widest">Step 01</span>
+                            <p class="text-xs font-black text-red-900 uppercase tracking-tight">Arrive 10 minutes before your scheduled time slot.</p>
+                        </li>
+                        <li class="flex flex-col gap-1">
+                            <span class="text-[10px] font-black text-red-400 uppercase tracking-widest">Step 02</span>
+                            <p class="text-xs font-black text-red-900 uppercase tracking-tight">Present this QR code to the clinic staff upon arrival.</p>
+                        </li>
+                        <li class="flex flex-col gap-1">
+                            <span class="text-[10px] font-black text-red-400 uppercase tracking-widest">Step 03</span>
+                            <p class="text-xs font-black text-red-900 uppercase tracking-tight">Ensure phone brightness is high for scanning.</p>
+                        </li>
+                    </ul>
+                </div>
+
+                {{-- MIDDLE: QR & Download --}}
+                <div class="lg:w-5/12 p-8 md:p-12 text-center border-b-2 lg:border-b-0 lg:border-r-2 border-gray-100 flex flex-col items-center justify-center bg-white">
+                    <div class="mb-8">
+                        <h2 class="text-4xl font-black text-gray-900 uppercase tracking-tighter">Digital Pass</h2>
+                        <p class="text-red-700 font-bold uppercase text-xs tracking-[0.2em] mt-1">Ref: VET-{{ str_pad($appointment->Appointment_ID, 6, '0', STR_PAD_LEFT) }}</p>
+                    </div>
+
+                    {{-- QR Code --}}
+                    <div class="bg-white p-6 rounded-[2.5rem] border-[6px] border-black shadow-sm mb-8 inline-block">
+                        @php
+                            $token = substr(md5($appointment->Appointment_ID . '-' . $appointment->User_ID . '-' . $appointment->Date . config('app.key', 'veterinary-clinic-secret')), 0, 16);
+                            $verificationUrl = url("/appointments/verify/{$appointment->Appointment_ID}/{$token}");
+                            $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=' . urlencode($verificationUrl);
+                        @endphp
+                        <img src="{{ $qrApiUrl }}" alt="QR Code" class="w-56 h-56 md:w-64 md:h-64 mx-auto" id="qrImage">
+                    </div>
+
+                    {{-- Live Status --}}
+                    <div id="statusIndicator" class="mb-10">
+                        <div class="inline-flex items-center gap-3 px-8 py-3 bg-yellow-50 border-2 border-yellow-200 text-yellow-800 rounded-full font-black uppercase text-[10px] tracking-widest">
+                            <span class="flex h-2.5 w-2.5 relative">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-yellow-600"></span>
+                            </span>
+                            Waiting for check-in
+                        </div>
+                    </div>
+
+                    <a href="{{ route('appointments.qrcode.download', $appointment->Appointment_ID) }}" 
+                       class="w-full max-w-sm bg-black hover:bg-gray-800 text-white font-black py-5 rounded-2xl shadow-xl transition-all active:scale-95 uppercase tracking-widest text-xs flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download QR
+                    </a>
+                </div>
+
+                {{-- RIGHT: Information Grid --}}
+                <div class="lg:w-1/3 p-8 md:p-12 bg-gray-50/30 flex flex-col justify-center">
+                    <div class="space-y-5">
+                        
+                        <div class="p-5 bg-white border-2 border-gray-100 rounded-[2rem] flex items-center gap-4 shadow-sm">
+                            <div class="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-xl">🐾</div>
+                            <div>
+                                <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Patient</p>
+                                <h3 class="font-black text-gray-800 uppercase text-lg leading-tight">{{ $appointment->pet->Pet_Name }}</h3>
+                            </div>
+                        </div>
+
+                        <div class="p-5 bg-white border-2 border-gray-100 rounded-[2rem] flex items-center gap-4 shadow-sm">
+                            <div class="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-xl">📋</div>
+                            <div>
+                                <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Service</p>
+                                <h3 class="font-black text-gray-800 uppercase text-lg leading-tight">{{ $appointment->service->Service_Name }}</h3>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="p-5 bg-white border-2 border-gray-100 rounded-[1.5rem] shadow-sm text-center">
+                                <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Date</p>
+                                <p class="text-[11px] font-black text-gray-800 uppercase">{{ \Carbon\Carbon::parse($appointment->Date)->format('M d, Y') }}</p>
+                            </div>
+                            <div class="p-5 bg-white border-2 border-gray-100 rounded-[1.5rem] shadow-sm text-center">
+                                <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Time</p>
+                                <p class="text-[11px] font-black text-gray-800 uppercase">{{ \Carbon\Carbon::parse($appointment->Time)->format('h:i A') }}</p>
+                            </div>
+                        </div>
+
+                        <div class="p-6 border-2 rounded-[2rem] flex items-center justify-between shadow-sm
+                            {{ in_array($appointment->Status, ['Approved', 'Confirmed']) ? 'bg-green-50 border-green-200 text-green-700' : 'bg-gray-50 border-gray-200 text-gray-700' }}">
+                            <div>
+                                <p class="text-[9px] font-black uppercase tracking-widest mb-0.5 opacity-70">Status</p>
+                                <h3 class="font-black uppercase text-xl tracking-tighter" id="appointmentStatus">{{ $appointment->Status }}</h3>
+                            </div>
+                            <div class="text-2xl">✓</div>
+                        </div>
+
+                        <a href="{{ route('appointments.index') }}" 
+                           class="flex items-center justify-center w-full py-4 border-2 border-gray-200 text-gray-400 hover:text-black hover:border-black rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all mt-4">
+                            — Back to appointments
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
-        // Auto-check if appointment has been checked in
         const appointmentId = {{ $appointment->Appointment_ID }};
-        const checkInterval = 3000; // Check every 3 seconds
         let isChecking = true;
 
         async function checkAttendanceStatus() {
             if (!isChecking) return;
-
             try {
                 const response = await fetch(`/appointments/${appointmentId}/check-status`);
                 const data = await response.json();
-
-                if (data.status === 'Completed') {
-                    // Appointment has been checked in!
+                if (data.status === 'Completed' || data.status === 'Confirmed') {
                     isChecking = false;
-
-                    // Update UI
                     document.getElementById('statusIndicator').innerHTML = `
-                        <div class="inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-800 rounded-full text-sm">
-                            <span class="w-2 h-2 bg-green-500 rounded-full"></span>
-                            <span>✓ Checked in! Redirecting...</span>
-                        </div>
-                    `;
-
-                    document.getElementById('appointmentStatus').className = 'px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800';
+                        <div class="inline-flex items-center gap-2 px-6 py-2 bg-green-50 border-2 border-green-200 text-green-800 rounded-full font-black uppercase text-[10px] tracking-widest transition-all">
+                            <span class="h-2 w-2 bg-green-600 rounded-full"></span>
+                            Verified
+                        </div>`;
                     document.getElementById('appointmentStatus').textContent = 'Completed';
-
-                    // Redirect to verification page after short delay
-                    setTimeout(() => {
-                        window.location.href = data.redirect_url;
-                    }, 1500);
+                    setTimeout(() => { window.location.href = data.redirect_url; }, 2000);
                 }
-            } catch (error) {
-                console.error('Error checking status:', error);
-            }
-
-            // Continue checking
-            if (isChecking) {
-                setTimeout(checkAttendanceStatus, checkInterval);
-            }
+            } catch (error) { console.log('Checking...'); }
+            if (isChecking) setTimeout(checkAttendanceStatus, 3000);
         }
-
-        // Start checking when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            // Start polling after 2 seconds
-            setTimeout(checkAttendanceStatus, 2000);
-        });
-
-        // Stop checking when user leaves page
-        window.addEventListener('beforeunload', function() {
-            isChecking = false;
-        });
+        document.addEventListener('DOMContentLoaded', () => setTimeout(checkAttendanceStatus, 2000));
+        window.addEventListener('beforeunload', () => isChecking = false);
     </script>
-</body>
-</html>
+</x-dashboardheader-layout>

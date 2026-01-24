@@ -1,199 +1,175 @@
 <x-dashboardheader-layout>
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>My Appointments</title>
-        <meta name="csrf-token" content="{{ csrf_token() }}">
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
-    </head>
-    <body class="bg-gray-100">
-        <div class="container mx-auto mt-8 px-4">
-            
+    <div class="min-h-screen py-10 px-4 sm:px-6">
+        {{-- Breadcrumbs --}}
+        <div class="max-w-7xl mx-auto text-black text-[10px] py-4 px-2 uppercase font-black tracking-[0.2em] mb-2">
+            <a href="{{ route('dashboard') }}" class="hover:text-red-700 transition-colors">Dashboard</a> 
+            <span class="mx-2 text-gray-300">/</span>
+            <span class="text-red-700">My Appointments</span>
+        </div>
+
+        <div class="max-w-7xl mx-auto">
             {{-- Notifications Section --}}
             @if(isset($notifications) && count($notifications) > 0)
-                <div class="mb-6 space-y-3">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-lg font-semibold text-gray-700">
-                            🔔 New Updates ({{ count($notifications) }})
+                <div class="mb-8 space-y-3">
+                    <div class="flex items-center justify-between px-4">
+                        <h3 class="text-xs font-black text-gray-900 uppercase tracking-widest">
+                            🔔 Updates ({{ count($notifications) }})
                         </h3>
                         <form action="{{ route('appointments.notifications.markAllSeen') }}" method="POST">
                             @csrf
-                            <button type="submit" class="text-sm text-gray-500 hover:text-red-600">
+                            <button type="submit" class="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-red-700 transition">
                                 Mark all as read
                             </button>
                         </form>
                     </div>
                     
                     @foreach($notifications as $notification)
-                        <div class="rounded-lg p-4 flex items-start gap-4 shadow-sm border
-                            {{ $notification['type'] === 'success' ? 'bg-green-50 border-green-200' : '' }}
-                            {{ $notification['type'] === 'error' ? 'bg-red-50 border-red-200' : '' }}
-                            {{ $notification['type'] === 'info' ? 'bg-blue-50 border-blue-200' : '' }}
+                        <div class="relative group rounded-[2rem] p-6 flex items-center gap-6 shadow-sm border-2 transition-all
+                            {{ $notification['type'] === 'success' ? 'bg-green-50 border-green-100' : '' }}
+                            {{ $notification['type'] === 'error' ? 'bg-red-50 border-red-100' : '' }}
+                            {{ $notification['type'] === 'info' ? 'bg-blue-50 border-blue-100' : '' }}
                         " id="notification-{{ $notification['id'] }}">
-                            <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-xl
-                                {{ $notification['type'] === 'success' ? 'bg-green-100' : '' }}
-                                {{ $notification['type'] === 'error' ? 'bg-red-100' : '' }}
-                                {{ $notification['type'] === 'info' ? 'bg-blue-100' : '' }}
-                            ">
-                                @if($notification['type'] === 'success')
-                                    ✅
-                                @elseif($notification['type'] === 'error')
-                                    ❌
-                                @else
-                                    ℹ️
-                                @endif
+                            <div class="flex-shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center text-2xl bg-white shadow-sm">
+                                {!! $notification['type'] === 'success' ? '✅' : ($notification['type'] === 'error' ? '❌' : 'ℹ️') !!}
                             </div>
                             <div class="flex-1">
-                                <h4 class="font-semibold 
+                                <h4 class="font-black uppercase tracking-tighter text-lg leading-none mb-1
                                     {{ $notification['type'] === 'success' ? 'text-green-800' : '' }}
                                     {{ $notification['type'] === 'error' ? 'text-red-800' : '' }}
                                     {{ $notification['type'] === 'info' ? 'text-blue-800' : '' }}
                                 ">{{ $notification['title'] }}</h4>
-                                <p class="text-sm 
-                                    {{ $notification['type'] === 'success' ? 'text-green-700' : '' }}
-                                    {{ $notification['type'] === 'error' ? 'text-red-700' : '' }}
-                                    {{ $notification['type'] === 'info' ? 'text-blue-700' : '' }}
-                                ">{{ $notification['message'] }}</p>
-                                <p class="text-xs text-gray-400 mt-1">{{ $notification['time'] }}</p>
+                                <p class="text-xs font-bold uppercase tracking-tight opacity-80">{{ $notification['message'] }}</p>
                                 
-                                {{-- QR Code Button for Approved Appointments --}}
                                 @if(isset($notification['qr_link']))
-                                    <a href="{{ $notification['qr_link'] }}" 
-                                    class="inline-flex items-center gap-1 mt-2 text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                                        </svg>
-                                        View QR Code
+                                    <a href="{{ $notification['qr_link'] }}" class="inline-block mt-3 bg-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:scale-105 transition-transform">
+                                        View Digital Pass →
                                     </a>
                                 @endif
                             </div>
-                            <button type="button" 
-                                    onclick="dismissNotification('{{ $notification['key'] }}', '{{ $notification['id'] }}')"
-                                    class="text-gray-400 hover:text-gray-600 p-1">
-                                ✕
-                            </button>
+                            <button onclick="dismissNotification('{{ $notification['key'] }}', '{{ $notification['id'] }}')" class="absolute top-4 right-6 text-gray-400 hover:text-black font-black">✕</button>
                         </div>
                     @endforeach
                 </div>
             @endif
 
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold">My Appointments</h2>
-                <a href="{{ route('appointments.create') }}" class="bg-red-700 text-white px-6 py-2 rounded-lg hover:bg-red-800">
-                    + Book New Appointment
-                </a>
-            </div>
+            {{-- Main Container --}}
+            <div class="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 overflow-hidden">
+                
+                {{-- Toolbar Section --}}
+                <div class="p-8 md:p-10 border-b border-gray-50 flex flex-col lg:flex-row justify-between items-center gap-6">
+                    <h3 class="text-2xl font-black text-gray-900 uppercase tracking-tighter border-l-8 border-red-700 pl-4">
+                        Scheduled Appointments
+                    </h3>
+                    
+                    <div class="flex flex-col sm:flex-row items-center w-full lg:w-auto gap-4">
+                        <div class="relative w-full sm:w-80 group">
+                            <input type="text" id="apptSearch" placeholder="Search Pet or Service..." 
+                                class="w-full pl-5 pr-12 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:ring-0 focus:border-red-700 focus:bg-white text-xs font-bold uppercase tracking-widest transition-all">
+                        </div>
 
-            @if(session('success'))
-                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-                    {{ session('success') }}
+                        <a href="{{ route('appointments.create') }}" 
+                            class="w-full sm:w-auto bg-red-700 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-red-800 transition-all shadow-lg active:scale-95 text-center">
+                            + Book Appointment
+                        </a>
+                    </div>
                 </div>
-            @endif
 
-            @if($appointments->isEmpty())
-                <div class="bg-white rounded-lg shadow p-12 text-center">
-                    <div class="text-6xl mb-4">📅</div>
-                    <h3 class="text-xl font-semibold mb-2">No Appointments Yet</h3>
-                    <p class="text-gray-600 mb-6">Book your first appointment for your pet!</p>
-                    <a href="{{ route('appointments.create') }}" class="bg-red-700 text-white px-8 py-3 rounded-lg hover:bg-red-800 inline-block">
-                        Book Appointment
-                    </a>
-                </div>
-            @else
-                <div class="grid grid-cols-1 gap-4">
-                    @foreach($appointments as $appointment)
-                        <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition">
-                            <div class="flex justify-between items-start">
-                                <div class="flex-1">
-                                    <div class="flex items-center gap-3 mb-3">
-                                        <h3 class="text-xl font-bold">{{ $appointment->pet->Pet_Name }}</h3>
-                                        <span class="px-3 py-1 rounded-full text-sm font-semibold
-                                            {{ $appointment->Status == 'Pending' ? 'bg-yellow-200 text-yellow-800' : '' }}
-                                            {{ $appointment->Status == 'Approved' ? 'bg-green-200 text-green-800' : '' }}
-                                            {{ $appointment->Status == 'Confirmed' ? 'bg-green-200 text-green-800' : '' }}
-                                            {{ $appointment->Status == 'Cancelled' ? 'bg-red-200 text-red-800' : '' }}
-                                            {{ $appointment->Status == 'Completed' ? 'bg-blue-200 text-blue-800' : '' }}">
-                                            {{ $appointment->Status }}
-                                        </span>
-                                    </div>
+                <div class="p-6 md:p-10">
+                    @if($appointments->isEmpty())
+                        <div class="py-24 text-center bg-gray-50/50 rounded-[2rem] border-4 border-dashed border-gray-100">
+                            <div class="text-7xl mb-6 opacity-20">📅</div>
+                            <h3 class="text-xl font-black text-gray-400 uppercase tracking-widest">No Appointments Found</h3>
+                            <p class="text-gray-400 mb-8 font-bold text-xs uppercase tracking-widest">You don't have any scheduled visits yet.</p>
+                        </div>
+                    @else
+                        <div id="apptGrid" class="space-y-6">
+                            @foreach($appointments as $appointment)
+                                <div class="appt-card group bg-white rounded-[2rem] border-2 border-gray-100 p-6 flex flex-col lg:flex-row items-center gap-8 hover:border-red-600 transition-all duration-300">
                                     
-                                    <div class="grid grid-cols-2 gap-4 text-sm text-gray-600">
-                                        <div>
-                                            <p class="font-semibold text-gray-700">Service:</p>
-                                            <p>{{ $appointment->service->Service_Name }}</p>
+                                    {{-- Pet Identity & Service --}}
+                                    <div class="flex items-center w-full lg:w-1/4 space-x-5">
+                                        <div class="flex-shrink-0 w-16 h-16 rounded-2xl bg-gray-50 border-2 border-gray-100 flex items-center justify-center text-3xl group-hover:bg-red-50 transition-colors">
+                                            🐾
                                         </div>
-                                        <div>
-                                            <p class="font-semibold text-gray-700">Date & Time:</p>
-                                            <p>{{ $appointment->Date->format('M d, Y') }} at {{ date('g:i A', strtotime($appointment->Time)) }}</p>
-                                        </div>
-                                        <div>
-                                            <p class="font-semibold text-gray-700">Location:</p>
-                                            <p>{{ $appointment->Location }}</p>
-                                        </div>
-                                        @if($appointment->Special_Notes)
-                                            <div class="col-span-2">
-                                                <p class="font-semibold text-gray-700">Notes:</p>
-                                                <p>{{ $appointment->Special_Notes }}</p>
-                                            </div>
-                                        @endif
-                                    </div>
-
-                                    {{-- Status Messages --}}
-                                    @if($appointment->Status == 'Approved')
-                                        <div class="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                                            <p class="text-sm text-green-700">
-                                                ✅ Your appointment has been approved! Please arrive 10 minutes early.
+                                        <div class="truncate">
+                                            <h4 class="appt-pet text-xl font-black text-gray-900 uppercase tracking-tighter leading-none group-hover:text-red-700 transition-colors">
+                                                {{ $appointment->pet->Pet_Name }}
+                                            </h4>
+                                            <p class="appt-service text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">
+                                                {{ $appointment->service->Service_Name }}
                                             </p>
                                         </div>
-                                    @endif
-                                </div>
+                                    </div>
 
-                                <div class="flex flex-col gap-2">
-                                    {{-- QR Code Button for Approved Appointments --}}
-                                    @if($appointment->Status == 'Approved')
-                                        <a href="{{ route('appointments.qrcode', $appointment->Appointment_ID) }}" 
-                                        class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm text-center flex items-center gap-2">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                                            </svg>
-                                            View QR
-                                        </a>
-                                    @endif
-                                    
-                                    @if($appointment->Status == 'Pending')
-                                        <form method="POST" action="{{ route('appointments.cancel', $appointment->Appointment_ID) }}" onsubmit="return confirm('Are you sure you want to cancel this appointment?');">
-                                            @csrf
-                                            <button type="submit" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 text-sm w-full">
-                                                Cancel
-                                            </button>
-                                        </form>
-                                    @endif
+                                    {{-- Time & Date Grid --}}
+                                    <div class="flex-1 grid grid-cols-2 md:grid-cols-3 gap-6 w-full lg:px-10 border-y lg:border-y-0 lg:border-x border-gray-50 py-6 lg:py-0">
+                                        <div>
+                                            <span class="block text-[9px] text-gray-400 uppercase font-black tracking-widest mb-1">Date</span>
+                                            <span class="font-bold text-gray-800 uppercase text-xs">{{ $appointment->Date->format('M d, Y') }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="block text-[9px] text-gray-400 uppercase font-black tracking-widest mb-1">Time</span>
+                                            <span class="font-bold text-gray-800 uppercase text-xs">{{ date('h:i A', strtotime($appointment->Time)) }}</span>
+                                        </div>
+                                        <div class="col-span-2 md:col-span-1">
+                                            <span class="block text-[9px] text-gray-400 uppercase font-black tracking-widest mb-1">Status</span>
+                                            <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter
+                                                {{ $appointment->Status == 'Pending' ? 'bg-yellow-50 text-yellow-700' : '' }}
+                                                {{ in_array($appointment->Status, ['Approved', 'Confirmed']) ? 'bg-green-50 text-green-700' : '' }}
+                                                {{ $appointment->Status == 'Cancelled' ? 'bg-red-50 text-red-700' : '' }}
+                                                {{ $appointment->Status == 'Completed' ? 'bg-blue-50 text-blue-700' : '' }}">
+                                                {{ $appointment->Status }}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {{-- Actions --}}
+                                    <div class="flex items-center justify-end w-full lg:w-auto gap-3">
+                                        @if($appointment->Status == 'Approved' || $appointment->Status == 'Confirmed')
+                                            <a href="{{ route('appointments.qrcode', $appointment->Appointment_ID) }}" 
+                                                class="flex-1 lg:flex-none text-center bg-black text-white px-6 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg active:scale-95">
+                                                Digital Pass
+                                            </a>
+                                        @endif
+                                        
+                                        @if($appointment->Status == 'Pending')
+                                            <form method="POST" action="{{ route('appointments.cancel', $appointment->Appointment_ID) }}" onsubmit="return confirm('CANCEL THIS APPOINTMENT?');" class="flex-1 lg:flex-none">
+                                                @csrf
+                                                <button type="submit" class="w-full bg-white border-2 border-red-700 text-red-700 px-6 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-red-700 hover:text-white transition-all">
+                                                    Cancel
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </div>
                                 </div>
-                            </div>
+                            @endforeach
                         </div>
-                    @endforeach
+                    @endif
                 </div>
-            @endif
+            </div>
         </div>
+    </div>
 
-        <script>
+    <script>
+        // Real-time Search Functionality
+        document.getElementById('apptSearch').addEventListener('keyup', function() {
+            let filter = this.value.toUpperCase();
+            let cards = document.querySelectorAll('.appt-card');
+            cards.forEach(card => {
+                let pet = card.querySelector('.appt-pet').textContent.toUpperCase();
+                let service = card.querySelector('.appt-service').textContent.toUpperCase();
+                card.style.display = (pet.includes(filter) || service.includes(filter)) ? "" : "none";
+            });
+        });
+
         function dismissNotification(key, id) {
-            // Hide the notification visually
-            document.getElementById('notification-' + id).style.display = 'none';
-            
-            // Mark as seen via AJAX
+            document.getElementById('notification-' + id).style.opacity = '0';
+            setTimeout(() => document.getElementById('notification-' + id).remove(), 300);
             fetch('{{ route("appointments.notifications.markSeen") }}', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                },
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                 body: JSON.stringify({ key: key })
             });
         }
-        </script>
-    </body>
-    </html>
+    </script>
 </x-dashboardheader-layout>

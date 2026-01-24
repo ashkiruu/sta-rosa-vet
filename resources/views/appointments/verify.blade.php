@@ -1,174 +1,114 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Appointment Verification</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100 min-h-screen">
-    <!-- Header -->
-    <nav class="bg-gradient-to-r from-red-800 to-red-700 text-white px-6 py-4">
-        <div class="container mx-auto flex items-center gap-3">
-            <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
-                <span class="text-red-700 font-bold text-lg">🐾</span>
-            </div>
-            <div>
-                <h1 class="font-bold text-lg">City Veterinary Office</h1>
-                <p class="text-xs text-red-200">Appointment Verification & Attendance</p>
-            </div>
+<x-dashboardheader-layout>
+    <div class="max-w-4xl mx-auto px-4 py-10">
+        
+        {{-- Breadcrumbs --}}
+        <div class="flex items-center gap-2 mb-6 ml-4">
+            <a href="{{ url('/') }}" class="text-[10px] font-black uppercase tracking-widest text-black hover:text-red-700 transition">Home</a>
+            <span class="text-black text-[10px]">/</span>
+            <span class="text-[10px] font-black uppercase tracking-widest text-red-700">Verification Result</span>
         </div>
-    </nav>
 
-    <div class="container mx-auto mt-8 px-4 max-w-lg">
-        @if($valid && $appointment)
-            <!-- Valid Appointment -->
-            <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-                
-                {{-- Attendance Status Header --}}
-                @if(isset($attendance) && $attendance)
-                    @if($attendance['already_checked_in'])
-                        {{-- Already Checked In --}}
-                        <div class="bg-yellow-500 text-white px-6 py-4 text-center">
-                            <div class="text-4xl mb-2">⚠️</div>
-                            <h2 class="text-xl font-bold">Already Checked In</h2>
-                            <p class="text-yellow-100 text-sm">{{ $message }}</p>
-                        </div>
-                    @else
-                        {{-- Successfully Checked In --}}
-                        <div class="bg-green-500 text-white px-6 py-4 text-center">
-                            <div class="text-5xl mb-2">✓</div>
-                            <h2 class="text-xl font-bold">Check-In Successful!</h2>
-                            <p class="text-green-100 text-sm">Attendance recorded at {{ $attendance['check_in_time'] }}</p>
-                        </div>
-                    @endif
-                @else
-                    {{-- Valid but cannot check in (e.g., Pending status) --}}
-                    <div class="bg-blue-500 text-white px-6 py-4 text-center">
-                        <div class="text-4xl mb-2">ℹ️</div>
-                        <h2 class="text-xl font-bold">Valid Appointment</h2>
-                        <p class="text-blue-100 text-sm">{{ $message ?? 'Appointment found' }}</p>
-                    </div>
-                @endif
-
-                <!-- Appointment Details -->
-                <div class="p-6">
-                    <div class="text-center mb-6">
-                        <p class="text-gray-500 text-sm">Reference Number</p>
-                        <p class="text-2xl font-bold text-gray-800">VET-{{ str_pad($appointment->Appointment_ID, 6, '0', STR_PAD_LEFT) }}</p>
-                    </div>
-
-                    <div class="space-y-4">
-                        <div class="flex justify-between items-center py-3 border-b border-gray-100">
-                            <span class="text-gray-500">Status</span>
-                            <span class="px-3 py-1 rounded-full text-sm font-semibold
-                                @if($appointment->Status == 'Approved') bg-green-100 text-green-800
-                                @elseif($appointment->Status == 'Pending') bg-yellow-100 text-yellow-800
-                                @elseif($appointment->Status == 'Completed') bg-blue-100 text-blue-800
-                                @else bg-gray-100 text-gray-800
-                                @endif">
-                                {{ $appointment->Status }}
-                            </span>
-                        </div>
-
-                        <div class="flex justify-between items-center py-3 border-b border-gray-100">
-                            <span class="text-gray-500">Pet Name</span>
-                            <span class="font-semibold text-gray-800">🐾 {{ $appointment->pet->Pet_Name ?? 'N/A' }}</span>
-                        </div>
-
-                        <div class="flex justify-between items-center py-3 border-b border-gray-100">
-                            <span class="text-gray-500">Owner</span>
-                            <span class="font-semibold text-gray-800">{{ $appointment->user->First_Name ?? '' }} {{ $appointment->user->Last_Name ?? '' }}</span>
-                        </div>
-
-                        <div class="flex justify-between items-center py-3 border-b border-gray-100">
-                            <span class="text-gray-500">Service</span>
-                            <span class="font-semibold text-gray-800">{{ $appointment->service->Service_Name ?? 'N/A' }}</span>
-                        </div>
-
-                        <div class="flex justify-between items-center py-3 border-b border-gray-100">
-                            <span class="text-gray-500">Scheduled Date</span>
-                            <span class="font-semibold text-gray-800">{{ \Carbon\Carbon::parse($appointment->Date)->format('F d, Y') }}</span>
-                        </div>
-
-                        <div class="flex justify-between items-center py-3 border-b border-gray-100">
-                            <span class="text-gray-500">Scheduled Time</span>
-                            <span class="font-semibold text-gray-800">{{ \Carbon\Carbon::parse($appointment->Time)->format('h:i A') }}</span>
-                        </div>
-
+        {{-- Main Container --}}
+        <div class="bg-white rounded-[2.5rem] shadow-2xl border-2 border-gray-100 overflow-hidden">
+            @if($valid && $appointment)
+                <div class="flex flex-col lg:flex-row min-h-[500px]">
+                    
+                    {{-- LEFT SIDE: STATUS HEADER --}}
+                    <div class="lg:w-1/3 flex flex-col justify-center items-center p-10 text-center
                         @if(isset($attendance) && $attendance)
-                            <div class="flex justify-between items-center py-3 border-b border-gray-100 bg-green-50 -mx-6 px-6">
-                                <span class="text-green-700 font-medium">Check-In Time</span>
-                                <span class="font-bold text-green-800">{{ \Carbon\Carbon::parse($attendance['check_in_time'])->format('h:i A') }}</span>
-                            </div>
+                            @if($attendance['already_checked_in']) bg-yellow-50 border-r-2 border-yellow-100 @else bg-green-50 border-r-2 border-green-100 @endif
+                        @else bg-blue-50 border-r-2 border-blue-100 @endif">
+                        
+                        @if(isset($attendance) && $attendance)
+                            @if($attendance['already_checked_in'])
+                                <div class="text-6xl mb-4">⚠️</div>
+                                <h2 class="text-2xl font-black text-yellow-800 uppercase tracking-tighter leading-none">Already<br>Checked In</h2>
+                                <p class="mt-4 text-[10px] font-black text-yellow-600 uppercase tracking-widest">{{ $message }}</p>
+                            @else
+                                <div class="text-6xl mb-4">✅</div>
+                                <h2 class="text-2xl font-black text-green-800 uppercase tracking-tighter leading-none">Check-In<br>Successful</h2>
+                                <p class="mt-4 text-[10px] font-black text-green-600 uppercase tracking-widest">Recorded at {{ $attendance['check_in_time'] }}</p>
+                            @endif
+                        @else
+                            <div class="text-6xl mb-4">ℹ️</div>
+                            <h2 class="text-2xl font-black text-blue-800 uppercase tracking-tighter leading-none">Valid<br>Record</h2>
+                            <p class="mt-4 text-[10px] font-black text-blue-600 uppercase tracking-widest">Appointment found</p>
                         @endif
+                    </div>
 
-                        <div class="flex justify-between items-center py-3">
-                            <span class="text-gray-500">Location</span>
-                            <span class="font-semibold text-gray-800">{{ $appointment->Location ?? 'Veterinary Office' }}</span>
+                    {{-- RIGHT SIDE: DETAILS GRID --}}
+                    <div class="lg:w-2/3 p-8 md:p-12 bg-white">
+                        <div class="mb-8">
+                            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Appointment Reference</p>
+                            <h3 class="text-3xl font-black text-gray-900 uppercase tracking-tighter">VET-{{ str_pad($appointment->Appointment_ID, 6, '0', STR_PAD_LEFT) }}</h3>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {{-- Info Cards --}}
+                            <div class="p-5 bg-gray-50 border-2 border-gray-100 rounded-3xl">
+                                <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Patient</p>
+                                <p class="text-sm font-black text-gray-800 uppercase tracking-tight">🐾 {{ $appointment->pet->Pet_Name ?? 'N/A' }}</p>
+                            </div>
+
+                            <div class="p-5 bg-gray-50 border-2 border-gray-100 rounded-3xl">
+                                <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Owner</p>
+                                <p class="text-sm font-black text-gray-800 uppercase tracking-tight">{{ $appointment->user->First_Name ?? '' }} {{ $appointment->user->Last_Name ?? '' }}</p>
+                            </div>
+
+                            <div class="p-5 bg-gray-50 border-2 border-gray-100 rounded-3xl">
+                                <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Service</p>
+                                <p class="text-sm font-black text-gray-800 uppercase tracking-tight">{{ $appointment->service->Service_Name ?? 'N/A' }}</p>
+                            </div>
+
+                            <div class="p-5 bg-gray-50 border-2 border-gray-100 rounded-3xl">
+                                <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Schedule</p>
+                                <p class="text-sm font-black text-gray-800 uppercase tracking-tight">
+                                    {{ \Carbon\Carbon::parse($appointment->Date)->format('M d') }} @ {{ \Carbon\Carbon::parse($appointment->Time)->format('h:i A') }}
+                                </p>
+                            </div>
+                        </div>
+
+                        {{-- Action Button for Staff --}}
+                        <div class="mt-8">
+                            @if(isset($attendance) && $attendance && !$attendance['already_checked_in'])
+                                <div class="w-full bg-green-600 text-white text-center py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg">
+                                    ✓ Clear to Proceed
+                                </div>
+                            @else
+                                <a href="{{ url('/') }}" class="flex items-center justify-center w-full py-4 border-2 border-gray-200 text-gray-400 hover:text-black hover:border-black rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all">
+                                    ← Return to Portal
+                                </a>
+                            @endif
                         </div>
                     </div>
                 </div>
-
-                <!-- Footer -->
-                <div class="bg-gray-50 px-6 py-4 text-center">
-                    <p class="text-xs text-gray-500">
-                        Scanned on {{ now()->format('F d, Y h:i A') }}
-                    </p>
-                </div>
-            </div>
-
-            {{-- Action for Staff --}}
-            @if(isset($attendance) && $attendance && !$attendance['already_checked_in'])
-                <div class="mt-4 bg-green-100 border border-green-300 rounded-lg p-4 text-center">
-                    <p class="text-green-800 font-medium">✅ Patient may now proceed to the waiting area</p>
+            @else
+                {{-- INVALID QR CODE VIEW --}}
+                <div class="flex flex-col lg:flex-row min-h-[500px]">
+                    <div class="lg:w-1/3 bg-red-50 p-10 flex flex-col justify-center items-center text-center border-r-2 border-red-100">
+                        <div class="text-6xl mb-4">❌</div>
+                        <h2 class="text-2xl font-black text-red-800 uppercase tracking-tighter leading-none">Invalid<br>QR Code</h2>
+                    </div>
+                    <div class="lg:w-2/3 p-12 flex flex-col justify-center">
+                        <h3 class="text-xl font-black text-gray-900 uppercase mb-4">Verification Failed</h3>
+                        <p class="text-gray-500 font-bold uppercase text-[10px] tracking-widest mb-6 leading-relaxed">
+                            The scanned code could not be verified. Possible reasons:
+                        </p>
+                        <ul class="space-y-3 mb-8">
+                            <li class="flex items-center gap-3 text-xs font-black text-gray-700 uppercase"><span class="w-2 h-2 bg-red-500 rounded-full"></span> Expired Appointment</li>
+                            <li class="flex items-center gap-3 text-xs font-black text-gray-700 uppercase"><span class="w-2 h-2 bg-red-500 rounded-full"></span> Cancelled Session</li>
+                            <li class="flex items-center gap-3 text-xs font-black text-gray-700 uppercase"><span class="w-2 h-2 bg-red-500 rounded-full"></span> Invalid System Signature</li>
+                        </ul>
+                        <a href="{{ url('/') }}" class="bg-black text-white text-center py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg hover:bg-gray-800 transition">
+                            Back to Homepage
+                        </a>
+                    </div>
                 </div>
             @endif
-
-        @else
-            <!-- Invalid Appointment -->
-            <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-                <div class="bg-red-500 text-white px-6 py-8 text-center">
-                    <div class="text-5xl mb-3">✗</div>
-                    <h2 class="text-xl font-bold">Verification Failed</h2>
-                    <p class="text-red-100 text-sm mt-2">{{ $message ?? 'This QR code is not valid' }}</p>
-                </div>
-
-                <div class="p-6 text-center">
-                    <p class="text-gray-600 mb-4">
-                        The appointment verification failed. This could mean:
-                    </p>
-                    <ul class="text-left text-gray-500 text-sm space-y-2 mb-6">
-                        <li class="flex items-start gap-2">
-                            <span class="text-red-500">•</span>
-                            <span>The QR code has been tampered with</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-red-500">•</span>
-                            <span>The appointment has been cancelled</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-red-500">•</span>
-                            <span>The appointment does not exist</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-red-500">•</span>
-                            <span>The QR code is from a different system</span>
-                        </li>
-                    </ul>
-                    <a href="{{ url('/') }}" class="inline-block bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition">
-                        Go to Homepage
-                    </a>
-                </div>
-            </div>
-        @endif
-
-        <!-- Back Link -->
-        <div class="text-center mt-6">
-            <a href="{{ url('/') }}" class="text-gray-500 hover:text-gray-700 text-sm">
-                ← Back to Home
-            </a>
         </div>
+
+        <p class="text-center mt-8 text-[9px] font-black text-gray-400 uppercase tracking-[0.3em]">
+            Secured Verification System • {{ now()->format('Y') }}
+        </p>
     </div>
-</body>
-</html>
+</x-dashboardheader-layout>
