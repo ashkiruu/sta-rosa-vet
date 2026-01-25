@@ -3,7 +3,11 @@
 namespace App\Services;
 
 use App\Models\Appointment;
+use App\Models\AttendanceLog;
+use App\Models\QRRelease;
+use App\Models\UserNotification;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class QRCodeService
@@ -56,10 +60,13 @@ class QRCodeService
         }
 
         if ($imageContent === false) {
+            Log::error("Failed to generate QR code for appointment {$appointment->Appointment_ID}");
             return null;
         }
 
         file_put_contents($fullPath, $imageContent);
+        
+        Log::info("QR code generated for appointment {$appointment->Appointment_ID}: {$filename}");
         
         return $filename;
     }
@@ -129,55 +136,16 @@ class QRCodeService
 
     /**
      * =====================================================
-     * QR CODE RELEASE SYSTEM
+     * QR CODE RELEASE SYSTEM (Database-backed)
      * =====================================================
      */
-
-    /**
-     * Get QR release notifications file path
-     */
-    private static function getQRReleaseNotificationsPath()
-    {
-        return storage_path('app/qr_release_notifications.json');
-    }
-
-    /**
-     * Load all QR release notifications
-     */
-    public static function loadQRReleaseNotifications()
-    {
-        $path = self::getQRReleaseNotificationsPath();
-        
-        if (!file_exists($path)) {
-            $directory = dirname($path);
-            if (!is_dir($directory)) {
-                mkdir($directory, 0755, true);
-            }
-            file_put_contents($path, json_encode([], JSON_PRETTY_PRINT));
-            return [];
-        }
-        
-        return json_decode(file_get_contents($path), true) ?? [];
-    }
-
-    /**
-     * Save QR release notifications
-     */
-    private static function saveQRReleaseNotifications($notifications)
-    {
-        $path = self::getQRReleaseNotificationsPath();
-        file_put_contents($path, json_encode($notifications, JSON_PRETTY_PRINT));
-    }
 
     /**
      * Check if QR code has been released for an appointment
      */
     public static function isQRCodeReleased(Appointment $appointment)
     {
-        $notifications = self::loadQRReleaseNotifications();
-        $appointmentId = $appointment->Appointment_ID;
-        
-        return isset($notifications[$appointmentId]) && $notifications[$appointmentId]['released'] === true;
+        return QRRelease::isReleased($appointment->Appointment_ID);
     }
 
     /**
@@ -191,8 +159,6 @@ class QRCodeService
             $appointment->load(['pet', 'service', 'user']);
         }
 
-        $appointmentId = $appointment->Appointment_ID;
-        
         // Generate the QR code
         $qrPath = self::generateForAppointment($appointment);
         
@@ -203,26 +169,15 @@ class QRCodeService
             ];
         }
         
-        // Create/update the release notification
-        $notifications = self::loadQRReleaseNotifications();
+        // Create/update the release record in database
+        $release = QRRelease::releaseForAppointment($appointment, $releasedBy, $qrPath);
         
-        $notifications[$appointmentId] = [
-            'appointment_id' => $appointmentId,
-            'user_id' => $appointment->User_ID,
-            'pet_name' => $appointment->pet->Pet_Name ?? 'N/A',
-            'service' => $appointment->service->Service_Name ?? 'N/A',
-            'scheduled_date' => $appointment->Date instanceof Carbon 
-                ? $appointment->Date->format('Y-m-d') 
-                : $appointment->Date,
-            'scheduled_time' => $appointment->Time,
-            'released' => true,
-            'released_at' => now()->format('Y-m-d H:i:s'),
-            'released_by' => $releasedBy,
-            'qr_path' => $qrPath,
-            'seen' => false,
-        ];
+        // Create notification for the user (if not already exists)
+        if (!UserNotification::exists($appointment->User_ID, $appointment->Appointment_ID, UserNotification::TYPE_QR_READY)) {
+            UserNotification::qrReady($appointment);
+        }
         
-        self::saveQRReleaseNotifications($notifications);
+        Log::info("QR code released for appointment {$appointment->Appointment_ID} by {$releasedBy}");
         
         return [
             'success' => true,
@@ -236,8 +191,8 @@ class QRCodeService
      */
     public static function getQRReleaseNotification($appointmentId)
     {
-        $notifications = self::loadQRReleaseNotifications();
-        return $notifications[$appointmentId] ?? null;
+        $release = QRRelease::getByAppointment($appointmentId);
+        return $release ? $release->toLegacyArray() : null;
     }
 
     /**
@@ -245,13 +200,7 @@ class QRCodeService
      */
     public static function getUnseenQRNotificationsForUser($userId)
     {
-        $notifications = self::loadQRReleaseNotifications();
-        
-        return array_filter($notifications, function($notification) use ($userId) {
-            return $notification['user_id'] == $userId 
-                && $notification['released'] === true 
-                && $notification['seen'] === false;
-        });
+        return QRRelease::getUnseenForUser($userId);
     }
 
     /**
@@ -259,11 +208,7 @@ class QRCodeService
      */
     public static function getQRNotificationsForUser($userId)
     {
-        $notifications = self::loadQRReleaseNotifications();
-        
-        return array_filter($notifications, function($notification) use ($userId) {
-            return $notification['user_id'] == $userId && $notification['released'] === true;
-        });
+        return QRRelease::getAllForUser($userId);
     }
 
     /**
@@ -271,57 +216,21 @@ class QRCodeService
      */
     public static function markQRNotificationSeen($appointmentId)
     {
-        $notifications = self::loadQRReleaseNotifications();
-        
-        if (isset($notifications[$appointmentId])) {
-            $notifications[$appointmentId]['seen'] = true;
-            self::saveQRReleaseNotifications($notifications);
-            return true;
-        }
-        
-        return false;
+        return QRRelease::markSeen($appointmentId);
     }
 
     /**
      * =====================================================
-     * ATTENDANCE LOGGING SYSTEM (JSON-based, no database)
+     * ATTENDANCE LOGGING SYSTEM (Database-backed)
      * =====================================================
      */
 
     /**
-     * Get attendance log file path
-     */
-    private static function getAttendanceLogPath()
-    {
-        return storage_path('app/attendance_logs.json');
-    }
-
-    /**
-     * Load all attendance logs
+     * Load all attendance logs (returns array for backward compatibility)
      */
     public static function loadAttendanceLogs()
     {
-        $path = self::getAttendanceLogPath();
-        
-        if (!file_exists($path)) {
-            $directory = dirname($path);
-            if (!is_dir($directory)) {
-                mkdir($directory, 0755, true);
-            }
-            file_put_contents($path, json_encode([], JSON_PRETTY_PRINT));
-            return [];
-        }
-        
-        return json_decode(file_get_contents($path), true) ?? [];
-    }
-
-    /**
-     * Save attendance logs
-     */
-    private static function saveAttendanceLogs($logs)
-    {
-        $path = self::getAttendanceLogPath();
-        file_put_contents($path, json_encode($logs, JSON_PRETTY_PRINT));
+        return AttendanceLog::getAllArray();
     }
 
     /**
@@ -342,47 +251,13 @@ class QRCodeService
             ];
         }
         
-        $logs = self::loadAttendanceLogs();
-        $appointmentId = $appointment->Appointment_ID;
-        
-        // Check if already checked in
-        $existingRecord = self::getAttendanceRecord($appointmentId);
-        
-        if ($existingRecord) {
-            // Already checked in - return existing record with flag
-            $existingRecord['already_checked_in'] = true;
-            return $existingRecord;
+        // Load relationships if not loaded
+        if (!$appointment->relationLoaded('pet')) {
+            $appointment->load(['pet', 'service', 'user']);
         }
         
-        // Create new attendance record
-        $record = [
-            'appointment_id' => $appointmentId,
-            'pet_name' => $appointment->pet->Pet_Name ?? 'N/A',
-            'owner_name' => ($appointment->user->First_Name ?? '') . ' ' . ($appointment->user->Last_Name ?? ''),
-            'owner_id' => $appointment->User_ID,
-            'service' => $appointment->service->Service_Name ?? 'N/A',
-            'scheduled_date' => $appointment->Date instanceof Carbon 
-                ? $appointment->Date->format('Y-m-d') 
-                : $appointment->Date,
-            'scheduled_time' => $appointment->Time,
-            'check_in_time' => now()->format('Y-m-d H:i:s'),
-            'check_in_date' => now()->format('Y-m-d'),
-            'scanned_by' => $scannedBy,
-            'status' => 'checked_in',
-            'already_checked_in' => false,
-        ];
-        
-        // Add to logs (use appointment_id as key for easy lookup)
-        $logs[$appointmentId] = $record;
-        
-        // Save logs
-        self::saveAttendanceLogs($logs);
-        
-        // Update appointment status to "Completed" in database
-        $appointment->Status = 'Completed';
-        $appointment->save();
-        
-        return $record;
+        // Record attendance using the model
+        return AttendanceLog::recordForAppointment($appointment, $scannedBy);
     }
 
     /**
@@ -390,8 +265,25 @@ class QRCodeService
      */
     public static function getAttendanceRecord($appointmentId)
     {
-        $logs = self::loadAttendanceLogs();
-        return $logs[$appointmentId] ?? null;
+        $record = AttendanceLog::getByAppointment($appointmentId);
+        
+        if (!$record) {
+            return null;
+        }
+        
+        return [
+            'appointment_id' => $record->Appointment_ID,
+            'pet_name' => $record->Pet_Name,
+            'owner_name' => $record->Owner_Name,
+            'owner_id' => $record->User_ID,
+            'service' => $record->Service,
+            'scheduled_date' => $record->Scheduled_Date->format('Y-m-d'),
+            'scheduled_time' => $record->Scheduled_Time,
+            'check_in_time' => $record->Check_In_Time->format('Y-m-d H:i:s'),
+            'check_in_date' => $record->Check_In_Date->format('Y-m-d'),
+            'scanned_by' => $record->Scanned_By,
+            'status' => $record->Status,
+        ];
     }
 
     /**
@@ -399,12 +291,7 @@ class QRCodeService
      */
     public static function getAttendanceByDate($date)
     {
-        $logs = self::loadAttendanceLogs();
-        $dateStr = $date instanceof Carbon ? $date->format('Y-m-d') : $date;
-        
-        return array_filter($logs, function($record) use ($dateStr) {
-            return ($record['check_in_date'] ?? '') === $dateStr;
-        });
+        return AttendanceLog::getByDateArray($date);
     }
 
     /**
@@ -412,15 +299,29 @@ class QRCodeService
      */
     public static function getAttendanceStats($date = null)
     {
-        $logs = self::loadAttendanceLogs();
+        return AttendanceLog::getStats($date);
+    }
+
+    /**
+     * =====================================================
+     * LEGACY COMPATIBILITY METHODS
+     * These methods maintain backward compatibility with
+     * any code that might still reference the old JSON methods
+     * =====================================================
+     */
+
+    /**
+     * @deprecated Use database methods instead
+     */
+    public static function loadQRReleaseNotifications()
+    {
+        $releases = QRRelease::all();
+        $result = [];
         
-        if ($date) {
-            $logs = self::getAttendanceByDate($date);
+        foreach ($releases as $release) {
+            $result[$release->Appointment_ID] = $release->toLegacyArray();
         }
         
-        return [
-            'total_check_ins' => count($logs),
-            'records' => array_values($logs),
-        ];
+        return $result;
     }
 }

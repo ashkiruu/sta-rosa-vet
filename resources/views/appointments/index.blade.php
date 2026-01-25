@@ -15,12 +15,9 @@
                         <h3 class="text-xs font-black text-gray-900 uppercase tracking-widest">
                             🔔 Updates ({{ count($notifications) }})
                         </h3>
-                        <form action="{{ route('appointments.notifications.markAllSeen') }}" method="POST">
-                            @csrf
-                            <button type="submit" class="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-red-700 transition">
-                                Mark all as read
-                            </button>
-                        </form>
+                        <button onclick="markAllNotificationsAsRead()" type="button" class="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-red-700 transition">
+                            Mark all as read
+                        </button>
                     </div>
                     
                     @foreach($notifications as $notification)
@@ -169,6 +166,29 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                 body: JSON.stringify({ key: key })
+            });
+        }
+
+        function markAllNotificationsAsRead() {
+            fetch('{{ route("notifications.markAllSeen") }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Simply reload the page to show updated state
+                    window.location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                // Reload anyway as fallback
+                window.location.reload();
             });
         }
     </script>

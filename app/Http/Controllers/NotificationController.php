@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Appointment;
+use App\Models\UserNotification;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -18,48 +20,33 @@ class NotificationController extends Controller
             ->where('User_ID', Auth::user()->User_ID)
             ->firstOrFail();
 
-        // Mark this notification as seen (file-based, persistent)
+        // Mark this notification as seen (now database-backed)
         $this->markAsSeen($id);
 
         return redirect()->route('appointments.show', $id);
     }
 
     /**
-     * Mark all notifications as seen (file-based, persistent)
+     * Mark all notifications as seen (now database-backed)
      */
-    public function markAllSeen()
-    {
-        $userId = Auth::user()->User_ID;
-        
-        // Load seen notifications from file
-        $seenFile = storage_path('app/seen_notifications.json');
-        $allSeenNotifications = [];
-        if (file_exists($seenFile)) {
-            $allSeenNotifications = json_decode(file_get_contents($seenFile), true) ?? [];
-        }
-        
-        // Initialize user's array if not exists
-        if (!isset($allSeenNotifications[$userId])) {
-            $allSeenNotifications[$userId] = [];
-        }
-        
-        // Get all recent appointments and mark them as seen
-        $recentAppointments = Appointment::where('User_ID', $userId)
-            ->where('created_at', '>=', now()->subDays(7))
-            ->get();
-        
-        foreach ($recentAppointments as $appointment) {
-            $notificationKey = 'dashboard_' . $appointment->Appointment_ID;
-            if (!in_array($notificationKey, $allSeenNotifications[$userId])) {
-                $allSeenNotifications[$userId][] = $notificationKey;
-            }
-        }
-        
-        // Save to file
-        file_put_contents($seenFile, json_encode($allSeenNotifications));
-
-        return redirect()->back()->with('success', 'All notifications marked as read.');
+    public function markAllSeen(Request $request)
+{
+    $userId = Auth::user()->User_ID;
+    
+    // Use the NotificationService to mark all as seen
+    NotificationService::markAllSeen($userId);
+    
+    // ALWAYS return JSON for AJAX requests
+    if ($request->wantsJson() || $request->ajax() || $request->expectsJson()) {
+        return response()->json([
+            'success' => true,
+            'message' => 'All notifications marked as read.'
+        ]);
     }
+    
+    // For regular form submissions, redirect
+    return redirect()->back()->with('success', 'All notifications marked as read.');
+}
 
     /**
      * Mark a single notification as seen
@@ -68,23 +55,42 @@ class NotificationController extends Controller
     {
         $userId = Auth::user()->User_ID;
         
-        // Load seen notifications from file
-        $seenFile = storage_path('app/seen_notifications.json');
-        $allSeenNotifications = [];
-        if (file_exists($seenFile)) {
-            $allSeenNotifications = json_decode(file_get_contents($seenFile), true) ?? [];
-        }
+        // Mark by reference (appointment)
+        UserNotification::markSeenByReference($appointmentId, 'appointment', $userId);
+    }
+
+    /**
+     * API endpoint to mark a notification as seen by key
+     */
+    public function markSeenByKey(Request $request)
+    {
+        $request->validate(['key' => 'required|string']);
         
-        // Initialize user's array if not exists
-        if (!isset($allSeenNotifications[$userId])) {
-            $allSeenNotifications[$userId] = [];
-        }
+        $userId = Auth::user()->User_ID;
+        NotificationService::markSeenByKey($userId, $request->key);
         
-        // Add the notification key if not already there
-        $notificationKey = 'dashboard_' . $appointmentId;
-        if (!in_array($notificationKey, $allSeenNotifications[$userId])) {
-            $allSeenNotifications[$userId][] = $notificationKey;
-            file_put_contents($seenFile, json_encode($allSeenNotifications));
-        }
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * API endpoint to get notification count
+     */
+    public function getUnseenCount()
+    {
+        $userId = Auth::user()->User_ID;
+        $count = NotificationService::getUnseenCount($userId);
+        
+        return response()->json(['count' => $count]);
+    }
+
+    /**
+     * API endpoint to get all notifications
+     */
+    public function getNotifications()
+    {
+        $userId = Auth::user()->User_ID;
+        $notifications = NotificationService::getNotificationsForUser($userId);
+        
+        return response()->json(['notifications' => $notifications]);
     }
 }

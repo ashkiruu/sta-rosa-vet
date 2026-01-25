@@ -9,10 +9,14 @@ use App\Models\SystemLog;
 use App\Models\Appointment;
 use App\Models\Report;
 use App\Models\ReportType;
+use App\Models\AttendanceLog;
+use App\Models\UserNotification;
 use App\Services\ReportService;
 use App\Services\QRCodeService;
 use App\Services\AdminLogService;
 use App\Services\CertificateService;
+use App\Services\ClinicScheduleService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -141,13 +145,12 @@ class AdminController extends Controller
             ->map(fn($apt) => tap($apt, function ($a) {
                 $a->Date = Carbon::parse($a->Date)->format('Y-m-d');
                 $a->Time = Carbon::parse($a->Time)->format('H:i');
-                // Add QR release status
                 $a->qr_released = QRCodeService::isQRCodeReleased($a);
             }));
 
         return view('admin.appointment_index', [
             'appointments' => $appointments,
-            'schedule' => $this->loadSchedule()
+            'schedule' => ClinicScheduleService::getSchedule() // Now database-backed
         ]);
     }
 
@@ -161,8 +164,9 @@ class AdminController extends Controller
 
         $appointment->update(['Status' => 'Approved']);
         
-        // NOTE: QR code is NO LONGER generated here
-        // It will be generated when admin clicks "Release QR Code"
+        // Create notification for user
+        NotificationService::appointmentApproved($appointment);
+        
         \Log::info("Appointment {$id} approved. QR code will be released when patient arrives.");
 
         AdminLogService::logAppointmentAction(
@@ -177,7 +181,6 @@ class AdminController extends Controller
 
     /**
      * Release QR code for an approved appointment
-     * Called when patient arrives at the clinic
      */
     public function releaseQRCode($id)
     {
@@ -187,12 +190,10 @@ class AdminController extends Controller
             return back()->with('error', 'QR code can only be released for approved appointments.');
         }
 
-        // Check if already released
         if (QRCodeService::isQRCodeReleased($appointment)) {
             return back()->with('info', 'QR code has already been released for this appointment.');
         }
 
-        // Release the QR code
         $adminName = auth()->user()->First_Name ?? 'Admin';
         $result = QRCodeService::releaseQRCode($appointment, $adminName);
 
@@ -217,7 +218,8 @@ class AdminController extends Controller
             return back()->with('error', 'This appointment cannot be rejected.');
         }
 
-        $this->saveDeclinedNotification($appointment);
+        // Create declined notification (now database-backed)
+        NotificationService::appointmentDeclined($appointment);
         
         AdminLogService::logAppointmentAction(
             $id, 'rejected',
@@ -239,40 +241,34 @@ class AdminController extends Controller
     {
         $request->validate(['date' => 'required|date', 'action' => 'required|in:open,close']);
 
-        $schedule = $this->loadSchedule();
-        $date = $request->date;
-        $isOpening = $request->action === 'open';
+        // Now uses database via ClinicScheduleService
+        $result = ClinicScheduleService::toggleDateStatus(
+            $request->date, 
+            $request->action,
+            auth()->id()
+        );
 
-        if ($isOpening) {
-            $schedule['opened_dates'] = array_unique([...$schedule['opened_dates'], $date]);
-            $schedule['closed_dates'] = array_values(array_diff($schedule['closed_dates'], [$date]));
-        } else {
-            $schedule['closed_dates'] = array_unique([...$schedule['closed_dates'], $date]);
-            $schedule['opened_dates'] = array_values(array_diff($schedule['opened_dates'], [$date]));
-        }
-
-        $this->saveSchedule($schedule);
-
-        $dayName = Carbon::parse($date)->format('l, M d, Y');
+        $dayName = Carbon::parse($request->date)->format('l, M d, Y');
         AdminLogService::logScheduleChange($dayName, strtoupper($request->action));
 
-        $status = $isOpening ? 'OPEN' : 'CLOSED';
-        return back()->with('success', "Clinic is now {$status} on {$dayName}");
+        return back()->with('success', $result['message']);
     }
 
     public function attendance(Request $request)
     {
         $selectedDate = $request->get('date', now()->format('Y-m-d'));
-        $allLogs = QRCodeService::loadAttendanceLogs();
+        
+        // Now uses database via AttendanceLog model
+        $allLogs = AttendanceLog::getAllArray();
+        $todayLogs = AttendanceLog::getByDateArray(now()->format('Y-m-d'));
+        $filteredLogs = AttendanceLog::getByDateArray($selectedDate);
 
-        $filterByDate = fn($logs, $date) => array_filter($logs, fn($log) => ($log['check_in_date'] ?? '') === $date);
-
-        $filteredLogs = $filterByDate($allLogs, $selectedDate);
+        // Sort filtered logs by check-in time descending
         usort($filteredLogs, fn($a, $b) => strtotime($b['check_in_time']) - strtotime($a['check_in_time']));
 
         return view('admin.attendance', [
             'allLogs' => $allLogs,
-            'todayLogs' => $filterByDate($allLogs, now()->format('Y-m-d')),
+            'todayLogs' => $todayLogs,
             'filteredLogs' => $filteredLogs,
             'selectedDate' => $selectedDate,
         ]);
@@ -386,10 +382,8 @@ class AdminController extends Controller
         return redirect()->route('admin.certificates.index')->with('success', 'Certificate deleted.');
     }
 
-    
     private function validateCertificateRequest(Request $request, bool $includeAppointmentId = false): array
     {
-        // Determine service category
         $serviceType = $request->input('service_type', '');
         $serviceTypeLower = strtolower($serviceType);
         
@@ -397,7 +391,6 @@ class AdminController extends Controller
         $isDeworming = strpos($serviceTypeLower, 'deworming') !== false;
         $isCheckup = strpos($serviceTypeLower, 'checkup') !== false || strpos($serviceTypeLower, 'check-up') !== false;
 
-        // Base rules for all service types
         $rules = [
             'pet_name' => 'required|string|max:255',
             'animal_type' => 'required|string|max:100',
@@ -420,10 +413,8 @@ class AdminController extends Controller
             'ptr_number' => 'required|string|max:100',
         ];
 
-        // Add vaccination-specific rules
         if ($isVaccination) {
             $rules['vaccine_type'] = 'required|in:anti-rabies,other';
-            
             $vaccineType = $request->input('vaccine_type');
             if ($vaccineType === 'anti-rabies') {
                 $rules['vaccine_name_rabies'] = 'required|string|max:255';
@@ -434,13 +425,11 @@ class AdminController extends Controller
             }
         }
 
-        // Add deworming-specific rules
         if ($isDeworming) {
             $rules['medicine_used'] = 'nullable|string|max:255';
             $rules['dosage'] = 'nullable|string|max:100';
         }
 
-        // Add checkup-specific rules
         if ($isCheckup) {
             $rules['findings'] = 'nullable|string';
             $rules['recommendations'] = 'nullable|string';
@@ -452,7 +441,6 @@ class AdminController extends Controller
 
         $validated = $request->validate($rules);
 
-        // Process vaccination data
         if ($isVaccination) {
             $vaccineType = $request->input('vaccine_type');
             $validated['vaccine_type'] = $vaccineType;
@@ -467,7 +455,6 @@ class AdminController extends Controller
             }
         }
 
-        // Map service_date to vaccination_date for backward compatibility
         if (isset($validated['service_date'])) {
             $validated['vaccination_date'] = $validated['service_date'];
         }
@@ -495,7 +482,7 @@ class AdminController extends Controller
     }
 
     // =====================================================
-    // REPORTS (Updated to use Database)
+    // REPORTS
     // =====================================================
 
     public function reports()
@@ -507,12 +494,10 @@ class AdminController extends Controller
     {
         [$startDate, $endDate, $weekNumber, $year] = $this->getReportDateRange($request);
 
-        // Get data for both report types
         $antiRabiesData = ReportService::getAntiRabiesData($startDate, $endDate);
         $routineServicesData = ReportService::getRoutineServicesData($startDate, $endDate);
         $summary = ReportService::getWeeklySummary($startDate, $endDate);
 
-        // Create both reports in database
         $reports = ReportService::createWeeklyReports([
             'week_number' => $weekNumber,
             'year' => $year,
@@ -524,7 +509,6 @@ class AdminController extends Controller
             'routine_services_count' => count($routineServicesData),
         ]);
 
-        // Prepare report data for PDF generation
         $reportData = [
             'report_number' => $reports['anti_rabies']->Report_Number ?? "RPT-WEEKLY-{$year}-W{$weekNumber}",
             'week_number' => $weekNumber,
@@ -539,7 +523,6 @@ class AdminController extends Controller
             'routine_services_id' => $reports['routine_services']->Report_ID ?? null,
         ];
 
-        // Generate PDF files
         ReportService::generateAntiRabiesPdf($reportData);
         ReportService::generateRoutineServicesPdf($reportData);
 
@@ -588,23 +571,19 @@ class AdminController extends Controller
 
     private function serveReportPdf($id, $reportType)
     {
-        // Find the specific report by ID directly
         $report = Report::with('reportType')->find($id);
         
         if (!$report) {
             abort(404, 'Report not found.');
         }
         
-        // Determine if this is the correct report type
-        $isAntiRabies = $report->ReportType_ID === \App\Models\ReportType::ANTI_RABIES;
-        $isRoutineServices = $report->ReportType_ID === \App\Models\ReportType::ROUTINE_SERVICES;
+        $isAntiRabies = $report->ReportType_ID === ReportType::ANTI_RABIES;
+        $isRoutineServices = $report->ReportType_ID === ReportType::ROUTINE_SERVICES;
         
-        // Check if file exists, if not regenerate it
         $filePath = $report->File_Path;
         $fullPath = $filePath ? storage_path('app/public/' . $filePath) : null;
         
         if (!$fullPath || !file_exists($fullPath)) {
-            // Regenerate the PDF
             $startDate = $report->Start_Date;
             $endDate = $report->End_Date;
             
@@ -619,7 +598,6 @@ class AdminController extends Controller
                 'generated_at' => $report->Generated_At->format('Y-m-d H:i:s'),
             ];
             
-            // Generate based on the actual report type in database, not the route
             if ($isAntiRabies) {
                 $reportData['anti_rabies_data'] = ReportService::getAntiRabiesData($startDate, $endDate);
                 $reportData['anti_rabies_id'] = $report->Report_ID;
@@ -760,51 +738,6 @@ class AdminController extends Controller
     // =====================================================
     // HELPER METHODS
     // =====================================================
-
-    private function loadSchedule(): array
-    {
-        $path = storage_path('app/clinic_schedule.json');
-
-        if (!file_exists($path)) {
-            $default = ['default_closed_days' => self::DEFAULT_CLOSED_DAYS, 'opened_dates' => [], 'closed_dates' => []];
-            $this->saveSchedule($default);
-            return $default;
-        }
-
-        return json_decode(file_get_contents($path), true);
-    }
-
-    private function saveSchedule(array $schedule): void
-    {
-        $path = storage_path('app/clinic_schedule.json');
-        $dir = dirname($path);
-        
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-
-        file_put_contents($path, json_encode($schedule, JSON_PRETTY_PRINT));
-    }
-
-    private function saveDeclinedNotification(Appointment $appointment): void
-    {
-        $path = storage_path('app/declined_notifications.json');
-        
-        $notifications = file_exists($path) 
-            ? json_decode(file_get_contents($path), true) ?? []
-            : [];
-
-        $notifications[] = [
-            'user_id' => $appointment->User_ID,
-            'pet_name' => $appointment->pet->Pet_Name,
-            'date' => $appointment->Date->format('M d, Y'),
-            'time' => Carbon::parse($appointment->Time)->format('h:i A'),
-            'service' => $appointment->service->Service_Name ?? 'Appointment',
-            'declined_at' => now()->toDateTimeString(),
-        ];
-
-        file_put_contents($path, json_encode($notifications, JSON_PRETTY_PRINT));
-    }
 
     private function ensurePdfExists(array $item, callable $generator): string
     {

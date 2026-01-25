@@ -5,11 +5,16 @@ namespace App\Http\Controllers;
 use App\Models\Appointment;
 use App\Models\Pet;
 use App\Models\ServiceType;
+use App\Models\ClinicSchedule;
+use App\Models\UserNotification;
 use App\Services\QRCodeService;
 use App\Services\CertificateService;
+use App\Services\ClinicScheduleService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+
 
 class AppointmentController extends Controller
 {
@@ -37,8 +42,6 @@ class AppointmentController extends Controller
     {
         $pets = Pet::where('Owner_ID', $this->userId())->get();
         $services = ServiceType::all();
-        
-        // Get appointment limit info for the view
         $appointmentLimitInfo = $this->getAppointmentLimitInfo();
 
         return view('appointments.create', compact('pets', 'services', 'appointmentLimitInfo'));
@@ -56,10 +59,8 @@ class AppointmentController extends Controller
 
     public function preview(Request $request)
     {
-        // Validate first to get the Pet_ID
         $validated = $this->validateAppointmentRequest($request);
         
-        // Check pending appointment limit for this specific pet
         if ($limitError = $this->checkPendingAppointmentLimit($validated['Pet_ID'])) {
             return back()->withErrors($limitError)->withInput();
         }
@@ -77,10 +78,8 @@ class AppointmentController extends Controller
 
     public function confirm(Request $request)
     {
-        // Validate first to get the Pet_ID
         $validated = $this->validateAppointmentRequest($request);
         
-        // Check pending appointment limit for this specific pet
         if ($limitError = $this->checkPendingAppointmentLimit($validated['Pet_ID'])) {
             return redirect()->route('appointments.create')->withErrors($limitError)->withInput();
         }
@@ -97,10 +96,8 @@ class AppointmentController extends Controller
 
     public function store(Request $request)
     {
-        // Validate first to get the Pet_ID
         $validated = $this->validateAppointmentRequest($request, true);
         
-        // Check pending appointment limit for this specific pet
         if ($limitError = $this->checkPendingAppointmentLimit($validated['Pet_ID'])) {
             return back()->withErrors($limitError)->withInput();
         }
@@ -175,12 +172,9 @@ class AppointmentController extends Controller
 
     public function getClinicSchedule()
     {
-        return response()->json($this->loadSchedule());
+        return response()->json(ClinicScheduleService::getSchedule());
     }
 
-    /**
-     * API endpoint to check appointment limit status
-     */
     public function checkAppointmentLimit()
     {
         $info = $this->getAppointmentLimitInfo();
@@ -219,8 +213,6 @@ class AppointmentController extends Controller
     public function showQRCode($id)
     {
         $appointment = $this->findUserAppointment($id, ['Approved', 'Completed']);
-        
-        // Check if QR code has been released by admin
         $qrReleased = QRCodeService::isQRCodeReleased($appointment);
         
         if ($appointment->Status === 'Completed') {
@@ -230,15 +222,11 @@ class AppointmentController extends Controller
             ]);
         }
 
-        // If QR not released yet, show waiting page
         if (!$qrReleased) {
             return view('appointments.qrcode_waiting', compact('appointment'));
         }
 
-        // QR is released, show the QR code
         $qrCodeUrl = QRCodeService::getQRCodeUrl($appointment);
-        
-        // Mark the QR notification as seen
         QRCodeService::markQRNotificationSeen($appointment->Appointment_ID);
 
         return view('appointments.qrcode', compact('appointment', 'qrCodeUrl'));
@@ -248,7 +236,6 @@ class AppointmentController extends Controller
     {
         $appointment = $this->findUserAppointment($id, ['Approved', 'Completed']);
         
-        // Check if QR code has been released
         if (!QRCodeService::isQRCodeReleased($appointment)) {
             return back()->with('error', 'QR Code has not been released yet. Please wait for the receptionist.');
         }
@@ -284,17 +271,10 @@ class AppointmentController extends Controller
             return $this->verifyView(true, $appointment, null, $message);
         }
 
-        // Record attendance (this now checks if QR was released)
         $attendance = QRCodeService::recordAttendance($appointment);
         
-        // Check if QR code wasn't released yet
         if (isset($attendance['error']) && isset($attendance['not_released'])) {
-            return $this->verifyView(
-                true, 
-                $appointment, 
-                $attendance,
-                $attendance['message']
-            );
+            return $this->verifyView(true, $appointment, $attendance, $attendance['message']);
         }
 
         $message = $attendance['already_checked_in']
@@ -305,49 +285,32 @@ class AppointmentController extends Controller
     }
 
     // =====================================================
-    // NOTIFICATION METHODS
+    // NOTIFICATION METHODS (Database-backed)
     // =====================================================
 
     public function markNotificationSeen(Request $request)
     {
-        $this->addSeenNotification($request->input('key'));
+        $key = $request->input('key');
+        NotificationService::markSeenByKey($this->userId(), $key);
         return response()->json(['success' => true]);
     }
 
-    public function markAllNotificationsSeen()
-    {
-        $seenNotifications = $this->loadSeenNotifications();
-        $userId = $this->userId();
-        
-        // Mark approved appointments
-        Appointment::where('User_ID', $userId)->where('Status', 'Approved')
-            ->each(function ($apt) use (&$seenNotifications, $userId) {
-                $key = "{$apt->Appointment_ID}_{$apt->Status}_{$apt->updated_at->timestamp}";
-                if (!in_array($key, $seenNotifications[$userId] ?? [])) {
-                    $seenNotifications[$userId][] = $key;
-                }
-            });
-
-        // Mark declined notifications
-        foreach ($this->loadDeclinedNotifications() as $declined) {
-            if ($declined['user_id'] == $userId) {
-                $key = "declined_{$declined['pet_name']}_{$declined['date']}_{$declined['declined_at']}";
-                if (!in_array($key, $seenNotifications[$userId] ?? [])) {
-                    $seenNotifications[$userId][] = $key;
-                }
-            }
-        }
-        
-        // Mark QR release notifications as seen
-        $qrNotifications = QRCodeService::getQRNotificationsForUser($userId);
-        foreach ($qrNotifications as $notification) {
-            QRCodeService::markQRNotificationSeen($notification['appointment_id']);
-        }
-
-        $this->saveSeenNotifications($seenNotifications);
-
-        return redirect()->back()->with('success', 'All notifications marked as read.');
+    public function markAllNotificationsSeen(Request $request)
+{
+    NotificationService::markAllSeen($this->userId());
+    
+    // If AJAX request, return JSON
+    if ($request->wantsJson() || $request->ajax()) {
+        return response()->json([
+            'success' => true,
+            'message' => 'All notifications marked as read.'
+        ]);
     }
+    
+    // Otherwise redirect back
+    return redirect()->back()
+        ->with('success', 'All notifications marked as read.');
+}
 
     // =====================================================
     // CERTIFICATE METHODS
@@ -420,7 +383,6 @@ class AppointmentController extends Controller
 
         $validated = $request->validate($rules);
 
-        // Verify pet ownership
         $pet = Pet::find($validated['Pet_ID']);
         if ($pet->Owner_ID != $this->userId()) {
             abort(403, 'This pet does not belong to you.');
@@ -431,7 +393,7 @@ class AppointmentController extends Controller
 
     private function checkAppointmentConflicts(array $data): ?array
     {
-        if ($this->isDateClosed($data['Date'])) {
+        if (ClinicScheduleService::isDateClosed($data['Date'])) {
             return ['Date' => 'The clinic is closed on this date. Please select another date.'];
         }
 
@@ -442,22 +404,15 @@ class AppointmentController extends Controller
         return null;
     }
 
-    /**
-     * Check if user has reached their pending appointment limit
-     * Each pet can only have one pending appointment at a time
-     */
     private function checkPendingAppointmentLimit(?int $petId = null): ?array
     {
         $userId = $this->userId();
-        
-        // Count user's pets
         $petCount = Pet::where('Owner_ID', $userId)->count();
         
         if ($petCount === 0) {
             return ['limit' => 'You must register at least one pet before booking an appointment.'];
         }
         
-        // If a specific pet is being booked, check if that pet already has a pending appointment
         if ($petId) {
             $petHasPending = Appointment::where('User_ID', $userId)
                 ->where('Pet_ID', $petId)
@@ -468,12 +423,11 @@ class AppointmentController extends Controller
                 $pet = Pet::find($petId);
                 $petName = $pet ? $pet->Pet_Name : 'This pet';
                 return [
-                    'limit' => "{$petName} already has a pending appointment. Each pet can only have one pending appointment at a time. Please wait for it to be processed or select a different pet."
+                    'limit' => "{$petName} already has a pending appointment. Each pet can only have one pending appointment at a time."
                 ];
             }
         }
         
-        // Also check if ALL pets have pending appointments (no available pets to book for)
         $petsWithPending = Appointment::where('User_ID', $userId)
             ->where('Status', 'Pending')
             ->distinct()
@@ -486,33 +440,26 @@ class AppointmentController extends Controller
         
         if ($availablePets === 0) {
             return [
-                'limit' => "All your pets already have pending appointments. Each pet can only have one pending appointment at a time. Please wait for your current appointment(s) to be processed before booking new ones."
+                'limit' => "All your pets already have pending appointments. Please wait for your current appointment(s) to be processed."
             ];
         }
         
         return null;
     }
 
-    /**
-     * Get appointment limit information for display in views
-     */
     private function getAppointmentLimitInfo(): array
     {
         $userId = $this->userId();
         
         $petCount = Pet::where('Owner_ID', $userId)->count();
-        $pendingCount = Appointment::where('User_ID', $userId)
-            ->where('Status', 'Pending')
-            ->count();
+        $pendingCount = Appointment::where('User_ID', $userId)->where('Status', 'Pending')->count();
         
-        // Get pets that already have pending appointments
         $petsWithPending = Appointment::where('User_ID', $userId)
             ->where('Status', 'Pending')
             ->distinct()
             ->pluck('Pet_ID')
             ->toArray();
         
-        // Get available pets (those without pending appointments)
         $availablePets = Pet::where('Owner_ID', $userId)
             ->whereNotIn('Pet_ID', $petsWithPending)
             ->get();
@@ -561,23 +508,6 @@ class AppointmentController extends Controller
         ];
     }
 
-    private function isDateClosed($date): bool
-    {
-        $schedule = $this->loadSchedule();
-        $dateStr = Carbon::parse($date)->format('Y-m-d');
-        $dayOfWeek = Carbon::parse($date)->dayOfWeek;
-
-        if (in_array($dateStr, $schedule['opened_dates'] ?? [])) {
-            return false;
-        }
-
-        if (in_array($dateStr, $schedule['closed_dates'] ?? [])) {
-            return true;
-        }
-
-        return in_array($dayOfWeek, $schedule['default_closed_days'] ?? self::DEFAULT_CLOSED_DAYS);
-    }
-
     private function isTimeSlotTaken($date, $time): bool
     {
         $normalizedTime = Carbon::parse($time)->format('H:i');
@@ -590,161 +520,9 @@ class AppointmentController extends Controller
             ->exists();
     }
 
-    private function generateQRCode(Appointment $appointment): ?string
-    {
-        $path = QRCodeService::generateForAppointment($appointment);
-        return $path ? asset('storage/' . $path) : null;
-    }
-
     private function verifyView(bool $valid, ?Appointment $appointment, ?array $attendance, string $message)
     {
         return view('appointments.verify', compact('valid', 'appointment', 'attendance', 'message'));
-    }
-
-    // =====================================================
-    // FILE STORAGE HELPERS
-    // =====================================================
-
-    private function getStoragePath(string $filename): string
-    {
-        return storage_path("app/{$filename}");
-    }
-
-    private function loadJsonFile(string $filename, array $default = []): array
-    {
-        $path = $this->getStoragePath($filename);
-        
-        if (!file_exists($path)) {
-            $this->saveJsonFile($filename, $default);
-            return $default;
-        }
-
-        return json_decode(file_get_contents($path), true) ?? $default;
-    }
-
-    private function saveJsonFile(string $filename, array $data): void
-    {
-        $path = $this->getStoragePath($filename);
-        $directory = dirname($path);
-        
-        if (!is_dir($directory)) {
-            mkdir($directory, 0755, true);
-        }
-
-        file_put_contents($path, json_encode($data, JSON_PRETTY_PRINT));
-    }
-
-    private function loadSchedule(): array
-    {
-        return $this->loadJsonFile('clinic_schedule.json', [
-            'default_closed_days' => self::DEFAULT_CLOSED_DAYS,
-            'opened_dates' => [],
-            'closed_dates' => [],
-        ]);
-    }
-
-    private function loadSeenNotifications(): array
-    {
-        return $this->loadJsonFile('seen_notifications.json', []);
-    }
-
-    private function saveSeenNotifications(array $data): void
-    {
-        $this->saveJsonFile('seen_notifications.json', $data);
-    }
-
-    private function loadDeclinedNotifications(): array
-    {
-        return $this->loadJsonFile('declined_notifications.json', []);
-    }
-
-    private function addSeenNotification(string $key): void
-    {
-        $notifications = $this->loadSeenNotifications();
-        $userId = $this->userId();
-
-        if (!isset($notifications[$userId])) {
-            $notifications[$userId] = [];
-        }
-
-        if (!in_array($key, $notifications[$userId])) {
-            $notifications[$userId][] = $key;
-            $this->saveSeenNotifications($notifications);
-        }
-    }
-
-    private function getNotifications(): array
-    {
-        $notifications = [];
-        $userId = $this->userId();
-        $seenNotifications = $this->loadSeenNotifications()[$userId] ?? [];
-
-        // Approved appointment notifications (without QR - just approval notice)
-        foreach ($this->getUserAppointments() as $apt) {
-            if ($apt->updated_at->diffInDays(now()) > self::NOTIFICATION_EXPIRY_DAYS) continue;
-            if ($apt->Status !== 'Approved') continue;
-
-            $key = "{$apt->Appointment_ID}_{$apt->Status}_{$apt->updated_at->timestamp}";
-            if (in_array($key, $seenNotifications)) continue;
-
-            $notifications[] = [
-                'id' => $apt->Appointment_ID,
-                'key' => $key,
-                'type' => 'success',
-                'title' => 'Appointment Approved! 🎉',
-                'message' => "Your appointment for {$apt->pet->Pet_Name} on {$apt->Date->format('M d, Y')} at " .
-                    Carbon::parse($apt->Time)->format('h:i A') . " has been approved! Please proceed to the clinic and check in at the reception desk.",
-                'time' => $apt->updated_at->diffForHumans(),
-                'show_qr_link' => false, // Don't show QR link until released
-            ];
-        }
-        
-        // QR Code Release Notifications (when admin releases the QR)
-        $qrNotifications = QRCodeService::getUnseenQRNotificationsForUser($userId);
-        foreach ($qrNotifications as $qrNotification) {
-            $notifications[] = [
-                'id' => $qrNotification['appointment_id'],
-                'key' => "qr_release_{$qrNotification['appointment_id']}_{$qrNotification['released_at']}",
-                'type' => 'qr_ready',
-                'title' => 'QR Code Ready! 📱',
-                'message' => "Your QR code for {$qrNotification['pet_name']}'s appointment is ready! Tap to view and scan.",
-                'time' => Carbon::parse($qrNotification['released_at'])->diffForHumans(),
-                'qr_link' => route('appointments.qrcode', $qrNotification['appointment_id']),
-                'show_qr_link' => true,
-            ];
-        }
-
-        // Declined notifications
-        $declinedNotifications = $this->loadDeclinedNotifications();
-        $remainingDeclined = [];
-
-        foreach ($declinedNotifications as $declined) {
-            if ($declined['user_id'] != $userId) {
-                $remainingDeclined[] = $declined;
-                continue;
-            }
-
-            $declinedAt = Carbon::parse($declined['declined_at']);
-            if ($declinedAt->diffInDays(now()) > self::NOTIFICATION_EXPIRY_DAYS) continue;
-
-            $key = "declined_{$declined['pet_name']}_{$declined['date']}_{$declined['declined_at']}";
-            if (in_array($key, $seenNotifications)) continue;
-
-            $notifications[] = [
-                'id' => 'declined_' . md5($key),
-                'key' => $key,
-                'type' => 'error',
-                'title' => 'Appointment Declined',
-                'message' => "Your {$declined['service']} appointment for {$declined['pet_name']} on {$declined['date']} at {$declined['time']} has been declined.",
-                'time' => $declinedAt->diffForHumans(),
-            ];
-
-            $remainingDeclined[] = $declined;
-        }
-
-        $this->saveJsonFile('declined_notifications.json', $remainingDeclined);
-
-        return $notifications;
     }
 
     private function ensureCertificatePdf(array $certificate): string
@@ -762,4 +540,14 @@ class AppointmentController extends Controller
 
         return $pdfPath;
     }
+
+    /**
+     * Get notifications for user (now database-backed)
+     */
+    private function getNotifications(): array
+{
+    // Return only unseen notifications
+    return NotificationService::getUnseenNotifications($this->userId());
 }
+}
+    
