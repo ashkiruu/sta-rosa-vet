@@ -14,6 +14,7 @@
         "intervention/image": "^3.11",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",
+        "league/flysystem-google-cloud-storage": "3.0",
         "spatie/laravel-medialibrary": "^11.17",
         "thiagoalessio/tesseract_ocr": "^2.13"
     },

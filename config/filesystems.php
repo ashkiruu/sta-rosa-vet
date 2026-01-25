@@ -29,6 +29,15 @@ return [
     */
 
     'disks' => [
+        
+        'gcs' => [
+            'driver' => 'gcs',
+            'project_id' => env('GOOGLE_CLOUD_PROJECT_ID', env('GCLOUD_PROJECT')),
+            'bucket' => env('GOOGLE_CLOUD_STORAGE_BUCKET'),
+            'path_prefix' => env('GOOGLE_CLOUD_STORAGE_PATH_PREFIX', 'ids'),
+            'visibility' => 'private',
+        ],
+
 
         'local' => [
             'driver' => 'local',
@@ -59,6 +68,7 @@ return [
             'throw' => false,
             'report' => false,
         ],
+
 
     ],
 
