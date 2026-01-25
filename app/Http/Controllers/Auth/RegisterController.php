@@ -179,7 +179,16 @@ class RegisterController extends Controller
         $filename = 'id_' . now()->format('Ymd_His') . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
 
         // This will go under: gs://bucket/ids/id_uploads/tmp/<filename>
-        $gcsPath = Storage::disk('gcs')->putFileAs('id_uploads/tmp', $file, $filename);
+        \Log::info('BEFORE_GCS_UPLOAD');
+
+        $gcsPath = Storage::disk('gcs')->putFileAs(
+            'id_uploads/tmp',
+            $file,
+            $filename
+        );
+
+        \Log::info('AFTER_GCS_UPLOAD', ['gcs_path' => $gcsPath]);
+
 
         // ---------- Keep local copy for ML/OCR processing (existing approach) ----------
         $localPath = $file->store('ids', 'public'); // storage/app/public/ids/...
@@ -187,6 +196,11 @@ class RegisterController extends Controller
 
         // Helper for cleanup (delete both)
         $cleanupFiles = function () use ($localPath, $gcsPath) {
+            \Log::warning('CLEANUP_CALLED', [
+                'local' => $localPath,
+                'gcs' => $gcsPath
+            ]);
+
             if ($localPath) {
                 Storage::disk('public')->delete($localPath);
             }
@@ -194,6 +208,7 @@ class RegisterController extends Controller
                 Storage::disk('gcs')->delete($gcsPath);
             }
         };
+
 
         // ============================================
         // STEP 1: ML DOCUMENT AUTHENTICITY CHECK
