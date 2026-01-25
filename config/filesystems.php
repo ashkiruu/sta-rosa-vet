@@ -36,10 +36,11 @@ return [
             'bucket' => env('GOOGLE_CLOUD_STORAGE_BUCKET'),
             'path_prefix' => env('GOOGLE_CLOUD_STORAGE_PATH_PREFIX', 'ids'),
 
-            // ✅ add these:
             'throw' => true,
             'report' => true,
+            'visibility' => 'private',
         ],
+
 
 
 

@@ -15,6 +15,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rules\Password;
 use App\Services\IDVerificationService; 
 use Illuminate\Support\Str;
+use Google\Cloud\Storage\StorageClient;
+
+
 
 class RegisterController extends Controller
 {
@@ -182,12 +185,28 @@ class RegisterController extends Controller
         \Log::info('BEFORE_GCS_UPLOAD');
 
         try {
-            $gcsPath = Storage::disk('gcs')->putFileAs(
-                'id_uploads/tmp',
-                $file,
-                $filename,
-                ['predefinedAcl' => null]
+            $bucketName = env('GOOGLE_CLOUD_STORAGE_BUCKET');
+            $projectId  = env('GOOGLE_CLOUD_PROJECT_ID', env('GCLOUD_PROJECT'));
+            $prefix     = trim((string) env('GOOGLE_CLOUD_STORAGE_PATH_PREFIX', ''), '/');
+
+            $objectName = ($prefix !== '' ? $prefix . '/' : '') . 'id_uploads/tmp/' . $filename;
+
+            $storage = new StorageClient(['projectId' => $projectId]);
+            $bucket  = $storage->bucket($bucketName);
+
+            // Upload without any ACL field (UBLA-safe)
+            $bucket->upload(
+                fopen($file->getRealPath(), 'r'),
+                [
+                    'name' => $objectName,
+                    // DO NOT set 'predefinedAcl'
+                    // DO NOT set 'acl'
+                ]
             );
+
+            // store gcs path relative to bucket prefix (or store full objectName—your choice)
+            $gcsPath = $objectName;
+
 
             } catch (\Throwable $e) {
                 \Log::error('GCS_UPLOAD_EXCEPTION', [
@@ -209,7 +228,7 @@ class RegisterController extends Controller
         $absolutePath = storage_path('app/public/' . $localPath);
 
         // Helper for cleanup (delete both)
-        $cleanupFiles = function () use ($localPath, $gcsPath) {
+       $cleanupFiles = function () use ($localPath, $gcsPath, $bucket) {
             \Log::warning('CLEANUP_CALLED', [
                 'local' => $localPath,
                 'gcs' => $gcsPath
@@ -219,7 +238,8 @@ class RegisterController extends Controller
                 Storage::disk('public')->delete($localPath);
             }
             if ($gcsPath) {
-                Storage::disk('gcs')->delete($gcsPath);
+                $obj = $bucket->object($gcsPath);
+                if ($obj->exists()) $obj->delete();
             }
         };
 

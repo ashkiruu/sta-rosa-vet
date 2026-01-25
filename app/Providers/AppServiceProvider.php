@@ -5,11 +5,12 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\URL;
 use App\Services\CleanupService;
-use Illuminate\Support\Facades\Storage;
+/*use Illuminate\Support\Facades\Storage;
 use League\Flysystem\Filesystem;
 use League\Flysystem\GoogleCloudStorage\GoogleCloudStorageAdapter;
 use Google\Cloud\Storage\StorageClient;
 use Illuminate\Filesystem\FilesystemAdapter;
+use League\Flysystem\Visibility;*/
 
 
 class AppServiceProvider extends ServiceProvider
@@ -39,7 +40,7 @@ class AppServiceProvider extends ServiceProvider
             }
         }
 
-       Storage::extend('gcs', function ($app, $config) {
+       /*Storage::extend('gcs', function ($app, $config) {
         $projectId = $config['project_id'] ?? env('GOOGLE_CLOUD_PROJECT_ID') ?? env('GCLOUD_PROJECT');
         $bucketName = $config['bucket'] ?? env('GOOGLE_CLOUD_STORAGE_BUCKET');
 
@@ -55,11 +56,11 @@ class AppServiceProvider extends ServiceProvider
 
         $prefix = trim((string)($config['path_prefix'] ?? ''), '/');
 
-        $adapter = new \League\Flysystem\GoogleCloudStorage\GoogleCloudStorageAdapter(
+        $adapter = new GoogleCloudStorageAdapter(
             $bucket,
-            $prefix !== '' ? $prefix . '/' : '',
+            $prefix !== '' ? $prefix.'/' : '',
             null,
-            'private'
+            'private' // ✅ must be string in your version
         );
 
 
@@ -67,7 +68,8 @@ class AppServiceProvider extends ServiceProvider
         $flysystem = new \League\Flysystem\Filesystem($adapter);
 
         return new \Illuminate\Filesystem\FilesystemAdapter($flysystem, $adapter, $config);
-    });
+    });*/
+
 
     }
 }
