@@ -47,7 +47,7 @@
                         {{-- First Name --}}
                         <div>
                             <x-input-label for="First_Name" value="First Name" class="text-red-700 font-black uppercase text-[10px]" />
-                            <x-text-input id="First_Name" name="First_Name" type="text" value="{{ old('First_Name') }}" 
+                            <x-text-input id="First_Name" name="First_Name" type="text" value="{{ old('First_Name', $data['First_Name'] ?? '') }}" 
                                 class="block mt-1 w-full border-gray-200 focus:border-red-500 focus:ring-red-500 rounded-xl bg-gray-50/50" required autofocus />
                             <x-input-error :messages="$errors->get('First_Name')" class="mt-1" />
                         </div>
@@ -55,14 +55,14 @@
                         {{-- Middle Name --}}
                         <div>
                             <x-input-label for="Middle_Name" value="Middle Name (Optional)" class="text-gray-400 font-black uppercase text-[10px]" />
-                            <x-text-input id="Middle_Name" name="Middle_Name" type="text" value="{{ old('Middle_Name') }}" 
+                            <x-text-input id="Middle_Name" name="Middle_Name" type="text" value="{{ old('Middle_Name', $data['Middle_Name'] ?? '') }}" 
                                 class="block mt-1 w-full border-gray-200 rounded-xl bg-gray-50/50" />
                         </div>
 
                         {{-- Last Name --}}
                         <div>
                             <x-input-label for="Last_Name" value="Last Name" class="text-red-700 font-black uppercase text-[10px]" />
-                            <x-text-input id="Last_Name" name="Last_Name" type="text" value="{{ old('Last_Name') }}" 
+                            <x-text-input id="Last_Name" name="Last_Name" type="text" value="{{ old('Last_Name', $data['Last_Name'] ?? '') }}" 
                                 class="block mt-1 w-full border-gray-200 focus:border-red-500 focus:ring-red-500 rounded-xl bg-gray-50/50" required />
                             <x-input-error :messages="$errors->get('Last_Name')" class="mt-1" />
                         </div>
@@ -72,7 +72,7 @@
                             <x-input-label for="Contact_Number" value="Mobile Number" class="text-red-700 font-black uppercase text-[10px]" />
                             <div class="relative mt-1">
                                 <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 font-bold text-sm">+63</span>
-                                <x-text-input id="Contact_Number" name="Contact_Number" type="text" value="{{ old('Contact_Number') }}" 
+                                <x-text-input id="Contact_Number" name="Contact_Number" type="text" value="{{ old('Contact_Number', $data['Contact_Number'] ?? '') }}"
                                     class="block w-full pl-12 border-gray-200 rounded-xl bg-gray-50/50" placeholder="9123456789" required />
                             </div>
                             <x-input-error :messages="$errors->get('Contact_Number')" class="mt-1" />
@@ -85,7 +85,10 @@
                                 class="mt-1 block w-full border-gray-200 rounded-xl focus:border-red-500 focus:ring-red-500 shadow-sm bg-gray-50/50 py-2.5">
                                 <option value="">Select Barangay</option>
                                 @foreach($barangays as $barangay)
-                                    <option value="{{ $barangay->Barangay_ID }}" {{ old('Barangay_ID') == $barangay->Barangay_ID ? 'selected' : '' }}>
+                                    @php $step1 = session('register.step1', []); @endphp
+
+                                    <option value="{{ $barangay->Barangay_ID }}"
+                                        {{ (string) old('Barangay_ID', $step1['Barangay_ID'] ?? '') === (string) $barangay->Barangay_ID ? 'selected' : '' }}>
                                         {{ $barangay->Barangay_Name }}
                                     </option>
                                 @endforeach
@@ -107,9 +110,9 @@
                         {{-- Address (Full Width Span) --}}
                         <div class="md:col-span-3">
                             <x-input-label for="Address" value="House No. / Street / Subd." class="text-red-700 font-black uppercase text-[10px]" />
-                            <textarea id="Address" name="Address" rows="2" 
-                                class="mt-1 block w-full border-gray-200 rounded-xl focus:border-red-500 focus:ring-red-500 shadow-sm bg-gray-50/50">{{ old('Address') }}</textarea>
-                            <x-input-error :messages="$errors->get('Address')" class="mt-1" />
+                            @php $step1 = $step1 ?? session('register.step1', []); @endphp
+                            <textarea id="Address" name="Address" rows="2"
+                                class="mt-1 block w-full border-gray-200 rounded-xl focus:border-red-500 focus:ring-red-500 shadow-sm bg-gray-50/50">{{ old('Address', $step1['Address'] ?? '') }}</textarea>
                         </div>
                     </div>
 

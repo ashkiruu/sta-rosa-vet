@@ -33,20 +33,23 @@ class RegisterController extends Controller
         return redirect()->route('register.step1');
     }
 
-    public function step1()
+  public function step1()
     {
         if (!session('register.notice_accepted')) {
             return redirect()->route('register.notice');
         }
 
         $barangays = \App\Models\Barangay::all();
-        return view('auth.register.step1', compact('barangays'));
+        $data = session('register.step1', []);
+
+        return view('auth.register.step1', compact('barangays', 'data'));
     }
+
 
 
     public function postStep1(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'Last_Name' => 'required|string|max:255',
             'First_Name' => 'required|string|max:255',
             'Middle_Name' => 'nullable|string|max:255',
@@ -55,10 +58,11 @@ class RegisterController extends Controller
             'Barangay_ID' => 'required|exists:barangays,Barangay_ID',
         ]);
 
-        session(['register.step1' => $request->all()]);
+        session(['register.step1' => $validated]);
 
         return redirect()->route('register.step2');
     }
+
 
     public function step2()
     {

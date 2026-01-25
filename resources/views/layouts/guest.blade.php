@@ -17,8 +17,10 @@
         </div>
 
         <div class="w-full flex-1 flex flex-col items-center">
+            @include('partials.alerts')
             {{ $slot }}
         </div>
+
     </div>
 </body>
 </html>

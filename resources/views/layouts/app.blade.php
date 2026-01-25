@@ -29,8 +29,10 @@
 
             <!-- Page Content -->
 <main>
+    @include('partials.alerts')
     @yield('content')
 </main>
+
         </div>
     </body>
 </html>
