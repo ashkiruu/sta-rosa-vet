@@ -39,22 +39,31 @@ class AppServiceProvider extends ServiceProvider
             }
         }
 
-        Storage::extend('gcs', function ($app, $config) {
-            $storageClient = new StorageClient([
-                'projectId' => $config['project_id'] ?? env('GOOGLE_CLOUD_PROJECT_ID') ?? env('GCLOUD_PROJECT'),
+       Storage::extend('gcs', function ($app, $config) {
+            $projectId = $config['project_id'] ?? env('GOOGLE_CLOUD_PROJECT_ID') ?? env('GCLOUD_PROJECT');
+            $bucketName = $config['bucket'] ?? env('GOOGLE_CLOUD_STORAGE_BUCKET');
+
+            if (!$bucketName) {
+                throw new \InvalidArgumentException('GCS bucket is not configured.');
+            }
+
+            $storageClient = new \Google\Cloud\Storage\StorageClient([
+                'projectId' => $projectId,
             ]);
 
-            $bucket = $storageClient->bucket($config['bucket']);
+            $bucket = $storageClient->bucket($bucketName);
 
-            $adapter = new GoogleCloudStorageAdapter(
+            $prefix = trim((string)($config['path_prefix'] ?? ''), '/');
+
+            $adapter = new \League\Flysystem\GoogleCloudStorage\GoogleCloudStorageAdapter(
                 $bucket,
-                $config['path_prefix'] ?? ''
+                $prefix !== '' ? $prefix . '/' : ''
             );
 
-            $flysystem = new Filesystem($adapter);
+            $flysystem = new \League\Flysystem\Filesystem($adapter);
 
-            // ✅ Important: wrap in Laravel adapter so putFileAs(), url(), etc work
-            return new FilesystemAdapter($flysystem, $adapter, $config);
+            return new \Illuminate\Filesystem\FilesystemAdapter($flysystem, $adapter, $config);
         });
+
     }
 }

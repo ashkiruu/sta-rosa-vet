@@ -181,13 +181,21 @@ class RegisterController extends Controller
         // This will go under: gs://bucket/ids/id_uploads/tmp/<filename>
         \Log::info('BEFORE_GCS_UPLOAD');
 
-        $gcsPath = Storage::disk('gcs')->putFileAs(
-            'id_uploads/tmp',
-            $file,
-            $filename
-        );
+        try {
+            $gcsPath = Storage::disk('gcs')->putFileAs('id_uploads/tmp', $file, $filename);
+            } catch (\Throwable $e) {
+                \Log::error('GCS_UPLOAD_EXCEPTION', [
+                    'message' => $e->getMessage(),
+                    'class' => get_class($e),
+                    'bucket' => config('filesystems.disks.gcs.bucket'),
+                    'project' => config('filesystems.disks.gcs.project_id'),
+                    'prefix' => config('filesystems.disks.gcs.path_prefix'),
+                ]);
+                throw $e;
+        }
 
         \Log::info('AFTER_GCS_UPLOAD', ['gcs_path' => $gcsPath]);
+
 
 
         // ---------- Keep local copy for ML/OCR processing (existing approach) ----------
