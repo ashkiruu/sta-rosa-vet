@@ -49,7 +49,7 @@ class RegisterController extends Controller
         $request->validate([
             'Last_Name' => 'required|string|max:255',
             'First_Name' => 'required|string|max:255',
-            'Middle_Name' => 'required|string|max:255',
+            'Middle_Name' => 'nullable|string|max:255',
             'Contact_Number' => 'required|string|max:15',
             'Address' => 'required|string|max:500',
             'Barangay_ID' => 'required|exists:barangays,Barangay_ID',
@@ -377,7 +377,7 @@ class RegisterController extends Controller
                 'ml_confidence'          => $mlConfidence,
                 'ml_check_passed'        => $mlCheckPassed,
                 'verification_method'    => $verificationMethod,
-                'raw_text'               => $ocrText,
+                'raw_text'               => substr($ocrText, 0, 500),
                 'address_score'          => $addressScore,
                 'scores'                 => [
                     'first_name' => $firstNameScore,
@@ -463,7 +463,7 @@ class RegisterController extends Controller
                 'Username'               => $request->email,
                 'Password'               => Hash::make($request->password),
                 'First_Name'             => $step1['First_Name'],
-                'Middle_Name'            => $step1['Middle_Name'],
+                'Middle_Name'            => $step1['Middle_Name'] ?? null,
                 'Last_Name'              => $step1['Last_Name'],
                 'Contact_Number'         => $step1['Contact_Number'],
                 'Email'                  => $request->email,

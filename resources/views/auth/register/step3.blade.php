@@ -40,6 +40,18 @@
 
                 <form method="POST" action="{{ route('register.step3.post') }}" class="space-y-6">
                     @csrf
+                    @if ($errors->any())
+                    <div class="w-full mb-6 rounded-2xl border border-red-200 bg-red-50 px-6 py-4 text-red-800">
+                        <div class="font-black uppercase text-xs tracking-widest mb-2">
+                            Please fix the following:
+                        </div>
+                        <ul class="list-disc pl-5 text-sm font-semibold space-y-1">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
 
                     {{-- Account Grid --}}
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
@@ -49,7 +61,7 @@
                             <x-input-label for="email" value="Email Address" class="text-red-700 font-black uppercase text-[10px]" />
                             <x-text-input id="email" name="email" type="email" :value="old('email')" 
                                 class="block mt-1 w-full border-gray-200 focus:border-red-500 focus:ring-red-500 rounded-xl bg-gray-50/50" required autofocus />
-                            <x-input-error :messages="$errors->get('email')" class="mt-1" />
+                            <x-input-error :messages="$errors->get('email')" class="mt-2" />
                         </div>
 
                         {{-- Password --}}
@@ -58,7 +70,8 @@
                             <div class="relative mt-1">
                                 <x-text-input id="password" name="password" type="password" 
                                     class="block w-full border-gray-200 focus:border-red-500 focus:ring-red-500 rounded-xl bg-gray-50/50 pr-10" required autocomplete="new-password" />
-                                
+                                <x-input-error :messages="$errors->get('password')" class="mt-2" />
+
                                 <button type="button" onclick="togglePassword('password', this)" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-red-700 transition-colors">
                                     <svg class="h-5 w-5" fill="none" id="eye-icon-password" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -74,7 +87,8 @@
                             <div class="relative mt-1">
                                 <x-text-input id="password_confirmation" name="password_confirmation" type="password" 
                                     class="block w-full border-gray-200 focus:border-red-500 focus:ring-red-500 rounded-xl bg-gray-50/50 pr-10" required />
-                                
+                                <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
+
                                 <button type="button" onclick="togglePassword('password_confirmation', this)" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-red-700 transition-colors">
                                     <svg class="h-5 w-5" fill="none" id="eye-icon-password_confirmation" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -102,15 +116,6 @@
                             }
                         </script>
                     </div>
-
-                    {{-- ERROR BLOCK --}}
-                    @if ($errors->any())
-                        <div class="mb-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-lg shadow-sm">
-                            <p class="text-[13px] leading-tight mb-3 italic">
-                                Your password must be at least 8 characters long and include uppercase, lowercase, numbers, symbols, and a matching confirmation.
-                            </p>
-                        </div>
-                    @endif
 
                     {{-- ID Verification Status Indicators --}}
                     <div class="mt-8 p-6 bg-gray-50/50 rounded-3xl border border-gray-100 flex flex-wrap items-center gap-6">
