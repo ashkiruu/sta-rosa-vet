@@ -40,30 +40,33 @@ class AppServiceProvider extends ServiceProvider
         }
 
        Storage::extend('gcs', function ($app, $config) {
-            $projectId = $config['project_id'] ?? env('GOOGLE_CLOUD_PROJECT_ID') ?? env('GCLOUD_PROJECT');
-            $bucketName = $config['bucket'] ?? env('GOOGLE_CLOUD_STORAGE_BUCKET');
+        $projectId = $config['project_id'] ?? env('GOOGLE_CLOUD_PROJECT_ID') ?? env('GCLOUD_PROJECT');
+        $bucketName = $config['bucket'] ?? env('GOOGLE_CLOUD_STORAGE_BUCKET');
 
-            if (!$bucketName) {
-                throw new \InvalidArgumentException('GCS bucket is not configured.');
-            }
+        if (!$bucketName) {
+            throw new \InvalidArgumentException('GCS bucket is not configured.');
+        }
 
-            $storageClient = new \Google\Cloud\Storage\StorageClient([
-                'projectId' => $projectId,
-            ]);
+        $storageClient = new \Google\Cloud\Storage\StorageClient([
+            'projectId' => $projectId,
+        ]);
 
-            $bucket = $storageClient->bucket($bucketName);
+        $bucket = $storageClient->bucket($bucketName);
 
-            $prefix = trim((string)($config['path_prefix'] ?? ''), '/');
+        $prefix = trim((string)($config['path_prefix'] ?? ''), '/');
 
-            $adapter = new \League\Flysystem\GoogleCloudStorage\GoogleCloudStorageAdapter(
-                $bucket,
-                $prefix !== '' ? $prefix . '/' : ''
-            );
+        $adapter = new \League\Flysystem\GoogleCloudStorage\GoogleCloudStorageAdapter(
+            $bucket,
+            $prefix !== '' ? $prefix . '/' : '',
+            null,
+            ['predefinedAcl' => null] // ✅ important for UBLA buckets
+        );
 
-            $flysystem = new \League\Flysystem\Filesystem($adapter);
 
-            return new \Illuminate\Filesystem\FilesystemAdapter($flysystem, $adapter, $config);
-        });
+        $flysystem = new \League\Flysystem\Filesystem($adapter);
+
+        return new \Illuminate\Filesystem\FilesystemAdapter($flysystem, $adapter, $config);
+    });
 
     }
 }
