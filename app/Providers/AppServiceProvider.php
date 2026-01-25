@@ -59,8 +59,9 @@ class AppServiceProvider extends ServiceProvider
             $bucket,
             $prefix !== '' ? $prefix . '/' : '',
             null,
-            ['predefinedAcl' => null] // ✅ important for UBLA buckets
+            'private'
         );
+
 
 
         $flysystem = new \League\Flysystem\Filesystem($adapter);

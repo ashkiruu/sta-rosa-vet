@@ -182,7 +182,13 @@ class RegisterController extends Controller
         \Log::info('BEFORE_GCS_UPLOAD');
 
         try {
-            $gcsPath = Storage::disk('gcs')->putFileAs('id_uploads/tmp', $file, $filename);
+            $gcsPath = Storage::disk('gcs')->putFileAs(
+                'id_uploads/tmp',
+                $file,
+                $filename,
+                ['predefinedAcl' => null]
+            );
+
             } catch (\Throwable $e) {
                 \Log::error('GCS_UPLOAD_EXCEPTION', [
                     'message' => $e->getMessage(),
