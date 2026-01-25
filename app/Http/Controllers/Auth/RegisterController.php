@@ -13,7 +13,8 @@ use App\Models\User;
 use App\Models\MlOcrProcessing;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rules\Password;
-use App\Services\IDVerificationService; // ← ADD THIS LINE
+use App\Services\IDVerificationService; 
+use Illuminate\Support\Str;
 
 class RegisterController extends Controller
 {
@@ -153,7 +154,8 @@ class RegisterController extends Controller
         if (!$request->hasFile('id_file')) {
             session(['register.step2' => [
                 'id_file_path'           => null,
-                'verification_status_id' => 3, // Set to 'Not Verified'
+                'id_file_disk'           => null,
+                'verification_status_id' => 3, // Not Verified
                 'confidence_score'       => 0,
                 'ml_confidence'          => 0,
                 'ml_check_passed'        => false,
@@ -170,50 +172,72 @@ class RegisterController extends Controller
             return redirect()->route('register.step1')->withErrors(['error' => 'Please complete Step 1 first.']);
         }
 
-        // Process File
-        $path = $request->file('id_file')->store('ids', 'public');
-        $absolutePath = storage_path('app/public/' . $path);
+        $file = $request->file('id_file');
+
+        // ---------- NEW: Store a persistent copy in GCS ----------
+        // Safer unique filename
+        $filename = 'id_' . now()->format('Ymd_His') . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
+
+        // This will go under: gs://bucket/ids/id_uploads/tmp/<filename>
+        $gcsPath = Storage::disk('gcs')->putFileAs('id_uploads/tmp', $file, $filename);
+
+        // ---------- Keep local copy for ML/OCR processing (existing approach) ----------
+        $localPath = $file->store('ids', 'public'); // storage/app/public/ids/...
+        $absolutePath = storage_path('app/public/' . $localPath);
+
+        // Helper for cleanup (delete both)
+        $cleanupFiles = function () use ($localPath, $gcsPath) {
+            if ($localPath) {
+                Storage::disk('public')->delete($localPath);
+            }
+            if ($gcsPath) {
+                Storage::disk('gcs')->delete($gcsPath);
+            }
+        };
 
         // ============================================
         // STEP 1: ML DOCUMENT AUTHENTICITY CHECK
         // ============================================
         $mlResult = $mlService->verifyIDAuthenticity($absolutePath);
 
-        $ML_THRESHOLD = 0.80; // 80% confidence minimum
+        $ML_THRESHOLD = 0.80;
         $mlCheckPassed = false;
         $mlConfidence = 0.0;
 
-        // Check if ML API responded successfully
         if (!$mlResult['success']) {
-            // ML API is unavailable - Log warning and continue with fallback
             \Log::warning('ML_API_UNAVAILABLE', [
                 'error' => $mlResult['error'] ?? 'Unknown error',
                 'fallback_mode' => 'continuing_with_ocr_only',
                 'user' => [
                     'first_name' => $step1['First_Name'],
-                    'last_name' => $step1['Last_Name']
+                    'last_name'  => $step1['Last_Name'],
+                ],
+                'storage' => [
+                    'gcs_path' => $gcsPath,
+                    'local_path' => $localPath,
                 ]
             ]);
-            
-            // Set flags - will force manual review later
+
             $mlCheckPassed = false;
             $mlConfidence = 0.0;
-            
+
         } else {
-            // ML API responded - Check authenticity
             $mlConfidence = $mlResult['confidence'];
-            
+
             if (!$mlResult['is_legitimate'] || $mlConfidence < $ML_THRESHOLD) {
-                // ML detected fake/invalid ID - REJECT immediately
-                Storage::disk('public')->delete($path);
-                
+                $cleanupFiles();
+
                 \Log::warning('ML_REJECTED_FAKE_ID', [
                     'confidence' => $mlConfidence,
                     'threshold' => $ML_THRESHOLD,
                     'is_legitimate' => $mlResult['is_legitimate'],
                     'user' => [
                         'first_name' => $step1['First_Name'],
-                        'last_name' => $step1['Last_Name']
+                        'last_name'  => $step1['Last_Name'],
+                    ],
+                    'storage' => [
+                        'gcs_path' => $gcsPath,
+                        'local_path' => $localPath,
                     ]
                 ]);
 
@@ -221,12 +245,15 @@ class RegisterController extends Controller
                     'id_file' => 'The uploaded document does not appear to be a valid government-issued ID. Please upload a clear photo of your PhilSys, UMID, Driver\'s License, or other official ID card.'
                 ])->withInput();
             }
-            
-            // ✅ ML Check Passed
+
             $mlCheckPassed = true;
             \Log::info('ML_APPROVED_ID', [
                 'confidence' => $mlConfidence,
-                'proceeding_to_ocr' => true
+                'proceeding_to_ocr' => true,
+                'storage' => [
+                    'gcs_path' => $gcsPath,
+                    'local_path' => $localPath,
+                ]
             ]);
         }
 
@@ -244,35 +271,35 @@ class RegisterController extends Controller
 
             $ocrText = $ocr->run();
 
-
             if (empty(trim($ocrText))) {
-                Storage::disk('public')->delete($path);
-                
+                $cleanupFiles();
+
                 return back()->withErrors([
                     'id_file' => 'No readable text found. Please ensure you are uploading a clear photo of your ID.'
                 ])->withInput();
             }
-            
-            // Normalization
+
             $normalizedOcr = $this->normalizeText($ocrText);
             $ocrTokens = explode(' ', $normalizedOcr);
 
-                        // ============================================
+            // ============================================
             // STEP 2.5: CITY VALIDATION (Sta. Rosa Only)
             // ============================================
-
             $fromStaRosa = $this->isFromStaRosa($normalizedOcr);
 
-            // If OCR confidently shows a different city, block
             if (!$fromStaRosa) {
-                Storage::disk('public')->delete($path);
+                $cleanupFiles();
 
                 \Log::warning('OUTSIDE_STA_ROSA_DETECTED', [
                     'user' => [
                         'first_name' => $step1['First_Name'],
-                        'last_name' => $step1['Last_Name'],
+                        'last_name'  => $step1['Last_Name'],
                     ],
                     'ocr_text_snippet' => substr($normalizedOcr, 0, 300),
+                    'storage' => [
+                        'gcs_path' => $gcsPath,
+                        'local_path' => $localPath,
+                    ]
                 ]);
 
                 return back()->withErrors([
@@ -291,7 +318,7 @@ class RegisterController extends Controller
             // ============================================
             $firstNameScore = $this->getCompositeScore($firstName, $ocrTokens);
             $lastNameScore  = $this->getCompositeScore($lastName, $ocrTokens);
-            
+
             $hasMiddleName = !empty($middleName);
             $middleNameScore = $hasMiddleName ? $this->getCompositeScore($middleName, $ocrTokens) : 0;
 
@@ -299,6 +326,7 @@ class RegisterController extends Controller
             $addressTokens = explode(' ', $address);
             $addressMatches = 0;
             $validAddressTokens = 0;
+
             foreach ($addressTokens as $token) {
                 if (strlen($token) < 3) continue;
                 $validAddressTokens++;
@@ -309,45 +337,43 @@ class RegisterController extends Controller
                     }
                 }
             }
+
             $addressScore = ($validAddressTokens > 0) ? ($addressMatches / $validAddressTokens) : 0;
 
-            // Calculate Final Weighted Score
+            // Final weighted score
             if ($hasMiddleName) {
-                $totalScore = ($lastNameScore * 0.35) + 
-                            ($firstNameScore * 0.30) + 
-                            ($middleNameScore * 0.10) + 
+                $totalScore = ($lastNameScore * 0.35) +
+                            ($firstNameScore * 0.30) +
+                            ($middleNameScore * 0.10) +
                             ($addressScore * 0.25);
             } else {
-                $totalScore = ($lastNameScore * 0.40) + 
-                            ($firstNameScore * 0.35) + 
+                $totalScore = ($lastNameScore * 0.40) +
+                            ($firstNameScore * 0.35) +
                             ($addressScore * 0.25);
             }
 
             // ============================================
             // STEP 4: FINAL DECISION (ML + FUZZY)
             // ============================================
-            
-            // Combined decision logic
             if ($mlCheckPassed && $totalScore >= 0.7) {
-                $statusID = 2; // ✅ Verified (Both ML and OCR passed)
+                $statusID = 2; // Verified
                 $verificationMethod = 'ml_and_ocr';
             } elseif (!$mlCheckPassed && $totalScore >= 0.7) {
-                $statusID = 1; // ⚠️ Pending (ML unavailable, OCR passed, needs manual review)
+                $statusID = 1; // Pending manual review
                 $verificationMethod = 'ocr_only_ml_unavailable';
             } else {
-                $statusID = 1; // ⚠️ Pending (OCR score too low or ML failed)
+                $statusID = 1; // Pending manual review
                 $verificationMethod = 'pending_manual_review';
             }
 
-            // Reject if OCR score is extremely low
             if ($totalScore < 0.15) {
-                Storage::disk('public')->delete($path);
+                $cleanupFiles();
+
                 return back()->withErrors([
                     'id_file' => 'The uploaded document does not appear to match your registered name. Please upload a valid ID.'
                 ])->withInput();
             }
 
-            // Comprehensive logging
             \Log::info('ID_VERIFICATION_COMPLETE', [
                 'ml' => [
                     'check_passed' => $mlCheckPassed,
@@ -367,15 +393,20 @@ class RegisterController extends Controller
                     'ml_threshold' => $ML_THRESHOLD,
                     'ocr_threshold' => 0.7
                 ],
+                'storage' => [
+                    'gcs_path' => $gcsPath,
+                    'local_path' => $localPath,
+                ],
                 'user' => [
                     'first_name' => $firstName,
                     'last_name' => $lastName,
                 ]
             ]);
 
-            // Store in session
+            // Store in session (IMPORTANT: store GCS path, not local)
             session(['register.step2' => [
-                'id_file_path'           => $path,
+                'id_file_path'           => $gcsPath,
+                'id_file_disk'           => 'gcs',
                 'verification_status_id' => $statusID,
                 'confidence_score'       => $totalScore,
                 'ml_confidence'          => $mlConfidence,
@@ -384,15 +415,14 @@ class RegisterController extends Controller
                 'raw_text'               => substr($ocrText, 0, 500),
                 'address_score'          => $addressScore,
                 'scores'                 => [
-                    'first_name' => $firstNameScore,
-                    'last_name'  => $lastNameScore,
+                    'first_name'  => $firstNameScore,
+                    'last_name'   => $lastNameScore,
                     'middle_name' => $middleNameScore,
-                    'address'    => $addressScore
+                    'address'     => $addressScore
                 ]
             ]]);
 
-            // Success messages
-            $message = '';
+            // Success message
             if ($statusID == 2) {
                 $message = 'ID verified successfully! Both ML and text matching passed.';
             } elseif (!$mlCheckPassed) {
@@ -402,13 +432,13 @@ class RegisterController extends Controller
             }
 
             return redirect()->route('register.step3')->with([
-                'ocr_status' => ($statusID == 2 ? 'Verified' : 'Pending'),
+                'ocr_status'  => ($statusID == 2 ? 'Verified' : 'Pending'),
                 'ocr_message' => $message
             ]);
 
         } catch (\Exception $e) {
-            Storage::disk('public')->delete($path);
-            
+            $cleanupFiles();
+
             \Log::error('OCR_PROCESSING_ERROR', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
