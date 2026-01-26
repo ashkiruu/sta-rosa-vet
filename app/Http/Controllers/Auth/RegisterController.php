@@ -211,13 +211,25 @@ class RegisterController extends Controller
     }
 
 
-    public function postStep2(Request $request, IDVerificationService $mlService, GcsStorageService $gcs)
+    // ✅ FINAL postStep2 (mobile-safe + HEIC normalize + GCS tmp upload + ML/OCR + session store)
+// Put this inside your RegisterController
+
+    public function postStep2(Request $request, IDVerificationService $mlService)
     {
-        $request->validate([
-            'id_file' => 'nullable|file|mimetypes:image/jpeg,image/png,image/heic,image/heif|max:8192'
+        \Log::info('UPLOAD_DEBUG', [
+            'hasFile' => $request->hasFile('id_file'),
+            'files' => array_keys($request->allFiles()),
+            'php_upload_max' => ini_get('upload_max_filesize'),
+            'php_post_max' => ini_get('post_max_size'),
+            'content_length' => $request->server('CONTENT_LENGTH'),
         ]);
 
-        // Handle the "Skip" logic
+        $request->validate([
+            // ✅ allow HEIC/HEIF from iPhone/iPad, and bigger size for mobile
+            'id_file' => 'nullable|file|mimetypes:image/jpeg,image/png,image/heic,image/heif|max:20480',
+        ]);
+
+        // ✅ Skip logic
         if (!$request->hasFile('id_file')) {
             session(['register.step2' => [
                 'id_file_path'           => null,
@@ -226,6 +238,7 @@ class RegisterController extends Controller
                 'confidence_score'       => 0,
                 'ml_confidence'          => 0,
                 'ml_check_passed'        => false,
+                'verification_method'    => null,
                 'raw_text'               => '',
                 'address_score'          => 0,
                 'scores'                 => []
@@ -241,36 +254,41 @@ class RegisterController extends Controller
 
         $file = $request->file('id_file');
 
+        // ✅ Normalize HEIC/PNG/JPEG -> JPEG for ML/OCR
         $normalized = $this->normalizeIdImageToJpeg($file);
-        $absolutePath = $normalized['path']; // used for ML + OCR
+        $absolutePath = $normalized['path']; // local temp jpg used for ML+OCR
 
-        // ---------- NEW: Store a persistent copy in GCS ----------
-        // Safer unique filename
-        $filename = 'id_' . now()->format('Ymd_His') . '_' . Str::random(10) . '.jpg';
-
+        if (!file_exists($absolutePath) || filesize($absolutePath) === 0) {
+            throw new \RuntimeException('Normalized image file missing or empty.');
+        }
 
         // ===============================
         // GCS UPLOAD (TMP - UBLA SAFE)
         // ===============================
-        \Log::info('BEFORE_GCS_UPLOAD');
+        $filename = 'id_' . now()->format('Ymd_His') . '_' . Str::random(10) . '.jpg';
 
         $bucketName = env('GOOGLE_CLOUD_STORAGE_BUCKET');
         $projectId  = env('GOOGLE_CLOUD_PROJECT_ID', env('GCLOUD_PROJECT'));
         $prefix     = trim((string) env('GOOGLE_CLOUD_STORAGE_PATH_PREFIX', ''), '/');
 
-        // Final object name inside bucket
+        // object path inside bucket (includes prefix if any)
         $gcsPath = ($prefix !== '' ? $prefix . '/' : '') . 'id_uploads/tmp/' . $filename;
 
+        \Log::info('BEFORE_GCS_UPLOAD', [
+            'bucket' => $bucketName,
+            'project' => $projectId,
+            'path' => $gcsPath,
+        ]);
+
+        $bucket = null;
+
         try {
-            $storage = new StorageClient([
-                'projectId' => $projectId,
-            ]);
+            $storage = new StorageClient(['projectId' => $projectId]);
+            $bucket  = $storage->bucket($bucketName);
 
-            $bucket = $storage->bucket($bucketName);
-
-            // Upload WITHOUT ACL / visibility (UBLA-compliant)
+            // ✅ UBLA-compliant upload: NO ACL, NO predefinedAcl
             $bucket->upload(
-                fopen($absolutePath, 'r'), // ✅ normalized jpg
+                fopen($absolutePath, 'r'),
                 [
                     'name' => $gcsPath,
                     'metadata' => [
@@ -278,7 +296,6 @@ class RegisterController extends Controller
                     ],
                 ]
             );
-
 
         } catch (\Throwable $e) {
             \Log::error('GCS_UPLOAD_EXCEPTION', [
@@ -288,37 +305,38 @@ class RegisterController extends Controller
                 'path'    => $gcsPath,
             ]);
 
+            // cleanup local temp on upload failure
+            if ($absolutePath && file_exists($absolutePath)) {
+                @unlink($absolutePath);
+            }
+
             throw $e;
         }
 
         \Log::info('AFTER_GCS_UPLOAD', ['gcs_path' => $gcsPath]);
 
-
-
         // ===============================
-        // CLEANUP HELPER
+        // CLEANUP HELPER (local temp + GCS tmp)
         // ===============================
         $cleanupFiles = function () use ($absolutePath, $gcsPath, $bucket) {
-
             \Log::warning('CLEANUP_CALLED', [
                 'local_abs' => $absolutePath,
                 'gcs'       => $gcsPath,
             ]);
 
-            // ✅ Delete normalized local temp
+            // delete normalized local temp
             if ($absolutePath && file_exists($absolutePath)) {
                 @unlink($absolutePath);
             }
 
-            // Delete GCS tmp object
-            if ($gcsPath) {
+            // delete GCS tmp object
+            if ($gcsPath && $bucket) {
                 $object = $bucket->object($gcsPath);
                 if ($object->exists()) {
                     $object->delete();
                 }
             }
         };
-
 
         // ============================================
         // STEP 1: ML DOCUMENT AUTHENTICITY CHECK
@@ -339,7 +357,7 @@ class RegisterController extends Controller
                 ],
                 'storage' => [
                     'gcs_path' => $gcsPath,
-                    'local_path' => $localPath,
+                    'local_abs' => $absolutePath,
                 ]
             ]);
 
@@ -347,7 +365,7 @@ class RegisterController extends Controller
             $mlConfidence = 0.0;
 
         } else {
-            $mlConfidence = $mlResult['confidence'];
+            $mlConfidence = (float) ($mlResult['confidence'] ?? 0);
 
             if (!$mlResult['is_legitimate'] || $mlConfidence < $ML_THRESHOLD) {
                 $cleanupFiles();
@@ -362,7 +380,7 @@ class RegisterController extends Controller
                     ],
                     'storage' => [
                         'gcs_path' => $gcsPath,
-                        'local_path' => $localPath,
+                        'local_abs' => $absolutePath,
                     ]
                 ]);
 
@@ -372,12 +390,13 @@ class RegisterController extends Controller
             }
 
             $mlCheckPassed = true;
+
             \Log::info('ML_APPROVED_ID', [
                 'confidence' => $mlConfidence,
                 'proceeding_to_ocr' => true,
                 'storage' => [
                     'gcs_path' => $gcsPath,
-                    'local_path' => $localPath,
+                    'local_abs' => $absolutePath,
                 ]
             ]);
         }
@@ -423,7 +442,7 @@ class RegisterController extends Controller
                     'ocr_text_snippet' => substr($normalizedOcr, 0, 300),
                     'storage' => [
                         'gcs_path' => $gcsPath,
-                        'local_path' => $localPath,
+                        'local_abs' => $absolutePath,
                     ]
                 ]);
 
@@ -520,7 +539,6 @@ class RegisterController extends Controller
                 ],
                 'storage' => [
                     'gcs_path' => $gcsPath,
-                    'local_path' => $localPath,
                 ],
                 'user' => [
                     'first_name' => $firstName,
@@ -528,7 +546,7 @@ class RegisterController extends Controller
                 ]
             ]);
 
-            // Store in session (IMPORTANT: store GCS path, not local)
+            // ✅ Store in session (store GCS tmp path)
             session(['register.step2' => [
                 'id_file_path'           => $gcsPath,
                 'id_file_disk'           => 'gcs',
@@ -547,6 +565,11 @@ class RegisterController extends Controller
                 ]
             ]]);
 
+            // ✅ IMPORTANT: keep local temp until here; now safe to delete
+            if ($absolutePath && file_exists($absolutePath)) {
+                @unlink($absolutePath);
+            }
+
             // Success message
             if ($statusID == 2) {
                 $message = 'ID verified successfully! Both ML and text matching passed.';
@@ -561,7 +584,7 @@ class RegisterController extends Controller
                 'ocr_message' => $message
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $cleanupFiles();
 
             \Log::error('OCR_PROCESSING_ERROR', [
@@ -574,6 +597,7 @@ class RegisterController extends Controller
             ])->withInput();
         }
     }
+
     
     public function step3()
     {
@@ -745,17 +769,25 @@ class RegisterController extends Controller
     /**
      * Process late ID upload for existing users
      */
+    // ✅ FINAL processReverify (required file + normalize + tmp upload + finalize + DB write)
+
     public function processReverify(Request $request)
     {
+        // ✅ reverify must require an upload
         $request->validate([
-            'id_file' => 'nullable|file|mimetypes:image/jpeg,image/png,image/heic,image/heif|max:8192',
+            'id_file' => 'required|file|mimetypes:image/jpeg,image/png,image/heic,image/heif|max:20480',
         ]);
 
         $user = Auth::user();
         $file = $request->file('id_file');
 
-        // ---------- Upload to GCS tmp (UBLA-safe) ----------
-        $filename = 'reverify_' . now()->format('Ymd_His') . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
+        // ✅ Normalize to JPEG for OCR consistency
+        $normalized = $this->normalizeIdImageToJpeg($file);
+        $absolutePath = $normalized['path'];
+
+        if (!file_exists($absolutePath) || filesize($absolutePath) === 0) {
+            throw new \RuntimeException('Normalized image file missing or empty.');
+        }
 
         $bucketName = env('GOOGLE_CLOUD_STORAGE_BUCKET');
         $projectId  = env('GOOGLE_CLOUD_PROJECT_ID', env('GCLOUD_PROJECT'));
@@ -763,12 +795,31 @@ class RegisterController extends Controller
         $storage = new StorageClient(['projectId' => $projectId]);
         $bucket  = $storage->bucket($bucketName);
 
+        $filename = 'reverify_' . now()->format('Ymd_His') . '_' . Str::random(10) . '.jpg';
         $tmpGcsPath = 'ids/id_uploads/tmp/' . $filename;
 
+        // Cleanup helper (local + tmp)
+        $cleanup = function () use ($absolutePath, $bucket, $tmpGcsPath) {
+            if ($absolutePath && file_exists($absolutePath)) {
+                @unlink($absolutePath);
+            }
+
+            if ($tmpGcsPath) {
+                $obj = $bucket->object($tmpGcsPath);
+                if ($obj->exists()) $obj->delete();
+            }
+        };
+
+        // 1) Upload TMP to GCS (UBLA-safe)
         try {
             $bucket->upload(
-                fopen($file->getRealPath(), 'r'),
-                ['name' => $tmpGcsPath]
+                fopen($absolutePath, 'r'),
+                [
+                    'name' => $tmpGcsPath,
+                    'metadata' => [
+                        'contentType' => 'image/jpeg',
+                    ],
+                ]
             );
         } catch (\Throwable $e) {
             \Log::error('GCS_REVERIFY_UPLOAD_FAIL', [
@@ -776,23 +827,16 @@ class RegisterController extends Controller
                 'user' => $user->User_ID,
                 'tmp' => $tmpGcsPath,
             ]);
+
+            // local cleanup
+            if ($absolutePath && file_exists($absolutePath)) {
+                @unlink($absolutePath);
+            }
+
             return back()->withErrors(['id_file' => 'Upload failed. Please try again.']);
         }
 
-        // ---------- Keep local temp for OCR ----------
-        $localPath = $file->store('ids', 'public');
-        $absolutePath = storage_path('app/public/' . $localPath);
-
-        $cleanup = function () use ($localPath, $bucket, $tmpGcsPath) {
-            if ($localPath) {
-                Storage::disk('public')->delete($localPath);
-            }
-            if ($tmpGcsPath) {
-                $obj = $bucket->object($tmpGcsPath);
-                if ($obj->exists()) $obj->delete();
-            }
-        };
-
+        // 2) OCR on normalized local file
         try {
             $ocr = new \thiagoalessio\TesseractOCR\TesseractOCR($absolutePath);
 
@@ -809,53 +853,55 @@ class RegisterController extends Controller
                 return back()->withErrors(['id_file' => 'No readable text found. Please upload a clearer photo.']);
             }
 
-            // ---- your scoring logic (kept same) ----
             $normalizedOcr = $this->normalizeText($ocrText);
             $ocrTokens = explode(' ', $normalizedOcr);
 
             $firstNameScore = $this->getCompositeScore($user->First_Name, $ocrTokens);
             $lastNameScore  = $this->getCompositeScore($user->Last_Name, $ocrTokens);
-            $addressScore   = 0.5; // keep your current placeholder
+            $addressScore   = 0.5; // TODO: replace with real address matching logic
 
             $totalScore = ($lastNameScore * 0.40) + ($firstNameScore * 0.35) + ($addressScore * 0.25);
             $statusID = ($totalScore >= 0.7) ? 2 : 1;
 
-            // ---------- Move GCS tmp -> final (copy+delete) ----------
+            // 3) Finalize: move tmp -> users/{id}/reverify/
             $finalGcsPath = 'ids/id_uploads/users/' . $user->User_ID . '/reverify/' . $filename;
 
-            $src = $bucket->object($tmpGcsPath);
-            if (!$src->exists()) {
-                throw new \RuntimeException("GCS tmp object missing during finalize: {$tmpGcsPath}");
-            }
-
-            $src->copy($bucket, ['name' => $finalGcsPath]);
-            $src->delete();
+            $finalGcsPath = $this->gcsMoveObject($tmpGcsPath, $finalGcsPath);
 
             // local temp no longer needed
-            Storage::disk('public')->delete($localPath);
+            if ($absolutePath && file_exists($absolutePath)) {
+                @unlink($absolutePath);
+            }
 
-            // ---------- Update user + persist OCR row with FINAL path ----------
+            // 4) Persist
             $user->update(['Verification_Status_ID' => $statusID]);
 
             MlOcrProcessing::create([
                 'User_ID'               => $user->User_ID,
                 'CertificateType_ID'    => 1,
-                'Document_Image_Path'   => $finalGcsPath, // ✅ FINAL PATH IN GCS
+                'Document_Image_Path'   => $finalGcsPath,
                 'Extracted_Text'        => json_encode(trim(strval($ocrText))),
                 'Parsed_Data' => json_encode([
-                                    'fuzzy_scores' => [
-                                        'first_name'  => $firstNameScore,
-                                        'last_name'   => $lastNameScore,
-                                        'middle_name' => 0,
-                                        'address'     => $addressScore,
-                                    ],
-                                    'ml_confidence' => 0,
-                                    'ml_check_passed' => false,
-                                    'verification_method' => 'reverify_ocr_only',
-                                ]),
+                    'fuzzy_scores' => [
+                        'first_name'  => $firstNameScore,
+                        'last_name'   => $lastNameScore,
+                        'middle_name' => 0,
+                        'address'     => $addressScore,
+                    ],
+                    'ml_confidence' => 0,
+                    'ml_check_passed' => false,
+                    'verification_method' => 'reverify_ocr_only',
+                ]),
                 'Confidence_Score'      => $totalScore,
                 'Address_Match_Status'  => ($addressScore >= 0.7 ? 'Matched' : 'Discrepancy'),
                 'Created_Date'          => now(),
+            ]);
+
+            \Log::info('REVERIFY_FINALIZED', [
+                'user' => $user->User_ID,
+                'final_gcs_path' => $finalGcsPath,
+                'status_id' => $statusID,
+                'score' => $totalScore,
             ]);
 
             if ($statusID == 2) {
@@ -871,13 +917,15 @@ class RegisterController extends Controller
                 'tmp' => $tmpGcsPath,
             ]);
 
-            // delete both local + tmp
             $cleanup();
 
             return back()->withErrors(['id_file' => 'Error processing ID: ' . $e->getMessage()]);
         }
     }
 
+
+
+    // ✅ FINAL gcsMoveObject (safe copy+delete, no undefined vars)
 
     private function gcsMoveObject(string $fromObjectName, string $toObjectName): string
     {
@@ -896,14 +944,16 @@ class RegisterController extends Controller
         // Copy then delete (GCS "rename")
         $src->copy($bucket, ['name' => $toObjectName]);
         $src->delete();
-        \Log::info('REVERIFY_FINALIZED', [
-            'user' => $user->User_ID,
-            'final_gcs_path' => $finalGcsPath,
-        ]);
 
+        \Log::info('GCS_OBJECT_MOVED', [
+            'from' => $fromObjectName,
+            'to' => $toObjectName,
+            'bucket' => $bucketName,
+        ]);
 
         return $toObjectName;
     }
+
 
 }
 

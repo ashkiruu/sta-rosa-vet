@@ -3,6 +3,17 @@
 # =========================
 FROM php:8.2-cli AS vendor
 
+# ✅ Increase upload limits for mobile photos (iOS/Android)
+RUN { \
+  echo "upload_max_filesize=20M"; \
+  echo "post_max_size=25M"; \
+  echo "max_file_uploads=20"; \
+  echo "memory_limit=512M"; \
+  echo "max_execution_time=120"; \
+  echo "max_input_time=120"; \
+} > /usr/local/etc/php/conf.d/uploads.ini
+
+
 RUN apt-get update && apt-get install -y \
     git unzip \
     libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev \

@@ -130,7 +130,7 @@
                                 <input type="file"
                                        name="id_file"
                                        id="id_file"
-                                       accept=".jpg,.jpeg,.png"
+                                       accept="image/*,.jpg,.jpeg,.png,.heic,.heif"
                                        class="absolute inset-0 opacity-0 cursor-pointer">
                             </div>
 
