@@ -4,12 +4,6 @@
 
 @section('content')
 <div class="min-h-screen py-4">
-    {{-- Header --}}
-    <div class="mb-8">
-        <h1 class="text-3xl font-black text-gray-900 uppercase tracking-tight">System Audit Trail</h1>
-        <p class="text-[10px] font-bold text-purple-600 uppercase tracking-[0.2em]">Monitor real-time administrative operations</p>
-    </div>
-
     {{-- Advanced Filters --}}
     <div class="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-8 mb-8">
         <form action="{{ route('admin.logs') }}" method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">

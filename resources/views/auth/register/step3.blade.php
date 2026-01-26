@@ -38,7 +38,8 @@
                     </div>
                 </div>
 
-                <form method="POST" action="{{ route('register.step3.post') }}" class="space-y-6">
+                {{-- Added onsubmit to trigger the disable function --}}
+                <form id="registrationForm" method="POST" action="{{ route('register.step3.post') }}" class="space-y-6" onsubmit="disableSubmitButton()">
                     @csrf
                     @if ($errors->any())
                     <div class="w-full mb-6 rounded-2xl border border-red-200 bg-red-50 px-6 py-4 text-red-800">
@@ -156,16 +157,28 @@
 
                         {{-- Right Side: Login Link + Submit Button --}}
                         <div class="flex flex-col items-center md:items-end w-full md:w-auto">
-                            <button type="submit" class="w-full md:w-64 bg-red-700 hover:bg-red-800 text-white font-black py-4 rounded-2xl shadow-lg transition-all active:scale-95 uppercase tracking-widest text-sm">
+                            {{-- ID added for JS targeting --}}
+                            <button type="submit" id="submitBtn" class="w-full md:w-64 bg-red-700 hover:bg-red-800 text-white font-black py-4 rounded-2xl shadow-lg transition-all active:scale-95 uppercase tracking-widest text-sm disabled:opacity-50 disabled:cursor-not-allowed">
                                 Submit
                             </button>
                         </div>
                     </div>
                     <p class="text-[15px] font-black tracking-tighter mb-2 text-right">
-                                Already have an account? <a href="{{ route('login') }}" class="text-red-700 hover:underline">Log in here</a>
+                        Already have an account? <a href="{{ route('login') }}" class="text-red-700 hover:underline">Log in here</a>
                     </p>
                 </form>
             </div>
         </div>
     </div>
+
+    {{-- Script to handle double click prevention --}}
+    <script>
+        function disableSubmitButton() {
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.innerHTML = 'Processing...';
+            btn.classList.add('bg-gray-400'); // Optional: change color to show it's inactive
+            return true;
+        }
+    </script>
 </x-guest-layout>

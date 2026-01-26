@@ -9,21 +9,36 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
         body { font-family: 'Inter', sans-serif; overflow: hidden; }
+
+        /* Custom Scrollbar for a cleaner look */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #e5e7eb;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #d1d5db;
+        }
     </style>
 </head>
 <body class="bg-gray-50 flex h-screen overflow-hidden">
 
-    {{-- Sidebar: Full Height, No Scroll --}}
-    <aside class="w-72 bg-white border-r border-gray-100 flex flex-col shadow-sm shrink-0">
-        {{-- Branding --}}
-        <div class="p-6 pb-2">
+    {{-- Sidebar: Fixed Height, Internal Scroll --}}
+    <aside class="w-72 bg-white border-r border-gray-100 flex flex-col shadow-sm shrink-0 h-full">
+        {{-- Branding: Fixed Top --}}
+        <div class="p-6 pb-4">
             <h2 class="text-red-700 text-2xl font-black uppercase tracking-tighter leading-none">
                 Sta. Rosa <span class="text-gray-900 block text-lg">Vet Admin</span>
             </h2>
         </div>
 
-        {{-- Navigation Area --}}
-        <nav class="flex-1 px-4 space-y-1.5 pt-4 overflow-hidden">
+        {{-- Scrollable Navigation Area --}}
+        <nav class="flex-1 px-4 space-y-1.5 overflow-y-auto custom-scrollbar">
             @php
                 $navItems = [
                     ['route' => 'admin.dashboard', 'icon' => 'fas fa-chart-line', 'label' => 'Dashboard', 'desc' => 'Overview'],
@@ -48,21 +63,30 @@
                 </a>
             @endforeach
 
+            {{-- Super Admin Section --}}
             @if(isset($isSuperAdmin) && $isSuperAdmin)
-                <div class="pt-2">
-                    <p class="px-4 py-1.5 text-[9px] font-black text-gray-400 uppercase tracking-widest">System</p>
+                <div class="pt-4 pb-2 space-y-1.5">
+                    <p class="px-4 py-1.5 text-[9px] font-black text-gray-400 uppercase tracking-widest">System Management</p>
+                    
                     <a href="{{ route('admin.admins.index') }}" class="flex items-center gap-3 p-2.5 rounded-xl transition group {{ request()->routeIs('admin.admins.*') ? 'bg-gray-900 border-gray-800 border text-white' : 'hover:bg-gray-50' }}">
                         <div class="w-9 h-9 rounded-lg flex items-center justify-center {{ request()->routeIs('admin.admins.*') ? 'bg-white text-gray-900' : 'bg-gray-100 text-gray-500' }}">
                             <i class="fas fa-users-cog text-xs"></i>
                         </div>
                         <p class="font-bold text-[13px]">Manage Admins</p>
                     </a>
+
+                    <a href="{{ route('admin.logs') }}" class="flex items-center gap-3 p-2.5 rounded-xl transition group {{ request()->routeIs('admin.logs') ? 'bg-gray-900 border-gray-800 border text-white' : 'hover:bg-gray-50' }}">
+                        <div class="w-9 h-9 rounded-lg flex items-center justify-center {{ request()->routeIs('admin.logs') ? 'bg-white text-gray-900' : 'bg-gray-100 text-gray-500' }}">
+                            <i class="fas fa-history text-xs"></i>
+                        </div>
+                        <p class="font-bold text-[13px]">Activity Logs</p>
+                    </a>
                 </div>
             @endif
         </nav>
 
-        {{-- Fixed Bottom Profile with Text Logout --}}
-        <div class="p-4 border-t border-gray-50">
+        {{-- Fixed Bottom Profile --}}
+        <div class="p-4 border-t border-gray-50 mt-auto">
             <div class="bg-gray-50 rounded-2xl p-3 flex items-center gap-3">
                 <div class="h-9 w-9 rounded-xl {{ (isset($isSuperAdmin) && $isSuperAdmin) ? 'bg-gray-900' : 'bg-red-700' }} flex items-center justify-center text-white font-black shadow-sm shrink-0">
                     {{ substr(Auth::user()->First_Name, 0, 1) }}
@@ -72,7 +96,6 @@
                     <p class="text-[9px] font-bold text-gray-400 uppercase italic">Admin Access</p>
                 </div>
                 
-                {{-- Text-based Logout Button --}}
                 <form action="{{ route('logout') }}" method="POST" class="shrink-0">
                     @csrf
                     <button type="submit" class="text-[10px] font-black text-red-600 hover:text-red-800 uppercase tracking-widest px-2 py-1 transition border border-transparent hover:border-red-200 rounded-lg">
@@ -85,13 +108,13 @@
 
     {{-- Content Area --}}
     <div class="flex-1 flex flex-col relative min-w-0">
+        {{-- Header logic remains the same --}}
         <header class="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-8 shrink-0">
             <div>
                 <h1 class="text-xl font-black text-gray-900 uppercase tracking-tight leading-none">@yield('page_title', 'Admin Panel')</h1>
                 <p class="text-[9px] font-bold text-red-700 uppercase tracking-[0.2em] mt-1">Sta. Rosa Management</p>
             </div>
 
-            {{-- Access Level Info (Top Right) --}}
             <div class="flex items-center gap-3">
                 <div class="flex flex-col items-end mr-2">
                     <span class="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em] leading-none mb-1.5">Access Level</span>
@@ -116,6 +139,5 @@
             @yield('content')
         </main>
     </div>
-    
 </body>
 </html>

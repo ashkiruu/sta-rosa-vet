@@ -36,7 +36,8 @@
                     </div>
                 @endif
 
-                <form method="POST" action="{{ route('pets.store') }}" enctype="multipart/form-data" class="space-y-8">
+                {{-- Added onsubmit to trigger disable function --}}
+                <form method="POST" action="{{ route('pets.store') }}" enctype="multipart/form-data" class="space-y-8" onsubmit="return disableSubmitButton()">
                     @csrf
 
                     {{-- Form Grid --}}
@@ -143,9 +144,9 @@
                                 Back
                             </a>
 
-                            {{-- Submit Button --}}
-                            <button type="submit" 
-                                class="w-full md:w-64 bg-red-700 hover:bg-red-800 text-white font-black py-4 rounded-2xl shadow-lg transition-all active:scale-95 uppercase tracking-widest text-sm">
+                            {{-- Submit Button (ID added for targeting) --}}
+                            <button type="submit" id="petSubmitBtn"
+                                class="w-full md:w-64 bg-red-700 hover:bg-red-800 text-white font-black py-4 rounded-2xl shadow-lg transition-all active:scale-95 uppercase tracking-widest text-sm disabled:opacity-50 disabled:cursor-not-allowed">
                                 Register Pet
                             </button>
                         </div>
@@ -164,6 +165,15 @@
         const spayedOption = document.getElementById('spayedOption');
         const reproductiveHint = document.getElementById('reproductiveHint');
         
+        // Double Click Prevention Function
+        function disableSubmitButton() {
+            const btn = document.getElementById('petSubmitBtn');
+            btn.disabled = true;
+            btn.innerHTML = 'Processing...';
+            btn.classList.add('bg-gray-400');
+            return true;
+        }
+
         speciesSelect.addEventListener('change', function() {
             const selectedText = this.options[this.selectedIndex].text;
             otherSpeciesDiv.style.display = (selectedText === 'Other') ? 'block' : 'none';

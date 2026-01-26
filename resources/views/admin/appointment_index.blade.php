@@ -3,229 +3,234 @@
 @section('page_title', 'Appointment Calendar')
 
 @section('content')
-<div class="min-h-screen bg-gray-100 py-8">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="min-h-screen py-4">
+    {{-- Header --}}
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+            <h1 class="text-3xl font-black text-gray-900 uppercase tracking-tight">Clinic Schedule</h1>
+            <p class="text-[10px] font-bold text-red-600 uppercase tracking-[0.2em]">Manage daily bookings and availability</p>
+        </div>
         
-        {{-- Header --}}
-        <div class="flex justify-between items-center mb-6">
-            <div>
-                <h1 class="text-3xl font-bold text-gray-900">Appointment Calendar</h1>
-                <p class="text-sm text-gray-600">View and manage appointments by date. Click a date to open/close it.</p>
+        <div class="bg-white px-6 py-3 rounded-[1.5rem] shadow-sm border border-gray-100 flex items-center gap-4">
+            <div class="w-10 h-10 bg-red-50 text-red-600 rounded-xl flex items-center justify-center shadow-sm">
+                <i class="fas fa-calendar-check"></i>
             </div>
-            <div class="flex gap-3">
-                <span class="bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200 text-sm font-medium text-gray-700">
-                    Total Appointments: {{ $appointments->count() }}
-                </span>
+            <div>
+                <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none">Total Bookings</p>
+                <p class="text-xl font-black text-gray-900 leading-none mt-1">{{ $appointments->count() }}</p>
+            </div>
+        </div>
+    </div>
+
+    {{-- Alerts --}}
+    @if(session('success'))
+        <div class="bg-green-50 border-l-4 border-green-500 text-green-700 p-4 rounded-xl mb-6 shadow-sm flex items-center">
+            <i class="fas fa-check-circle mr-3"></i>
+            <span class="text-[10px] font-black uppercase tracking-widest">{{ session('success') }}</span>
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-xl mb-6 shadow-sm flex items-center">
+            <i class="fas fa-exclamation-triangle mr-3"></i>
+            <span class="text-[10px] font-black uppercase tracking-widest">{{ session('error') }}</span>
+        </div>
+    @endif
+
+    @if(session('info'))
+        <div class="bg-blue-50 border-l-4 border-blue-500 text-blue-700 p-4 rounded-xl mb-6 shadow-sm flex items-center">
+            <i class="fas fa-info-circle mr-3"></i>
+            <span class="text-[10px] font-black uppercase tracking-widest">{{ session('info') }}</span>
+        </div>
+    @endif
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {{-- Left Column: Calendar & Stats --}}
+        <div class="lg:col-span-4 space-y-6">
+            
+            {{-- Calendar Card --}}
+            <div class="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
+                <div class="bg-gray-900 text-white px-8 py-6 flex justify-between items-center">
+                    <button onclick="changeMonth(-1)" class="w-8 h-8 flex items-center justify-center hover:bg-gray-700 rounded-xl transition text-white/70 hover:text-white">
+                        <i class="fas fa-chevron-left text-xs"></i>
+                    </button>
+                    <h2 class="text-xs font-black uppercase tracking-[0.2em]" id="currentMonth"></h2>
+                    <button onclick="changeMonth(1)" class="w-8 h-8 flex items-center justify-center hover:bg-gray-700 rounded-xl transition text-white/70 hover:text-white">
+                        <i class="fas fa-chevron-right text-xs"></i>
+                    </button>
+                </div>
+
+                <div class="p-6">
+                    <div class="grid grid-cols-7 gap-1 mb-4">
+                        <div class="text-center text-[9px] font-black text-red-400 uppercase py-2">Sun</div>
+                        <div class="text-center text-[9px] font-black text-gray-400 uppercase py-2">Mon</div>
+                        <div class="text-center text-[9px] font-black text-gray-400 uppercase py-2">Tue</div>
+                        <div class="text-center text-[9px] font-black text-gray-400 uppercase py-2">Wed</div>
+                        <div class="text-center text-[9px] font-black text-gray-400 uppercase py-2">Thu</div>
+                        <div class="text-center text-[9px] font-black text-gray-400 uppercase py-2">Fri</div>
+                        <div class="text-center text-[9px] font-black text-red-400 uppercase py-2">Sat</div>
+                    </div>
+                    <div class="grid grid-cols-7 gap-1" id="calendarDays"></div>
+                </div>
+
+                <div class="px-6 pb-6 pt-2 border-t border-gray-50 bg-gray-50/30">
+                    <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3">Status Legend</p>
+                    <div class="grid grid-cols-2 gap-y-3">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-gray-300"></span>
+                            <span class="text-[9px] font-bold text-gray-500 uppercase">Closed</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_5px_rgba(250,204,21,0.5)]"></span>
+                            <span class="text-[9px] font-bold text-gray-500 uppercase">Has Pending</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]"></span>
+                            <span class="text-[9px] font-bold text-gray-500 uppercase">Approved</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]"></span>
+                            <span class="text-[9px] font-bold text-gray-500 uppercase">Full</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Today's Overview Stats --}}
+            <div class="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6">
+                <h3 class="text-[10px] font-black text-gray-900 uppercase tracking-widest mb-4 border-b border-gray-50 pb-3">Daily Snapshot</h3>
+                
+                @php
+                    $todayStr = now()->format('Y-m-d');
+                    $todayAppointments = $appointments->filter(function($appt) use ($todayStr) {
+                        return $appt->Date === $todayStr;
+                    });
+                    $pendingToday = $todayAppointments->where('Status', 'Pending')->count();
+                    $approvedToday = $todayAppointments->where('Status', 'Approved')->count();
+                    $qrReleasedToday = $todayAppointments->where('qr_released', true)->count();
+                @endphp
+
+                <div class="space-y-4">
+                    <div class="flex justify-between items-end">
+                        <span class="text-[10px] font-bold text-gray-400 uppercase">Total Today</span>
+                        <span class="text-xl font-black text-gray-900 leading-none">{{ $todayAppointments->count() }}</span>
+                    </div>
+                    <div class="flex justify-between items-end">
+                        <span class="text-[10px] font-bold text-yellow-600 uppercase">Pending Review</span>
+                        <span class="text-xl font-black text-yellow-500 leading-none">{{ $pendingToday }}</span>
+                    </div>
+                    <div class="flex justify-between items-end">
+                        <span class="text-[10px] font-bold text-green-600 uppercase">Confirmed</span>
+                        <span class="text-xl font-black text-green-500 leading-none">{{ $approvedToday }}</span>
+                    </div>
+                    <div class="flex justify-between items-end pt-2 border-t border-gray-50">
+                        <span class="text-[10px] font-bold text-blue-600 uppercase">QR Sent</span>
+                        <span class="text-xl font-black text-blue-500 leading-none">{{ $qrReleasedToday }}</span>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Guide --}}
+            <div class="bg-blue-50 rounded-[1.5rem] p-6 border border-blue-100">
+                <h4 class="text-[10px] font-black text-blue-800 uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <i class="fas fa-info-circle"></i> Manager Tip
+                </h4>
+                <p class="text-[10px] font-bold text-blue-600 leading-relaxed uppercase">
+                    Click any date to view details. Use the "Close Day" button to block online bookings for holidays.
+                </p>
             </div>
         </div>
 
-        @if(session('success'))
-            <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg mb-6">
-                {{ session('success') }}
-            </div>
-        @endif
-
-        @if(session('error'))
-            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-6">
-                {{ session('error') }}
-            </div>
-        @endif
-
-        @if(session('info'))
-            <div class="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded-lg mb-6">
-                {{ session('info') }}
-            </div>
-        @endif
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {{-- Calendar Section --}}
-            <div class="lg:col-span-1">
-                <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
-                    {{-- Calendar Header --}}
-                    <div class="bg-red-700 text-white px-6 py-4">
-                        <div class="flex justify-between items-center">
-                            <button onclick="changeMonth(-1)" class="p-2 hover:bg-red-600 rounded-lg transition">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                                </svg>
-                            </button>
-                            <h2 class="text-xl font-bold" id="currentMonth"></h2>
-                            <button onclick="changeMonth(1)" class="p-2 hover:bg-red-600 rounded-lg transition">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                                </svg>
-                            </button>
-                        </div>
+        {{-- Right Column: Detailed List --}}
+        <div class="lg:col-span-8">
+            <div class="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden min-h-[600px] flex flex-col">
+                
+                {{-- Dynamic Date Header --}}
+                <div class="bg-white border-b border-gray-50 px-8 py-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h3 class="text-xl font-black text-gray-900 uppercase tracking-tight" id="selectedDateTitle">Select a Date</h3>
+                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1" id="selectedDateSubtitle">View schedule details</p>
                     </div>
-
-                    {{-- Calendar Grid --}}
-                    <div class="p-4">
-                        {{-- Day Headers --}}
-                        <div class="grid grid-cols-7 gap-1 mb-2">
-                            <div class="text-center text-xs font-semibold text-red-400 py-2">Sun</div>
-                            <div class="text-center text-xs font-semibold text-gray-500 py-2">Mon</div>
-                            <div class="text-center text-xs font-semibold text-gray-500 py-2">Tue</div>
-                            <div class="text-center text-xs font-semibold text-gray-500 py-2">Wed</div>
-                            <div class="text-center text-xs font-semibold text-gray-500 py-2">Thu</div>
-                            <div class="text-center text-xs font-semibold text-gray-500 py-2">Fri</div>
-                            <div class="text-center text-xs font-semibold text-red-400 py-2">Sat</div>
+                    
+                    <div class="flex items-center gap-3">
+                        <div id="appointmentCount" class="hidden">
+                            <span class="bg-gray-900 text-white px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm" id="countBadge">0</span>
                         </div>
-                        {{-- Calendar Days --}}
-                        <div class="grid grid-cols-7 gap-1" id="calendarDays"></div>
+                        
+                        {{-- Hidden inputs for JS --}}
+                        <div id="toggleDateBtn" style="display: none;"></div>
                     </div>
+                </div>
 
-                    {{-- Legend --}}
-                    <div class="px-4 pb-4">
-                        <div class="border-t pt-4">
-                            <p class="text-xs font-semibold text-gray-500 mb-2">LEGEND</p>
-                            <div class="grid grid-cols-2 gap-2 text-xs">
-                                <div class="flex items-center gap-1">
-                                    <span class="w-3 h-3 rounded bg-gray-300"></span>
-                                    <span class="text-gray-600">Closed</span>
-                                </div>
-                                <div class="flex items-center gap-1">
-                                    <span class="w-3 h-3 rounded-full bg-yellow-400"></span>
-                                    <span class="text-gray-600">Has Pending</span>
-                                </div>
-                                <div class="flex items-center gap-1">
-                                    <span class="w-3 h-3 rounded-full bg-green-500"></span>
-                                    <span class="text-gray-600">Approved</span>
-                                </div>
-                                <div class="flex items-center gap-1">
-                                    <span class="w-3 h-3 rounded-full bg-red-500"></span>
-                                    <span class="text-gray-600">Fully Booked</span>
-                                </div>
-                            </div>
+                {{-- Time Slots Matrix --}}
+                <div class="p-8 border-b border-gray-50 bg-gray-50/30" id="timeSlotsSection" style="display: none;">
+                    <h4 class="text-[10px] font-black text-gray-900 uppercase tracking-widest mb-4">Availability Matrix</h4>
+                    <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mb-6" id="timeSlotsGrid"></div>
+                    
+                    <div class="flex flex-wrap gap-4 pt-2">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded bg-green-100 border border-green-200"></span>
+                            <span class="text-[9px] font-black text-green-700 uppercase tracking-wider">Open</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded bg-yellow-100 border border-yellow-200"></span>
+                            <span class="text-[9px] font-black text-yellow-700 uppercase tracking-wider">Pending</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded bg-blue-100 border border-blue-200"></span>
+                            <span class="text-[9px] font-black text-blue-700 uppercase tracking-wider">Approved</span>
                         </div>
                     </div>
                 </div>
 
-                {{-- Quick Stats --}}
-                <div class="mt-6 bg-white rounded-xl shadow-lg p-6 border border-gray-200">
-                    <h3 class="font-bold text-gray-800 mb-4">Today's Overview</h3>
-                    @php
-                        $todayStr = now()->format('Y-m-d');
-                        $todayAppointments = $appointments->filter(function($appt) use ($todayStr) {
-                            return $appt->Date === $todayStr;
-                        });
-                        $pendingToday = $todayAppointments->where('Status', 'Pending')->count();
-                        $approvedToday = $todayAppointments->where('Status', 'Approved')->count();
-                        $qrReleasedToday = $todayAppointments->where('qr_released', true)->count();
-                    @endphp
-                    <div class="space-y-3">
-                        <div class="flex justify-between items-center">
-                            <span class="text-gray-600">Total Today</span>
-                            <span class="font-bold text-gray-900">{{ $todayAppointments->count() }}</span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-yellow-600">Pending</span>
-                            <span class="font-bold text-yellow-600">{{ $pendingToday }}</span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-green-600">Approved</span>
-                            <span class="font-bold text-green-600">{{ $approvedToday }}</span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-blue-600">QR Released</span>
-                            <span class="font-bold text-blue-600">{{ $qrReleasedToday }}</span>
-                        </div>
+                {{-- Closed State --}}
+                <div class="flex-1 flex flex-col justify-center items-center p-12 hidden" id="closedDayMessage">
+                    <div class="w-20 h-20 bg-red-50 rounded-[2rem] flex items-center justify-center mb-6 text-red-400">
+                        <i class="fas fa-lock text-3xl"></i>
                     </div>
+                    <h3 class="text-sm font-black text-gray-900 uppercase tracking-widest mb-2">Clinic Closed</h3>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase mb-6 tracking-widest">No appointments can be booked</p>
+                    
+                    <form id="openDayForm" method="POST" action="{{ route('admin.schedule.toggle') }}">
+                        @csrf
+                        <input type="hidden" name="date" id="openDayDate">
+                        <input type="hidden" name="action" value="open">
+                        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition shadow-lg shadow-green-200 flex items-center gap-2">
+                            <i class="fas fa-unlock"></i> Open Schedule
+                        </button>
+                    </form>
                 </div>
 
-                {{-- Schedule Management Info --}}
-                <div class="mt-6 bg-blue-50 rounded-xl p-4 border border-blue-200">
-                    <h4 class="font-semibold text-blue-800 mb-2">📅 Schedule Management</h4>
-                    <p class="text-sm text-blue-700">Click on any date to open or close it for appointments. Saturdays and Sundays are closed by default.</p>
-                </div>
-            </div>
-
-            {{-- Appointments List Section --}}
-            <div class="lg:col-span-2">
-                <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
-                    {{-- Selected Date Header --}}
-                    <div class="bg-gray-800 text-white px-6 py-4">
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <h3 class="text-lg font-bold" id="selectedDateTitle">Select a date</h3>
-                                <p class="text-gray-300 text-sm" id="selectedDateSubtitle">Click on a date to view appointments</p>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <div id="appointmentCount" class="hidden">
-                                    <span class="bg-white text-gray-800 px-3 py-1 rounded-full text-sm font-bold" id="countBadge">0</span>
-                                </div>
-                                <div id="toggleDateBtn" style="display: none;">
-                                    {{-- Will be populated by JavaScript --}}
-                                </div>
-                            </div>
+                {{-- Appointments Container --}}
+                <div id="appointmentsContainer" class="flex-1 flex flex-col">
+                    
+                    {{-- Empty State --}}
+                    <div class="flex-1 flex flex-col justify-center items-center p-12 text-center" id="noDateSelected">
+                        <div class="w-20 h-20 bg-gray-50 rounded-[2rem] flex items-center justify-center mb-6 border border-gray-100">
+                            <i class="fas fa-mouse-pointer text-3xl text-gray-300"></i>
                         </div>
+                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Select a date to begin</p>
                     </div>
 
-                    {{-- Time Slots Grid --}}
-                    <div class="p-6" id="timeSlotsSection" style="display: none;">
-                        <h4 class="font-semibold text-gray-700 mb-3">Time Slots Overview</h4>
-                        <div class="grid grid-cols-4 sm:grid-cols-6 gap-2 mb-6" id="timeSlotsGrid">
-                            {{-- Time slots will be populated by JavaScript --}}
-                        </div>
-                        <div class="flex gap-4 text-xs text-gray-500 mb-4">
-                            <div class="flex items-center gap-1">
-                                <span class="w-3 h-3 rounded bg-green-100 border border-green-300"></span>
-                                <span>Available</span>
-                            </div>
-                            <div class="flex items-center gap-1">
-                                <span class="w-3 h-3 rounded bg-yellow-100 border border-yellow-300"></span>
-                                <span>Pending</span>
-                            </div>
-                            <div class="flex items-center gap-1">
-                                <span class="w-3 h-3 rounded bg-blue-100 border border-blue-300"></span>
-                                <span>Approved</span>
-                            </div>
-                        </div>
-                    </div>
+                    {{-- List --}}
+                    <div id="appointmentsList" class="divide-y divide-gray-50 w-full hidden"></div>
 
-                    {{-- Closed Day Message --}}
-                    <div class="p-6 text-center" id="closedDayMessage" style="display: none;">
-                        <div class="text-6xl mb-4">🚫</div>
-                        <h3 class="text-xl font-semibold text-gray-700 mb-2">Clinic Closed</h3>
-                        <p class="text-gray-500 mb-4">This day is currently closed for appointments.</p>
-                        <form id="openDayForm" method="POST" action="{{ route('admin.schedule.toggle') }}" class="inline">
+                    {{-- No Appointments State --}}
+                    <div id="noAppointments" class="flex-1 flex flex-col justify-center items-center p-12 text-center hidden">
+                        <div class="w-20 h-20 bg-green-50 rounded-[2rem] flex items-center justify-center mb-6 text-green-400">
+                            <i class="fas fa-check text-3xl"></i>
+                        </div>
+                        <p class="text-[10px] font-black text-gray-900 uppercase tracking-widest mb-1">Schedule Clear</p>
+                        <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-6">No bookings for this date</p>
+                        
+                        <form id="closeDayForm" method="POST" action="{{ route('admin.schedule.toggle') }}">
                             @csrf
-                            <input type="hidden" name="date" id="openDayDate">
-                            <input type="hidden" name="action" value="open">
-                            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition">
-                                🔓 Open This Day
+                            <input type="hidden" name="date" id="closeDayDate">
+                            <input type="hidden" name="action" value="close">
+                            <button type="submit" class="bg-gray-900 hover:bg-gray-800 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition shadow-lg flex items-center gap-2">
+                                <i class="fas fa-lock"></i> Close Schedule
                             </button>
                         </form>
-                    </div>
-
-                    {{-- Appointments List --}}
-                    <div class="border-t" id="appointmentsContainer">
-                        <div class="p-6 text-center text-gray-500" id="noDateSelected">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            <p class="font-medium">Select a date from the calendar</p>
-                            <p class="text-sm">to view appointments for that day</p>
-                        </div>
-
-                        <div id="appointmentsList" class="divide-y divide-gray-200" style="display: none;">
-                            {{-- Appointments will be populated by JavaScript --}}
-                        </div>
-
-                        <div id="noAppointments" class="p-6 text-center text-gray-500" style="display: none;">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <p class="font-medium">No appointments for this date</p>
-                            <p class="text-sm">All time slots are available</p>
-                            <form id="closeDayForm" method="POST" action="{{ route('admin.schedule.toggle') }}" class="inline mt-4">
-                                @csrf
-                                <input type="hidden" name="date" id="closeDayDate">
-                                <input type="hidden" name="action" value="close">
-                                <button type="submit" class="mt-4 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
-                                    🔒 Close This Day
-                                </button>
-                            </form>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -234,86 +239,50 @@
 </div>
 
 <script>
-    // Store appointments data from PHP
     const allAppointments = @json($appointments);
-    
-    // Store schedule configuration
     const schedule = @json($schedule);
-    const defaultClosedDays = schedule.default_closed_days || [0, 6]; // Sunday = 0, Saturday = 6
+    const defaultClosedDays = schedule.default_closed_days || [0, 6]; 
     const openedDates = schedule.opened_dates || [];
     const closedDates = schedule.closed_dates || [];
     
-    // Time slots configuration - must match the user booking page exactly
     const timeSlots = [
         '08:00', '08:10', '08:20', '08:30', '08:45',
         '09:00', '09:10', '09:20', '09:30', '09:40', '09:50',
         '10:00', '10:10', '10:20', '10:30', '10:40', '10:45'
     ];
 
-    // Calendar state
     let currentDate = new Date();
     let selectedDate = null;
 
-    // Check if a date is closed
     function isDateClosed(dateStr) {
         const date = new Date(dateStr + 'T00:00:00');
         const dayOfWeek = date.getDay();
-        
-        // Check if explicitly opened (overrides default closed days)
-        if (openedDates.includes(dateStr)) {
-            return false;
-        }
-        
-        // Check if explicitly closed
-        if (closedDates.includes(dateStr)) {
-            return true;
-        }
-        
-        // Check default closed days (weekends)
+        if (openedDates.includes(dateStr)) return false;
+        if (closedDates.includes(dateStr)) return true;
         return defaultClosedDays.includes(dayOfWeek);
     }
 
-    // Initialize calendar
-    function initCalendar() {
-        renderCalendar();
-    }
+    function initCalendar() { renderCalendar(); }
 
-    // Render calendar
     function renderCalendar() {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
-        
-        // Update header
-        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
-                          'July', 'August', 'September', 'October', 'November', 'December'];
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
         document.getElementById('currentMonth').textContent = `${monthNames[month]} ${year}`;
         
-        // Get first day of month and total days
         const firstDay = new Date(year, month, 1).getDay();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
         
-        // Group appointments by date
         const appointmentsByDate = {};
         allAppointments.forEach(appt => {
-            let date = appt.Date;
-            if (date && date.includes('T')) {
-                date = date.split('T')[0];
-            }
-            if (!appointmentsByDate[date]) {
-                appointmentsByDate[date] = [];
-            }
+            let date = appt.Date.split('T')[0];
+            if (!appointmentsByDate[date]) appointmentsByDate[date] = [];
             appointmentsByDate[date].push(appt);
         });
         
-        // Build calendar HTML
         let html = '';
+        for (let i = 0; i < firstDay; i++) html += '<div class="p-2"></div>';
         
-        // Empty cells for days before first day of month
-        for (let i = 0; i < firstDay; i++) {
-            html += '<div class="p-2"></div>';
-        }
-        
-        // Days of the month
         const today = new Date();
         for (let day = 1; day <= daysInMonth; day++) {
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -321,77 +290,60 @@
             const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
             const isSelected = selectedDate === dateStr;
             const isClosed = isDateClosed(dateStr);
-            const dayOfWeek = new Date(dateStr + 'T00:00:00').getDay();
-            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
             
-            // Determine day status
-            let statusClass = 'bg-gray-50 hover:bg-gray-100 text-gray-700';
+            let statusClass = 'bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold text-xs';
             let dotHtml = '';
             
             if (isClosed) {
-                // Closed day - grey out
-                statusClass = 'bg-gray-200 text-gray-400 cursor-pointer hover:bg-gray-300';
-                if (isWeekend) {
-                    statusClass = 'bg-gray-300 text-gray-500 cursor-pointer hover:bg-gray-400';
-                }
+                statusClass = 'bg-gray-100 text-gray-300 cursor-pointer hover:bg-gray-200 text-xs font-medium';
             } else if (dayAppointments.length > 0) {
                 const hasPending = dayAppointments.some(a => a.Status === 'Pending');
                 const hasApproved = dayAppointments.some(a => a.Status === 'Approved');
                 const isFullyBooked = dayAppointments.length >= 17;
                 
                 if (isFullyBooked) {
-                    statusClass = 'bg-red-100 hover:bg-red-200 text-red-800';
-                    dotHtml = '<span class="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-red-500"></span>';
+                    statusClass = 'bg-red-50 hover:bg-red-100 text-red-600 border border-red-100';
+                    dotHtml = '<span class="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-red-500"></span>';
                 } else if (hasPending) {
-                    statusClass = 'bg-yellow-100 hover:bg-yellow-200 text-yellow-800';
-                    dotHtml = '<span class="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-yellow-500"></span>';
+                    statusClass = 'bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border border-yellow-100';
+                    dotHtml = '<span class="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-yellow-500"></span>';
                 } else if (hasApproved) {
-                    statusClass = 'bg-green-100 hover:bg-green-200 text-green-800';
-                    dotHtml = '<span class="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-green-500"></span>';
+                    statusClass = 'bg-green-50 hover:bg-green-100 text-green-700 border border-green-100';
+                    dotHtml = '<span class="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-green-500"></span>';
                 }
             }
             
             if (isToday && !isClosed) {
-                statusClass = 'bg-red-600 text-white hover:bg-red-700';
-                dotHtml = '';
+                statusClass = 'bg-gray-900 text-white hover:bg-black shadow-lg';
             }
             
             if (isSelected) {
-                statusClass = 'bg-gray-800 text-white hover:bg-gray-900 ring-2 ring-offset-2 ring-gray-800';
-                dotHtml = '';
+                statusClass = 'bg-red-600 text-white hover:bg-red-700 shadow-lg ring-2 ring-red-200 ring-offset-2';
             }
             
             html += `
-                <button 
-                    onclick="selectDate('${dateStr}')" 
-                    class="relative p-2 text-center rounded-lg font-medium transition ${statusClass}"
-                    title="${isClosed ? 'Closed - Click to open' : 'Open - Click to view'}"
-                >
+                <button onclick="selectDate('${dateStr}')" class="relative h-10 w-full rounded-xl transition-all ${statusClass}">
                     ${day}
                     ${dotHtml}
-                    ${dayAppointments.length > 0 && !isClosed ? `<span class="absolute top-0 right-0 text-[10px] font-bold">${dayAppointments.length}</span>` : ''}
-                    ${isClosed ? '<span class="absolute top-0 right-0 text-[8px]">🔒</span>' : ''}
+                    ${dayAppointments.length > 0 && !isClosed ? `<span class="absolute -top-1 -right-1 w-4 h-4 bg-white text-gray-900 rounded-full text-[8px] font-black flex items-center justify-center shadow-sm border border-gray-100">${dayAppointments.length}</span>` : ''}
+                    ${isClosed ? '<i class="fas fa-lock absolute top-1 right-1 text-[6px]"></i>' : ''}
                 </button>
             `;
         }
-        
         document.getElementById('calendarDays').innerHTML = html;
     }
 
-    // Change month
     function changeMonth(delta) {
         currentDate.setMonth(currentDate.getMonth() + delta);
         renderCalendar();
     }
 
-    // Select a date
     function selectDate(dateStr) {
         selectedDate = dateStr;
         renderCalendar();
         showAppointmentsForDate(dateStr);
     }
 
-    // Show appointments for selected date
     function showAppointmentsForDate(dateStr) {
         const date = new Date(dateStr + 'T00:00:00');
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -399,53 +351,40 @@
         
         document.getElementById('selectedDateTitle').textContent = date.toLocaleDateString('en-US', options);
         
-        // Filter appointments for this date
         const dayAppointments = allAppointments.filter(appt => {
-            let apptDate = appt.Date;
-            if (apptDate && apptDate.includes('T')) {
-                apptDate = apptDate.split('T')[0];
-            }
-            return apptDate === dateStr;
+            return (appt.Date && appt.Date.split('T')[0] === dateStr);
         });
         
-        // Update hidden form fields for date toggle
         document.getElementById('openDayDate').value = dateStr;
         document.getElementById('closeDayDate').value = dateStr;
         
         if (isClosed) {
-            // Show closed day message
-            document.getElementById('selectedDateSubtitle').textContent = '🔒 Clinic is CLOSED';
+            document.getElementById('selectedDateSubtitle').textContent = 'Clinic Operations Suspended';
             document.getElementById('appointmentCount').classList.add('hidden');
             document.getElementById('timeSlotsSection').style.display = 'none';
             document.getElementById('noDateSelected').style.display = 'none';
             document.getElementById('appointmentsList').style.display = 'none';
             document.getElementById('noAppointments').style.display = 'none';
-            document.getElementById('closedDayMessage').style.display = 'block';
+            document.getElementById('closedDayMessage').style.display = 'flex';
             document.getElementById('appointmentsContainer').style.display = 'none';
         } else {
-            // Show appointments
             document.getElementById('closedDayMessage').style.display = 'none';
-            document.getElementById('appointmentsContainer').style.display = 'block';
+            document.getElementById('appointmentsContainer').style.display = 'flex';
             
             document.getElementById('selectedDateSubtitle').textContent = 
-                dayAppointments.length > 0 
-                    ? `${dayAppointments.length} appointment(s) scheduled`
-                    : 'No appointments scheduled - Clinic is OPEN';
+                dayAppointments.length > 0 ? 'Managing scheduled visits' : 'Schedule is open for bookings';
             
-            // Show count badge
             document.getElementById('appointmentCount').classList.remove('hidden');
-            document.getElementById('countBadge').textContent = dayAppointments.length;
+            document.getElementById('countBadge').textContent = dayAppointments.length + ' Bookings';
             
-            // Show time slots section
             document.getElementById('timeSlotsSection').style.display = 'block';
             renderTimeSlots(dayAppointments);
             
-            // Hide "no date selected" message
             document.getElementById('noDateSelected').style.display = 'none';
             
             if (dayAppointments.length === 0) {
                 document.getElementById('appointmentsList').style.display = 'none';
-                document.getElementById('noAppointments').style.display = 'block';
+                document.getElementById('noAppointments').style.display = 'flex';
             } else {
                 document.getElementById('noAppointments').style.display = 'none';
                 document.getElementById('appointmentsList').style.display = 'block';
@@ -454,171 +393,119 @@
         }
     }
 
-    // Render time slots grid
     function renderTimeSlots(dayAppointments) {
         const takenSlots = {};
         dayAppointments.forEach(appt => {
             let time = appt.Time;
-            if (time && time.length > 5) {
-                time = time.substring(0, 5);
-            }
             if (time) {
-                const [hours, minutes] = time.split(':');
-                const normalizedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-                takenSlots[normalizedTime] = appt.Status;
+                const [h, m] = time.substring(0, 5).split(':');
+                takenSlots[`${h}:${m}`] = appt.Status;
             }
         });
         
         let html = '';
         timeSlots.forEach(slot => {
             const status = takenSlots[slot];
-            let slotClass = 'bg-green-50 border-green-200 text-green-700';
-            let statusText = '';
+            let slotClass = 'bg-gray-50 border-gray-200 text-gray-400';
+            let icon = '';
             
-            if (status === 'Pending') {
-                slotClass = 'bg-yellow-50 border-yellow-300 text-yellow-700';
-                statusText = '⏳';
+            if (!status) {
+                slotClass = 'bg-green-50 border-green-200 text-green-700'; // Available
+            } else if (status === 'Pending') {
+                slotClass = 'bg-yellow-50 border-yellow-200 text-yellow-700';
             } else if (status === 'Approved') {
-                slotClass = 'bg-blue-50 border-blue-300 text-blue-700';
-                statusText = '✓';
-            } else if (status === 'Cancelled') {
-                slotClass = 'bg-gray-50 border-gray-200 text-gray-400 line-through';
+                slotClass = 'bg-blue-50 border-blue-200 text-blue-700';
             }
             
-            const [hours, minutes] = slot.split(':');
-            const hour12 = hours % 12 || 12;
-            const ampm = hours < 12 ? 'AM' : 'PM';
-            const displayTime = `${hour12}:${minutes}`;
+            const [h, m] = slot.split(':');
+            const ampm = h < 12 ? 'AM' : 'PM';
+            const displayTime = `${h % 12 || 12}:${m}`;
             
             html += `
-                <div class="text-center p-2 rounded border text-xs font-medium ${slotClass}" title="${slot} - ${status || 'Available'}">
-                    ${displayTime} ${ampm} ${statusText}
+                <div class="text-center py-2 rounded-xl border text-[10px] font-black ${slotClass}">
+                    ${displayTime} ${ampm}
                 </div>
             `;
         });
-        
         document.getElementById('timeSlotsGrid').innerHTML = html;
     }
 
-    // Render appointments list
     function renderAppointmentsList(appointments) {
         appointments.sort((a, b) => a.Time.localeCompare(b.Time));
         
         let html = '';
         appointments.forEach(appt => {
-            const timeParts = appt.Time.split(':');
-            const hour12 = timeParts[0] % 12 || 12;
-            const ampm = timeParts[0] < 12 ? 'AM' : 'PM';
-            const formattedTime = `${hour12}:${timeParts[1]} ${ampm}`;
+            const [h, m] = appt.Time.substring(0, 5).split(':');
+            const ampm = h < 12 ? 'AM' : 'PM';
+            const formattedTime = `${h % 12 || 12}:${m} ${ampm}`;
             
             let statusBadge = '';
-            if (appt.Status === 'Pending') {
-                statusBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                    <span class="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse"></span> Pending
-                </span>`;
-            } else if (appt.Status === 'Approved') {
-                statusBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    <span class="w-1.5 h-1.5 rounded-full bg-green-400"></span> Approved
-                </span>`;
-            }
-            
-            // QR Release Status Badge
-            let qrBadge = '';
-            if (appt.Status === 'Approved') {
-                if (appt.qr_released) {
-                    qrBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 ml-1">
-                        📱 QR Sent
-                    </span>`;
-                } else {
-                    qrBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 ml-1">
-                        ⏳ QR Pending
-                    </span>`;
-                }
-            }
-            
             let actionButtons = '';
+            
             if (appt.Status === 'Pending') {
+                statusBadge = `<span class="inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black bg-yellow-50 text-yellow-700 border border-yellow-100 uppercase tracking-widest"><span class="w-1.5 h-1.5 rounded-full bg-yellow-500 mr-2 animate-pulse"></span> Pending</span>`;
+                
                 actionButtons = `
-                    <div class="flex gap-2 mt-2">
-                        <form action="/admin/appointments/${appt.Appointment_ID}/approve" method="POST" class="inline">
+                    <div class="flex gap-2 mt-3">
+                        <form action="/admin/appointments/${appt.Appointment_ID}/approve" method="POST" class="flex-1">
                             <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-md text-xs font-medium transition shadow-sm">
-                                ✓ Approve
-                            </button>
+                            <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition shadow-sm">Approve</button>
                         </form>
-                        <form action="/admin/appointments/${appt.Appointment_ID}/reject" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to decline this appointment?');">
+                        <form action="/admin/appointments/${appt.Appointment_ID}/reject" method="POST" class="flex-1" onsubmit="return confirm('Decline this appointment?');">
                             <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="bg-white border border-red-200 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-md text-xs font-medium transition">
-                                ✗ Decline
-                            </button>
+                            <button type="submit" class="w-full bg-white border border-red-100 text-red-600 hover:bg-red-50 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition">Decline</button>
                         </form>
                     </div>
                 `;
             } else if (appt.Status === 'Approved') {
+                statusBadge = `<span class="inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black bg-green-50 text-green-700 border border-green-100 uppercase tracking-widest"><span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-2"></span> Approved</span>`;
+                
                 if (appt.qr_released) {
-                    actionButtons = `
-                        <p class="text-blue-600 text-xs font-medium mt-2">✓ QR code has been sent to patient</p>
-                    `;
+                    actionButtons = `<div class="mt-3 p-2 bg-blue-50 rounded-xl text-center border border-blue-100"><p class="text-[9px] font-black text-blue-600 uppercase tracking-widest"><i class="fas fa-check-circle mr-1"></i> QR Sent</p></div>`;
                 } else {
                     actionButtons = `
-                        <div class="flex gap-2 mt-2">
-                            <form action="/admin/appointments/${appt.Appointment_ID}/release-qr" method="POST" class="inline">
-                                <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-xs font-medium transition shadow-sm">
-                                    📱 Release QR Code
-                                </button>
-                            </form>
-                        </div>
-                        <p class="text-gray-400 text-xs italic mt-1">Click when patient arrives</p>
+                        <form action="/admin/appointments/${appt.Appointment_ID}/release-qr" method="POST" class="mt-3">
+                            <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="w-full bg-gray-900 hover:bg-blue-600 text-white py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition shadow-sm flex items-center justify-center gap-2">
+                                <i class="fas fa-qrcode"></i> Release QR
+                            </button>
+                        </form>
                     `;
                 }
             }
-            
+
             html += `
-                <div class="p-4 hover:bg-gray-50 transition">
-                    <div class="flex items-start justify-between">
-                        <div class="flex items-start gap-4">
-                            <div class="flex-shrink-0 w-16 text-center">
-                                <div class="text-lg font-bold text-gray-900">${formattedTime.split(' ')[0]}</div>
-                                <div class="text-xs text-gray-500">${formattedTime.split(' ')[1]}</div>
-                            </div>
-                            <div class="flex-shrink-0 h-12 w-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold text-lg">
-                                ${appt.user ? appt.user.First_Name.charAt(0) : '?'}
+                <div class="p-6 hover:bg-gray-50/50 transition group">
+                    <div class="flex flex-col sm:flex-row justify-between gap-6">
+                        <div class="flex gap-4">
+                            <div class="flex flex-col items-center justify-center w-14 h-14 bg-gray-100 rounded-2xl text-gray-900 font-black border border-gray-200">
+                                <span class="text-lg leading-none">${h % 12 || 12}</span>
+                                <span class="text-[9px] uppercase tracking-widest text-gray-500">${ampm}</span>
                             </div>
                             <div>
-                                <div class="font-semibold text-gray-900">
-                                    ${appt.user ? appt.user.First_Name + ' ' + appt.user.Last_Name : 'Unknown User'}
-                                </div>
-                                <div class="text-sm text-indigo-600 font-medium">
-                                    🐾 ${appt.pet ? appt.pet.Pet_Name : 'Unknown Pet'}
-                                </div>
-                                <div class="text-sm text-gray-500 mt-1">
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
-                                        ${appt.service ? appt.service.Service_Name : 'Unknown Service'}
-                                    </span>
+                                <h4 class="text-sm font-black text-gray-900 uppercase tracking-tight">${appt.user ? appt.user.First_Name + ' ' + appt.user.Last_Name : 'Unknown User'}</h4>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wide">🐾 ${appt.pet ? appt.pet.Pet_Name : 'Unknown Pet'}</span>
+                                    <span class="text-gray-300">•</span>
+                                    <span class="text-[10px] font-bold text-blue-600 uppercase tracking-wide bg-blue-50 px-2 py-0.5 rounded-lg">${appt.service ? appt.service.Service_Name : 'Service'}</span>
                                 </div>
                             </div>
                         </div>
-                        <div class="text-right">
-                            <div class="mb-2">${statusBadge}${qrBadge}</div>
+                        <div class="w-full sm:w-48 flex flex-col items-end">
+                            ${statusBadge}
                             ${actionButtons}
                         </div>
                     </div>
                 </div>
             `;
         });
-        
         document.getElementById('appointmentsList').innerHTML = html;
     }
 
-    // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
         initCalendar();
-        
-        // Auto-select today
         const today = new Date();
-        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        selectDate(todayStr);
+        selectDate(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`);
     });
 </script>
 @endsection
