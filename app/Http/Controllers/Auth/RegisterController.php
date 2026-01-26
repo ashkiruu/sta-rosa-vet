@@ -18,6 +18,8 @@ use Illuminate\Support\Str;
 use Google\Cloud\Storage\StorageClient;
 use App\Services\GcsStorageService;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\Process\Process;
+
 
 
 
@@ -150,11 +152,69 @@ class RegisterController extends Controller
         return false;
     }
 
+    private function normalizeIdImageToJpeg(\Illuminate\Http\UploadedFile $file): array
+    {
+        $tmpDir = storage_path('app/tmp/ids');
+        if (!is_dir($tmpDir)) {
+            @mkdir($tmpDir, 0755, true);
+        }
+
+        $outPath = $tmpDir . '/' . \Illuminate\Support\Str::uuid() . '.jpg';
+        $inPath  = $file->getRealPath();
+
+        // Detect whether ImageMagick uses `magick` or `convert`
+        $bin = 'magick';
+        $probe = new \Symfony\Component\Process\Process([$bin, '-version']);
+        $probe->run();
+        if (!$probe->isSuccessful()) {
+            $bin = 'convert';
+        }
+
+        $cmd = [
+            $bin,
+            $inPath,
+            '-auto-orient',
+            '-resize', '2000x2000>',
+            '-strip',
+            '-quality', '85',
+            $outPath,
+        ];
+
+        $process = new \Symfony\Component\Process\Process($cmd);
+        $process->setTimeout(25);
+        $process->run();
+
+        if (
+            !$process->isSuccessful() ||
+            !file_exists($outPath) ||
+            filesize($outPath) === 0
+        ) {
+            \Log::error('IMAGE_NORMALIZATION_FAILED', [
+                'bin'      => $bin,
+                'stderr'  => $process->getErrorOutput(),
+                'stdout'  => $process->getOutput(),
+                'mime'    => $file->getMimeType(),
+                'orig'    => $file->getClientOriginalName(),
+                'size'    => $file->getSize(),
+            ]);
+
+            throw new \RuntimeException(
+                'Image normalization failed. ImageMagick/HEIC support missing or input invalid.'
+            );
+        }
+
+        return [
+            'path' => $outPath,
+            'mime' => 'image/jpeg',
+            'ext'  => 'jpg',
+        ];
+    }
+
 
     public function postStep2(Request $request, IDVerificationService $mlService, GcsStorageService $gcs)
     {
         $request->validate([
-            'id_file' => 'nullable|image|mimes:jpg,jpeg,png|max:5120',
+            'id_file' => 'nullable|file|mimetypes:image/jpeg,image/png,image/heic,image/heif|max:8192'
         ]);
 
         // Handle the "Skip" logic
@@ -181,9 +241,13 @@ class RegisterController extends Controller
 
         $file = $request->file('id_file');
 
+        $normalized = $this->normalizeIdImageToJpeg($file);
+        $absolutePath = $normalized['path']; // used for ML + OCR
+
         // ---------- NEW: Store a persistent copy in GCS ----------
         // Safer unique filename
-        $filename = 'id_' . now()->format('Ymd_His') . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
+        $filename = 'id_' . now()->format('Ymd_His') . '_' . Str::random(10) . '.jpg';
+
 
         // ===============================
         // GCS UPLOAD (TMP - UBLA SAFE)
@@ -206,11 +270,15 @@ class RegisterController extends Controller
 
             // Upload WITHOUT ACL / visibility (UBLA-compliant)
             $bucket->upload(
-                fopen($file->getRealPath(), 'r'),
+                fopen($absolutePath, 'r'), // ✅ normalized jpg
                 [
                     'name' => $gcsPath,
+                    'metadata' => [
+                        'contentType' => 'image/jpeg',
+                    ],
                 ]
             );
+
 
         } catch (\Throwable $e) {
             \Log::error('GCS_UPLOAD_EXCEPTION', [
@@ -225,28 +293,24 @@ class RegisterController extends Controller
 
         \Log::info('AFTER_GCS_UPLOAD', ['gcs_path' => $gcsPath]);
 
-        // ===============================
-        // LOCAL TEMP COPY (ML / OCR)
-        // ===============================
-        $localPath = $file->store('ids', 'public'); // storage/app/public/ids/...
-        $absolutePath = storage_path('app/public/' . $localPath);
+
 
         // ===============================
         // CLEANUP HELPER
         // ===============================
-        $cleanupFiles = function () use ($localPath, $gcsPath, $bucket) {
+        $cleanupFiles = function () use ($absolutePath, $gcsPath, $bucket) {
 
             \Log::warning('CLEANUP_CALLED', [
-                'local' => $localPath,
-                'gcs'   => $gcsPath,
+                'local_abs' => $absolutePath,
+                'gcs'       => $gcsPath,
             ]);
 
-            // Delete local temp
-            if ($localPath) {
-                Storage::disk('public')->delete($localPath);
+            // ✅ Delete normalized local temp
+            if ($absolutePath && file_exists($absolutePath)) {
+                @unlink($absolutePath);
             }
 
-            // Delete GCS object
+            // Delete GCS tmp object
             if ($gcsPath) {
                 $object = $bucket->object($gcsPath);
                 if ($object->exists()) {
@@ -254,6 +318,7 @@ class RegisterController extends Controller
                 }
             }
         };
+
 
         // ============================================
         // STEP 1: ML DOCUMENT AUTHENTICITY CHECK
@@ -683,7 +748,7 @@ class RegisterController extends Controller
     public function processReverify(Request $request)
     {
         $request->validate([
-            'id_file' => 'required|image|mimes:jpg,jpeg,png|max:5120',
+            'id_file' => 'nullable|file|mimetypes:image/jpeg,image/png,image/heic,image/heif|max:8192',
         ]);
 
         $user = Auth::user();
