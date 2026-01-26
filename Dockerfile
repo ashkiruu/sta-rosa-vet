@@ -5,8 +5,8 @@ FROM php:8.2-cli AS vendor
 
 # ✅ Increase upload limits for mobile photos (iOS/Android)
 RUN { \
-  echo "upload_max_filesize=25M"; \
-  echo "post_max_size=30M"; \
+  echo "upload_max_filesize=100M"; \
+  echo "post_max_size=100M"; \
   echo "max_file_uploads=20"; \
   echo "memory_limit=512M"; \
   echo "max_execution_time=180"; \
