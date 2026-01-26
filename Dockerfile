@@ -3,15 +3,16 @@
 # =========================
 FROM php:8.2-cli AS vendor
 
-# ✅ Increase upload limits for mobile photos (iOS/Android)
+# ✅ Increase upload limits (RUNTIME)
 RUN { \
-  echo "upload_max_filesize=100M"; \
-  echo "post_max_size=100M"; \
+  echo "upload_max_filesize=25M"; \
+  echo "post_max_size=30M"; \
   echo "max_file_uploads=20"; \
   echo "memory_limit=512M"; \
   echo "max_execution_time=180"; \
   echo "max_input_time=180"; \
 } > /usr/local/etc/php/conf.d/uploads.ini
+
 
 
 #RUN echo "LimitRequestBody 0" >> /etc/apache2/apache2.conf
@@ -54,6 +55,17 @@ RUN npm run build
 # 3) Runtime stage (Apache + PHP)
 # =========================
 FROM php:8.2-apache
+
+# ✅ Increase upload limits (RUNTIME)
+RUN { \
+  echo "upload_max_filesize=25M"; \
+  echo "post_max_size=30M"; \
+  echo "max_file_uploads=20"; \
+  echo "memory_limit=512M"; \
+  echo "max_execution_time=180"; \
+  echo "max_input_time=180"; \
+} > /usr/local/etc/php/conf.d/uploads.ini
+
 
 ENV PORT=8080
 RUN sed -i 's/Listen 80/Listen 8080/g' /etc/apache2/ports.conf \

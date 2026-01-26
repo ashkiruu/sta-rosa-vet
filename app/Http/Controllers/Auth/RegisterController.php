@@ -226,12 +226,15 @@ class RegisterController extends Controller
             'files' => array_keys($request->allFiles()),
             'php_upload_max' => ini_get('upload_max_filesize'),
             'php_post_max' => ini_get('post_max_size'),
+            'loaded_ini' => php_ini_loaded_file(),
+            'scanned_ini' => php_ini_scanned_files(),
             'content_length' => $request->server('CONTENT_LENGTH'),
         ]);
 
+
         $request->validate([
             // ✅ allow HEIC/HEIF from iPhone/iPad, and bigger size for mobile
-            'id_file' => 'nullable|file|mimetypes:image/jpeg,image/png,image/heic,image/heif|max:1024000',
+            'id_file' => 'nullable|file|mimetypes:image/jpeg,image/png,image/heic,image/heif|max:20480',
         ]);
 
         // ✅ Skip logic
@@ -780,7 +783,7 @@ class RegisterController extends Controller
     {
         // ✅ reverify must require an upload
         $request->validate([
-            'id_file' => 'required|file|mimetypes:image/jpeg,image/png,image/heic,image/heif|max:1024000',
+            'id_file' => 'required|file|mimetypes:image/jpeg,image/png,image/heic,image/heif|max:20480',
         ]);
 
         $user = Auth::user();
