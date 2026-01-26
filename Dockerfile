@@ -14,6 +14,8 @@ RUN { \
 } > /usr/local/etc/php/conf.d/uploads.ini
 
 
+RUN echo "LimitRequestBody 0" >> /etc/apache2/apache2.conf
+
 RUN apt-get update && apt-get install -y \
     git unzip \
     libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
@@ -22,7 +24,7 @@ RUN apt-get update && apt-get install -y \
  && docker-php-ext-install pdo_mysql zip gd exif intl bcmath mbstring xml opcache \
  && rm -rf /var/lib/apt/lists/*
 
-RUN echo "LimitRequestBody 0" >> /etc/apache2/apache2.conf
+
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
