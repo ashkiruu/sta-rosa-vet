@@ -5,12 +5,12 @@ FROM php:8.2-cli AS vendor
 
 # ✅ Increase upload limits for mobile photos (iOS/Android)
 RUN { \
-  echo "upload_max_filesize=20M"; \
-  echo "post_max_size=25M"; \
+  echo "upload_max_filesize=25M"; \
+  echo "post_max_size=30M"; \
   echo "max_file_uploads=20"; \
   echo "memory_limit=512M"; \
-  echo "max_execution_time=120"; \
-  echo "max_input_time=120"; \
+  echo "max_execution_time=180"; \
+  echo "max_input_time=180"; \
 } > /usr/local/etc/php/conf.d/uploads.ini
 
 
@@ -21,6 +21,8 @@ RUN apt-get update && apt-get install -y \
  && docker-php-ext-configure gd --with-freetype --with-jpeg \
  && docker-php-ext-install pdo_mysql zip gd exif intl bcmath mbstring xml opcache \
  && rm -rf /var/lib/apt/lists/*
+
+RUN echo "LimitRequestBody 0" >> /etc/apache2/apache2.conf
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
