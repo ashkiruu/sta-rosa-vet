@@ -14,7 +14,7 @@ RUN { \
 } > /usr/local/etc/php/conf.d/uploads.ini
 
 
-RUN echo "LimitRequestBody 0" >> /etc/apache2/apache2.conf
+#RUN echo "LimitRequestBody 0" >> /etc/apache2/apache2.conf
 
 RUN apt-get update && apt-get install -y \
     git unzip \
