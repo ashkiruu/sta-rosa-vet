@@ -777,7 +777,17 @@ class RegisterController extends Controller
                 'CertificateType_ID'    => 1,
                 'Document_Image_Path'   => $finalGcsPath, // ✅ FINAL PATH IN GCS
                 'Extracted_Text'        => json_encode(trim(strval($ocrText))),
-                'Parsed_Data'           => json_encode(['first' => $firstNameScore, 'last' => $lastNameScore]),
+                'Parsed_Data' => json_encode([
+                                    'fuzzy_scores' => [
+                                        'first_name'  => $firstNameScore,
+                                        'last_name'   => $lastNameScore,
+                                        'middle_name' => 0,
+                                        'address'     => $addressScore,
+                                    ],
+                                    'ml_confidence' => 0,
+                                    'ml_check_passed' => false,
+                                    'verification_method' => 'reverify_ocr_only',
+                                ]),
                 'Confidence_Score'      => $totalScore,
                 'Address_Match_Status'  => ($addressScore >= 0.7 ? 'Matched' : 'Discrepancy'),
                 'Created_Date'          => now(),
@@ -821,6 +831,11 @@ class RegisterController extends Controller
         // Copy then delete (GCS "rename")
         $src->copy($bucket, ['name' => $toObjectName]);
         $src->delete();
+        \Log::info('REVERIFY_FINALIZED', [
+            'user' => $user->User_ID,
+            'final_gcs_path' => $finalGcsPath,
+        ]);
+
 
         return $toObjectName;
     }

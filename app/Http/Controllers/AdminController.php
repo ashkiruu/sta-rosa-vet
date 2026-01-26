@@ -107,23 +107,28 @@ class AdminController extends Controller
 
     public function showUser($id)
     {
-        $user = User::with('ocrData')->findOrFail($id);
+        $user = User::findOrFail($id);
         $pets = Pet::where('Owner_ID', $id)->get();
+
+        // ✅ Always use latest processing record (registration OR reverify)
+        $latestProcessing = \App\Models\MlOcrProcessing::where('User_ID', $user->User_ID)
+            ->orderByDesc('Created_Date')
+            ->first();
 
         $idImageUrl = null;
         try {
-            $idImageUrl = $this->gcsSignedUrl($user->ocrData?->Document_Image_Path, 10);
+            $idImageUrl = $this->gcsSignedUrl($latestProcessing?->Document_Image_Path, 10);
         } catch (\Throwable $e) {
             \Log::error('GCS_SIGNED_URL_ERROR', [
                 'message' => $e->getMessage(),
-                'path' => $user->ocrData?->Document_Image_Path,
+                'path' => $latestProcessing?->Document_Image_Path,
                 'user' => $user->User_ID,
             ]);
-            $idImageUrl = null;
         }
 
-        return view('admin.user_details', compact('user', 'pets', 'idImageUrl'));
+        return view('admin.user_details', compact('user', 'pets', 'idImageUrl', 'latestProcessing'));
     }
+
 
 
     public function approveUser($id)
