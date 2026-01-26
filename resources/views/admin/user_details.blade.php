@@ -108,7 +108,16 @@
                             @if($user->ocrData->Document_Image_Path)
                                 <div class="bg-gray-50 rounded-[1.5rem] p-4 border border-gray-100">
                                     <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center mb-4">Original Document Scan</p>
-                                    <img src="{{ Storage::url($user->ocrData->Document_Image_Path) }}" class="w-full rounded-xl shadow-md border border-white">
+                                    @if($idImageUrl)
+                                        <img src="{{ $idImageUrl }}" class="w-full rounded-xl shadow-md border border-white">
+                                    @else
+                                        <div class="text-center py-6">
+                                            <p class="text-[10px] font-bold text-gray-400 uppercase italic">
+                                                ID image is unavailable (missing file or signed URL error).
+                                            </p>
+                                        </div>
+                                    @endif
+
                                 </div>
                             @else
                                 <div class="text-center py-6">

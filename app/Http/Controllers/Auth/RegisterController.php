@@ -657,6 +657,9 @@ class RegisterController extends Controller
             ]);
             return back()->withErrors(['error' => 'Registration failed: ' . $e->getMessage()]);
         }
+
+        // Finalize ID image: move from tmp to user-owned folder in GCS
+
     }
 
 
@@ -684,13 +687,49 @@ class RegisterController extends Controller
         ]);
 
         $user = Auth::user();
-        
-        // Process File
-        $path = $request->file('id_file')->store('ids', 'public');
-        $absolutePath = storage_path('app/public/' . $path);
+        $file = $request->file('id_file');
+
+        // ---------- Upload to GCS tmp (UBLA-safe) ----------
+        $filename = 'reverify_' . now()->format('Ymd_His') . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
+
+        $bucketName = env('GOOGLE_CLOUD_STORAGE_BUCKET');
+        $projectId  = env('GOOGLE_CLOUD_PROJECT_ID', env('GCLOUD_PROJECT'));
+
+        $storage = new StorageClient(['projectId' => $projectId]);
+        $bucket  = $storage->bucket($bucketName);
+
+        $tmpGcsPath = 'ids/id_uploads/tmp/' . $filename;
 
         try {
-             $ocr = new \thiagoalessio\TesseractOCR\TesseractOCR($absolutePath);
+            $bucket->upload(
+                fopen($file->getRealPath(), 'r'),
+                ['name' => $tmpGcsPath]
+            );
+        } catch (\Throwable $e) {
+            \Log::error('GCS_REVERIFY_UPLOAD_FAIL', [
+                'message' => $e->getMessage(),
+                'user' => $user->User_ID,
+                'tmp' => $tmpGcsPath,
+            ]);
+            return back()->withErrors(['id_file' => 'Upload failed. Please try again.']);
+        }
+
+        // ---------- Keep local temp for OCR ----------
+        $localPath = $file->store('ids', 'public');
+        $absolutePath = storage_path('app/public/' . $localPath);
+
+        $cleanup = function () use ($localPath, $bucket, $tmpGcsPath) {
+            if ($localPath) {
+                Storage::disk('public')->delete($localPath);
+            }
+            if ($tmpGcsPath) {
+                $obj = $bucket->object($tmpGcsPath);
+                if ($obj->exists()) $obj->delete();
+            }
+        };
+
+        try {
+            $ocr = new \thiagoalessio\TesseractOCR\TesseractOCR($absolutePath);
 
             if (stripos(PHP_OS, 'WIN') === 0) {
                 $ocr->executable('C:\Program Files\Tesseract-OCR\tesseract.exe');
@@ -700,34 +739,45 @@ class RegisterController extends Controller
 
             $ocrText = $ocr->run();
 
-
-
             if (empty(trim($ocrText))) {
-                Storage::disk('public')->delete($path);
+                $cleanup();
                 return back()->withErrors(['id_file' => 'No readable text found. Please upload a clearer photo.']);
             }
 
-            // --- Reuse your existing scoring logic ---
+            // ---- your scoring logic (kept same) ----
             $normalizedOcr = $this->normalizeText($ocrText);
             $ocrTokens = explode(' ', $normalizedOcr);
 
             $firstNameScore = $this->getCompositeScore($user->First_Name, $ocrTokens);
             $lastNameScore  = $this->getCompositeScore($user->Last_Name, $ocrTokens);
-            $addressScore   = 0.5; // Default or run your address logic here
+            $addressScore   = 0.5; // keep your current placeholder
 
             $totalScore = ($lastNameScore * 0.40) + ($firstNameScore * 0.35) + ($addressScore * 0.25);
-            $statusID = ($totalScore >= 0.7) ? 2 : 1; 
+            $statusID = ($totalScore >= 0.7) ? 2 : 1;
 
-            // Update User
+            // ---------- Move GCS tmp -> final (copy+delete) ----------
+            $finalGcsPath = 'ids/id_uploads/users/' . $user->User_ID . '/reverify/' . $filename;
+
+            $src = $bucket->object($tmpGcsPath);
+            if (!$src->exists()) {
+                throw new \RuntimeException("GCS tmp object missing during finalize: {$tmpGcsPath}");
+            }
+
+            $src->copy($bucket, ['name' => $finalGcsPath]);
+            $src->delete();
+
+            // local temp no longer needed
+            Storage::disk('public')->delete($localPath);
+
+            // ---------- Update user + persist OCR row with FINAL path ----------
             $user->update(['Verification_Status_ID' => $statusID]);
 
-            // Save to ML table
             MlOcrProcessing::create([
                 'User_ID'               => $user->User_ID,
                 'CertificateType_ID'    => 1,
-                'Document_Image_Path'   => $path,
-                'Extracted_Text'        => json_encode(trim(strval($ocrText))), 
-                'Parsed_Data'           => json_encode(['first' => $firstNameScore, 'last' => $lastNameScore]), 
+                'Document_Image_Path'   => $finalGcsPath, // ✅ FINAL PATH IN GCS
+                'Extracted_Text'        => json_encode(trim(strval($ocrText))),
+                'Parsed_Data'           => json_encode(['first' => $firstNameScore, 'last' => $lastNameScore]),
                 'Confidence_Score'      => $totalScore,
                 'Address_Match_Status'  => ($addressScore >= 0.7 ? 'Matched' : 'Discrepancy'),
                 'Created_Date'          => now(),
@@ -735,15 +785,24 @@ class RegisterController extends Controller
 
             if ($statusID == 2) {
                 return redirect()->route('dashboard')->with('success', 'Verification successful! You can now book appointments.');
-            } else {
-                return redirect()->route('dashboard')->with('warning', 'ID uploaded, but details did not match perfectly. Admin will review it.');
             }
 
-        } catch (\Exception $e) {
-            Storage::disk('public')->delete($path);
+            return redirect()->route('dashboard')->with('warning', 'ID uploaded, but details did not match perfectly. Admin will review it.');
+
+        } catch (\Throwable $e) {
+            \Log::error('REVERIFY_PROCESSING_ERROR', [
+                'message' => $e->getMessage(),
+                'user' => $user->User_ID,
+                'tmp' => $tmpGcsPath,
+            ]);
+
+            // delete both local + tmp
+            $cleanup();
+
             return back()->withErrors(['id_file' => 'Error processing ID: ' . $e->getMessage()]);
-        };
+        }
     }
+
 
     private function gcsMoveObject(string $fromObjectName, string $toObjectName): string
     {

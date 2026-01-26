@@ -20,6 +20,9 @@ use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Google\Cloud\Storage\StorageClient;
+use Illuminate\Support\Facades\Log;
+
 
 class AdminController extends Controller
 {
@@ -29,10 +32,30 @@ class AdminController extends Controller
     
     private const DEFAULT_CLOSED_DAYS = [0, 6];
     
+    private function gcsSignedUrl(?string $objectName, int $minutes = 10): ?string
+    {
+        if (empty($objectName)) return null;
+
+        $bucketName = env('GOOGLE_CLOUD_STORAGE_BUCKET');
+        $projectId  = env('GOOGLE_CLOUD_PROJECT_ID', env('GCLOUD_PROJECT'));
+
+        $storage = new StorageClient(['projectId' => $projectId]);
+        $bucket  = $storage->bucket($bucketName);
+
+        $obj = $bucket->object($objectName);
+
+        if (!$obj->exists()) {
+            Log::warning('GCS_ID_IMAGE_MISSING', ['object' => $objectName]);
+            return null;
+        }
+
+        return $obj->signedUrl(new \DateTime("+{$minutes} minutes"));
+    }
+
     // =====================================================
     // DASHBOARD
     // =====================================================
-
+    
     public function index()
     {
         return view('admin.dashboard', ['stats' => $this->getBaseStats()]);
@@ -86,8 +109,22 @@ class AdminController extends Controller
     {
         $user = User::with('ocrData')->findOrFail($id);
         $pets = Pet::where('Owner_ID', $id)->get();
-        return view('admin.user_details', compact('user', 'pets'));
+
+        $idImageUrl = null;
+        try {
+            $idImageUrl = $this->gcsSignedUrl($user->ocrData?->Document_Image_Path, 10);
+        } catch (\Throwable $e) {
+            \Log::error('GCS_SIGNED_URL_ERROR', [
+                'message' => $e->getMessage(),
+                'path' => $user->ocrData?->Document_Image_Path,
+                'user' => $user->User_ID,
+            ]);
+            $idImageUrl = null;
+        }
+
+        return view('admin.user_details', compact('user', 'pets', 'idImageUrl'));
     }
+
 
     public function approveUser($id)
     {
