@@ -226,7 +226,7 @@ class RegisterController extends Controller
 
         $request->validate([
             // ✅ allow HEIC/HEIF from iPhone/iPad, and bigger size for mobile
-            'id_file' => 'nullable|file|mimetypes:image/jpeg,image/png,image/heic,image/heif|max:20480',
+            'id_file' => 'nullable|file|mimetypes:image/jpeg,image/png,image/heic,image/heif|max:102400',
         ]);
 
         // ✅ Skip logic
@@ -775,7 +775,7 @@ class RegisterController extends Controller
     {
         // ✅ reverify must require an upload
         $request->validate([
-            'id_file' => 'required|file|mimetypes:image/jpeg,image/png,image/heic,image/heif|max:20480',
+            'id_file' => 'required|file|mimetypes:image/jpeg,image/png,image/heic,image/heif|max:102400',
         ]);
 
         $user = Auth::user();
