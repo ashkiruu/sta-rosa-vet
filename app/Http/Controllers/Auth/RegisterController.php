@@ -140,7 +140,12 @@ class RegisterController extends Controller
             'STA. ROSA',
             'SANTA ROSA CITY',
             'STA ROSA CITY',
-            'LAGUNA'
+            'LAGUNA',
+            'SANTA ROSA, LAGUNA',
+            'CITY OF SANTA ROSA',
+            'CITY OF STA ROSA',
+            'SANTA ROSA LAGUNA',
+            'CITY OF SANTA ROSA, LAGUNA'
         ];
 
         foreach ($allowedKeywords as $keyword) {
