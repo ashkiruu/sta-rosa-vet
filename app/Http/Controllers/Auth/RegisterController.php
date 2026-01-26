@@ -16,6 +16,10 @@ use Illuminate\Validation\Rules\Password;
 use App\Services\IDVerificationService; 
 use Illuminate\Support\Str;
 use Google\Cloud\Storage\StorageClient;
+use App\Services\GcsStorageService;
+use Illuminate\Support\Facades\Log;
+
+
 
 
 
@@ -37,7 +41,7 @@ class RegisterController extends Controller
         return redirect()->route('register.step1');
     }
 
-  public function step1()
+    public function step1()
     {
         if (!session('register.notice_accepted')) {
             return redirect()->route('register.notice');
@@ -147,7 +151,7 @@ class RegisterController extends Controller
     }
 
 
-    public function postStep2(Request $request, IDVerificationService $mlService)
+    public function postStep2(Request $request, IDVerificationService $mlService, GcsStorageService $gcs)
     {
         $request->validate([
             'id_file' => 'nullable|image|mimes:jpg,jpeg,png|max:5120',
@@ -181,68 +185,75 @@ class RegisterController extends Controller
         // Safer unique filename
         $filename = 'id_' . now()->format('Ymd_His') . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
 
-        // This will go under: gs://bucket/ids/id_uploads/tmp/<filename>
+        // ===============================
+        // GCS UPLOAD (TMP - UBLA SAFE)
+        // ===============================
         \Log::info('BEFORE_GCS_UPLOAD');
 
+        $bucketName = env('GOOGLE_CLOUD_STORAGE_BUCKET');
+        $projectId  = env('GOOGLE_CLOUD_PROJECT_ID', env('GCLOUD_PROJECT'));
+        $prefix     = trim((string) env('GOOGLE_CLOUD_STORAGE_PATH_PREFIX', ''), '/');
+
+        // Final object name inside bucket
+        $gcsPath = ($prefix !== '' ? $prefix . '/' : '') . 'id_uploads/tmp/' . $filename;
+
         try {
-            $bucketName = env('GOOGLE_CLOUD_STORAGE_BUCKET');
-            $projectId  = env('GOOGLE_CLOUD_PROJECT_ID', env('GCLOUD_PROJECT'));
-            $prefix     = trim((string) env('GOOGLE_CLOUD_STORAGE_PATH_PREFIX', ''), '/');
+            $storage = new StorageClient([
+                'projectId' => $projectId,
+            ]);
 
-            $objectName = ($prefix !== '' ? $prefix . '/' : '') . 'id_uploads/tmp/' . $filename;
+            $bucket = $storage->bucket($bucketName);
 
-            $storage = new StorageClient(['projectId' => $projectId]);
-            $bucket  = $storage->bucket($bucketName);
-
-            // Upload without any ACL field (UBLA-safe)
+            // Upload WITHOUT ACL / visibility (UBLA-compliant)
             $bucket->upload(
                 fopen($file->getRealPath(), 'r'),
                 [
-                    'name' => $objectName,
-                    // DO NOT set 'predefinedAcl'
-                    // DO NOT set 'acl'
+                    'name' => $gcsPath,
                 ]
             );
 
-            // store gcs path relative to bucket prefix (or store full objectName—your choice)
-            $gcsPath = $objectName;
+        } catch (\Throwable $e) {
+            \Log::error('GCS_UPLOAD_EXCEPTION', [
+                'message' => $e->getMessage(),
+                'class'   => get_class($e),
+                'bucket'  => $bucketName,
+                'path'    => $gcsPath,
+            ]);
 
-
-            } catch (\Throwable $e) {
-                \Log::error('GCS_UPLOAD_EXCEPTION', [
-                    'message' => $e->getMessage(),
-                    'class' => get_class($e),
-                    'bucket' => config('filesystems.disks.gcs.bucket'),
-                    'project' => config('filesystems.disks.gcs.project_id'),
-                    'prefix' => config('filesystems.disks.gcs.path_prefix'),
-                ]);
-                throw $e;
+            throw $e;
         }
 
         \Log::info('AFTER_GCS_UPLOAD', ['gcs_path' => $gcsPath]);
 
-
-
-        // ---------- Keep local copy for ML/OCR processing (existing approach) ----------
+        // ===============================
+        // LOCAL TEMP COPY (ML / OCR)
+        // ===============================
         $localPath = $file->store('ids', 'public'); // storage/app/public/ids/...
         $absolutePath = storage_path('app/public/' . $localPath);
 
-        // Helper for cleanup (delete both)
-       $cleanupFiles = function () use ($localPath, $gcsPath, $bucket) {
+        // ===============================
+        // CLEANUP HELPER
+        // ===============================
+        $cleanupFiles = function () use ($localPath, $gcsPath, $bucket) {
+
             \Log::warning('CLEANUP_CALLED', [
                 'local' => $localPath,
-                'gcs' => $gcsPath
+                'gcs'   => $gcsPath,
             ]);
 
+            // Delete local temp
             if ($localPath) {
                 Storage::disk('public')->delete($localPath);
             }
+
+            // Delete GCS object
             if ($gcsPath) {
-                $obj = $bucket->object($gcsPath);
-                if ($obj->exists()) $obj->delete();
+                $object = $bucket->object($gcsPath);
+                if ($object->exists()) {
+                    $object->delete();
+                }
             }
         };
-
 
         // ============================================
         // STEP 1: ML DOCUMENT AUTHENTICITY CHECK
@@ -531,14 +542,29 @@ class RegisterController extends Controller
         $step1 = session('register.step1');
         $step2 = session('register.step2');
 
-        if (!$step1 || !$step2) {
-            return redirect()->route('register.step1')->withErrors(['error' => 'Session expired. Please start over.']);
+        if (!$step1) {
+            return redirect()->route('register.step1')
+                ->withErrors(['error' => 'Please complete Step 1 first.']);
         }
+
+        // If Step2 missing, treat as skipped
+        $step2 = $step2 ?? [
+            'id_file_path' => null,
+            'id_file_disk' => null,
+            'verification_status_id' => 3,
+            'confidence_score' => 0,
+            'ml_confidence' => 0,
+            'ml_check_passed' => false,
+            'verification_method' => null,
+            'raw_text' => '',
+            'address_score' => 0,
+            'scores' => [],
+        ];
 
         DB::beginTransaction();
 
         try {
-            // 1. Save to 'users' table
+            // 1) Save to 'users' table
             $user = \App\Models\User::create([
                 'Barangay_ID'            => $step1['Barangay_ID'],
                 'Verification_Status_ID' => $step2['verification_status_id'] ?? 3,
@@ -554,12 +580,52 @@ class RegisterController extends Controller
                 'Registration_Date'      => now(),
             ]);
 
-            // 2. Save to 'ml_ocr_processing' table
-            if (!empty($step2['id_file_path'])) {
+            // 2) FINALIZE GCS PATH (tmp -> users/{User_ID})
+            $finalGcsPath = $step2['id_file_path'] ?? null;
+
+            if (!empty($step2['id_file_path']) && ($step2['id_file_disk'] ?? null) === 'gcs') {
+
+                $bucketName = env('GOOGLE_CLOUD_STORAGE_BUCKET');
+                $projectId  = env('GOOGLE_CLOUD_PROJECT_ID', env('GCLOUD_PROJECT'));
+
+                $storage = new StorageClient(['projectId' => $projectId]);
+                $bucket  = $storage->bucket($bucketName);
+
+                $tmpPath = $step2['id_file_path']; // includes prefix already, e.g. ids/id_uploads/tmp/xxx.jpg
+                $filename = basename($tmpPath);
+
+                $finalPath = 'ids/id_uploads/users/' . $user->User_ID . '/' . $filename;
+
+                \Log::info('GCS_FINALIZE_MOVE_START', [
+                    'from' => $tmpPath,
+                    'to'   => $finalPath,
+                    'user' => $user->User_ID,
+                ]);
+
+                $src = $bucket->object($tmpPath);
+
+                if (!$src->exists()) {
+                    throw new \RuntimeException("GCS tmp object not found: {$tmpPath}");
+                }
+
+                // copy then delete (rename pattern)
+                $src->copy($bucket, ['name' => $finalPath]);
+                $src->delete();
+
+                $finalGcsPath = $finalPath;
+
+                \Log::info('GCS_FINALIZE_MOVE_DONE', [
+                    'final' => $finalGcsPath,
+                    'user'  => $user->User_ID,
+                ]);
+            }
+
+            // 3) Save to 'ml_ocr_processing' table (store FINAL path)
+            if (!empty($finalGcsPath)) {
                 \App\Models\MlOcrProcessing::create([
                     'User_ID'               => $user->User_ID,
                     'CertificateType_ID'    => 1,
-                    'Document_Image_Path'   => $step2['id_file_path'],
+                    'Document_Image_Path'   => $finalGcsPath, // ✅ FINAL PATH
                     'Extracted_Text'        => json_encode(trim(strval($step2['raw_text'] ?? ''))),
                     'Parsed_Data'           => json_encode([
                         'fuzzy_scores' => $step2['scores'] ?? [],
@@ -576,16 +642,23 @@ class RegisterController extends Controller
             DB::commit();
 
             Auth::login($user);
-            session()->forget('register');
+
+            // Clear only the register session keys you use
+            session()->forget('register.step1');
+            session()->forget('register.step2');
 
             return redirect()->route('dashboard')->with('success', 'Registration complete!');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('REGISTRATION_ERROR', ['error' => $e->getMessage()]);
+            \Log::error('REGISTRATION_ERROR', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return back()->withErrors(['error' => 'Registration failed: ' . $e->getMessage()]);
         }
     }
+
 
     /**
      * Show the standalone verification form for logged-in users
@@ -671,6 +744,28 @@ class RegisterController extends Controller
             return back()->withErrors(['id_file' => 'Error processing ID: ' . $e->getMessage()]);
         };
     }
+
+    private function gcsMoveObject(string $fromObjectName, string $toObjectName): string
+    {
+        $bucketName = env('GOOGLE_CLOUD_STORAGE_BUCKET');
+        $projectId  = env('GOOGLE_CLOUD_PROJECT_ID', env('GCLOUD_PROJECT'));
+
+        $storage = new StorageClient(['projectId' => $projectId]);
+        $bucket  = $storage->bucket($bucketName);
+
+        $src = $bucket->object($fromObjectName);
+
+        if (!$src->exists()) {
+            throw new \RuntimeException("GCS source object not found: {$fromObjectName}");
+        }
+
+        // Copy then delete (GCS "rename")
+        $src->copy($bucket, ['name' => $toObjectName]);
+        $src->delete();
+
+        return $toObjectName;
+    }
+
 }
 
 
