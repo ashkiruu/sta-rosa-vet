@@ -67,6 +67,47 @@
                             <x-input-error :messages="$errors->get('Last_Name')" class="mt-1" />
                         </div>
 
+                        {{-- Birthdate --}}
+                        <div>
+                            <x-input-label for="Birthdate" value="Date of Birth" class="text-red-700 font-black uppercase text-[10px]" />
+                            <x-text-input id="Birthdate" name="Birthdate" type="date" value="{{ old('Birthdate', $data['Birthdate'] ?? '') }}" 
+                                class="block mt-1 w-full border-gray-200 focus:border-red-500 focus:ring-red-500 rounded-xl bg-gray-50/50" required 
+                                max="{{ now()->subYears(18)->format('Y-m-d') }}" />
+                            <x-input-error :messages="$errors->get('Birthdate')" class="mt-1" />
+                        </div>
+
+                        {{-- Civil Status --}}
+                        <div>
+                            <x-input-label for="Civil_Status" value="Civil Status" class="text-red-700 font-black uppercase text-[10px]" />
+                            <select id="Civil_Status" name="Civil_Status" 
+                                class="mt-1 block w-full border-gray-200 rounded-xl focus:border-red-500 focus:ring-red-500 shadow-sm bg-gray-50/50 py-2.5" required>
+                                <option value="">Select Civil Status</option>
+                                @php 
+                                    $civilStatuses = ['Single', 'Married', 'Widowed', 'Separated', 'Divorced'];
+                                    $selectedCivil = old('Civil_Status', $data['Civil_Status'] ?? '');
+                                @endphp
+                                @foreach($civilStatuses as $status)
+                                    <option value="{{ $status }}" {{ $selectedCivil === $status ? 'selected' : '' }}>
+                                        {{ $status }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get('Civil_Status')" class="mt-1" />
+                        </div>
+
+                        {{-- Years of Residency --}}
+                        <div>
+                            <x-input-label for="Years_Of_Residency" value="Years of Residency in Sta. Rosa" class="text-red-700 font-black uppercase text-[10px]" />
+                            <x-text-input id="Years_Of_Residency" name="Years_Of_Residency" type="number" 
+                                value="{{ old('Years_Of_Residency', $data['Years_Of_Residency'] ?? '') }}" 
+                                class="block mt-1 w-full border-gray-200 focus:border-red-500 focus:ring-red-500 rounded-xl bg-gray-50/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                                placeholder="e.g. 5"
+                                min="0" 
+                                max="100"
+                                required />
+                            <x-input-error :messages="$errors->get('Years_Of_Residency')" class="mt-1" />
+                        </div>
+
                         {{-- Mobile Number --}}
                         <div>
                             <x-input-label for="Contact_Number" value="Mobile Number" class="text-red-700 font-black uppercase text-[10px]" />
@@ -82,7 +123,7 @@
                         <div>
                             <x-input-label for="Barangay_ID" value="Barangay" class="text-red-700 font-black uppercase text-[10px]" />
                             <select id="Barangay_ID" name="Barangay_ID" 
-                                class="mt-1 block w-full border-gray-200 rounded-xl focus:border-red-500 focus:ring-red-500 shadow-sm bg-gray-50/50 py-2.5">
+                                class="mt-1 block w-full border-gray-200 rounded-xl focus:border-red-500 focus:ring-red-500 shadow-sm bg-gray-50/50 py-2.5" required>
                                 <option value="">Select Barangay</option>
                                 @foreach($barangays as $barangay)
                                     @php $step1 = session('register.step1', []); @endphp
@@ -112,7 +153,8 @@
                             <x-input-label for="Address" value="House No. / Street / Subd." class="text-red-700 font-black uppercase text-[10px]" />
                             @php $step1 = $step1 ?? session('register.step1', []); @endphp
                             <textarea id="Address" name="Address" rows="2"
-                                class="mt-1 block w-full border-gray-200 rounded-xl focus:border-red-500 focus:ring-red-500 shadow-sm bg-gray-50/50">{{ old('Address', $step1['Address'] ?? '') }}</textarea>
+                                class="mt-1 block w-full border-gray-200 rounded-xl focus:border-red-500 focus:ring-red-500 shadow-sm bg-gray-50/50" required>{{ old('Address', $step1['Address'] ?? '') }}</textarea>
+                            <x-input-error :messages="$errors->get('Address')" class="mt-1" />
                         </div>
                     </div>
 

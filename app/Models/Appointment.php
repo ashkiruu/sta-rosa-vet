@@ -14,12 +14,29 @@ class Appointment extends Model
     public $incrementing = true;
 
     protected $fillable = [
-    'User_ID', 'Pet_ID', 'Service_ID', 'Date', 'Time', 'Location', 'Status', 'Special_Notes'
-];
+        'User_ID', 'Pet_ID', 'Service_ID', 'Date', 'Time', 'Location', 'Status', 'Special_Notes'
+    ];
 
     protected $casts = [
-        'Date' => 'date',
+        // Use immutable date to prevent timezone shifting
+        // This treats the date as a pure date without time component
+        'Date' => 'date:Y-m-d',
     ];
+
+    /**
+     * Get the Date attribute without timezone conversion
+     * This ensures the date stored is the date displayed
+     */
+    public function getDateAttribute($value)
+    {
+        if (is_null($value)) {
+            return null;
+        }
+        
+        // Parse the date without timezone conversion
+        // This returns a Carbon instance set to midnight in the app timezone
+        return \Carbon\Carbon::createFromFormat('Y-m-d', date('Y-m-d', strtotime($value)))->startOfDay();
+    }
 
     public function user()
     {

@@ -89,6 +89,39 @@
                         </div>
                     </div>
 
+                    {{-- Color Detail --}}
+                    <div class="flex items-center space-x-5 p-6 rounded-3xl border-2 border-gray-50 hover:border-red-100 transition-colors group">
+                        <div class="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-xl group-hover:bg-red-50 transition-colors">
+                             🎨
+                        </div>
+                        <div>
+                            <span class="block text-[9px] text-gray-400 uppercase font-black tracking-widest mb-1">Color / Markings</span>
+                            <span class="font-black text-gray-900 uppercase text-lg">{{ $pet->Color ?: 'Not specified' }}</span>
+                        </div>
+                    </div>
+
+                    {{-- Breed Detail --}}
+                    <div class="flex items-center space-x-5 p-6 rounded-3xl border-2 border-gray-50 hover:border-red-100 transition-colors group">
+                        <div class="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-xl group-hover:bg-red-50 transition-colors">
+                             🏷️
+                        </div>
+                        <div>
+                            <span class="block text-[9px] text-gray-400 uppercase font-black tracking-widest mb-1">Breed</span>
+                            <span class="font-black text-gray-900 uppercase text-lg">{{ $pet->Breed ?: 'Mixed / Unknown' }}</span>
+                        </div>
+                    </div>
+
+                    {{-- Species Detail --}}
+                    <div class="flex items-center space-x-5 p-6 rounded-3xl border-2 border-gray-50 hover:border-red-100 transition-colors group">
+                        <div class="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-xl group-hover:bg-red-50 transition-colors">
+                             @if($pet->Species_ID == 1) 🐕 @elseif($pet->Species_ID == 2) 🐈 @else 🐾 @endif
+                        </div>
+                        <div>
+                            <span class="block text-[9px] text-gray-400 uppercase font-black tracking-widest mb-1">Species</span>
+                            <span class="font-black text-gray-900 uppercase text-lg">{{ $pet->species->Species_Name ?? 'Unknown' }}</span>
+                        </div>
+                    </div>
+
                 </div>
 
                 {{-- Medical History: Full Width Section --}}

@@ -8,7 +8,7 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
-            $table->increments('User_ID'); // custom primary key
+            $table->increments('User_ID');
             $table->integer('Barangay_ID')->unsigned();
             $table->integer('Verification_Status_ID')->unsigned();
             $table->integer('Account_Status_ID')->unsigned();
@@ -22,13 +22,12 @@ return new class extends Migration {
             $table->text('Address');
             $table->dateTime('Registration_Date');
             $table->rememberToken();
-
+            
             // foreign keys
             $table->foreign('Barangay_ID')->references('Barangay_ID')->on('barangays');
             $table->foreign('Verification_Status_ID')->references('Verification_Status_ID')->on('verification_statuses');
             $table->foreign('Account_Status_ID')->references('Account_Status_ID')->on('account_statuses');
-
-            $table->timestamps(); // optional
+            $table->timestamps();
         });
     }
 

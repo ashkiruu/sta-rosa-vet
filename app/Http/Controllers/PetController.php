@@ -30,6 +30,7 @@ class PetController extends Controller
             'Species_ID' => 'required',
             'other_species' => 'required_if:Species_ID,0|nullable|string|max:255',
             'Breed' => 'nullable|string|max:255',
+            'Color' => 'required|string|max:100',
             'Reproductive_Status' => 'required|in:Intact,Neutered,Spayed,Unknown',
             'medical_history' => 'nullable|string|max:1000',
         ]);
@@ -55,7 +56,7 @@ class PetController extends Controller
             $pet->Breed = null;
         }
         
-        $pet->Color = '';
+        $pet->Color = $request->Color;
         $pet->Date_of_Birth = now()->subMonths($request->Age);
         $pet->Reproductive_Status = $request->Reproductive_Status;
         $pet->Medical_History = $request->medical_history;

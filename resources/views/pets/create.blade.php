@@ -93,6 +93,19 @@
                             </select>
                         </div>
 
+                        {{-- Color --}}
+                        <div>
+                            <label class="block text-red-700 font-black uppercase text-[10px] tracking-widest mb-2">Color / Markings</label>
+                            <input 
+                                type="text" 
+                                name="Color" 
+                                class="block w-full border-gray-200 focus:border-red-500 focus:ring-red-500 rounded-xl bg-gray-50/50 py-3 px-4 font-medium" 
+                                placeholder="e.g. Brown, Black & White, Golden"
+                                value="{{ old('Color') }}"
+                                required
+                            >
+                        </div>
+
                         {{-- Breed --}}
                         <div>
                             <label class="block text-gray-400 font-black uppercase text-[10px] tracking-widest mb-2">Breed (Optional)</label>
@@ -100,7 +113,7 @@
                                 type="text" 
                                 name="Breed" 
                                 class="block w-full border-gray-200 focus:border-red-500 focus:ring-red-500 rounded-xl bg-gray-50/50 py-3 px-4 font-medium" 
-                                placeholder="e.g. Labrador, Mixed"
+                                placeholder="e.g. Labrador, Mixed, Aspin"
                                 value="{{ old('Breed') }}"
                             >
                         </div>
@@ -132,6 +145,17 @@
                             <p class="text-[10px] font-bold text-gray-400 uppercase tracking-tight mt-3 flex items-center" id="reproductiveHint">
                                 <i class="fas fa-info-circle mr-2 text-red-500"></i> Select the sex first to see status options
                             </p>
+                        </div>
+
+                        {{-- Medical History (Optional) --}}
+                        <div class="md:col-span-3">
+                            <label class="block text-gray-400 font-black uppercase text-[10px] tracking-widest mb-2">Medical History / Notes (Optional)</label>
+                            <textarea 
+                                name="medical_history" 
+                                rows="3"
+                                class="block w-full border-gray-200 focus:border-red-500 focus:ring-red-500 rounded-xl bg-gray-50/50 py-3 px-4 font-medium" 
+                                placeholder="Any known allergies, past illnesses, or special conditions..."
+                            >{{ old('medical_history') }}</textarea>
                         </div>
                     </div>
 

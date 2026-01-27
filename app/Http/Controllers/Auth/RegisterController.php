@@ -66,6 +66,10 @@ class RegisterController extends Controller
             'Contact_Number' => 'required|string|max:15',
             'Address' => 'required|string|max:500',
             'Barangay_ID' => 'required|exists:barangays,Barangay_ID',
+            // New fields for certificate generation
+            'Civil_Status' => 'required|string|in:Single,Married,Widowed,Separated,Divorced',
+            'Years_Of_Residency' => 'required|integer|min:0|max:100',
+            'Birthdate' => 'required|date|before:today',
         ]);
 
         session(['register.step1' => $validated]);
@@ -661,7 +665,7 @@ class RegisterController extends Controller
         DB::beginTransaction();
 
         try {
-            // 1) Save to 'users' table
+            // 1) Save to 'users' table - NOW INCLUDING NEW FIELDS
             $user = \App\Models\User::create([
                 'Barangay_ID'            => $step1['Barangay_ID'],
                 'Verification_Status_ID' => $step2['verification_status_id'] ?? 3,
@@ -675,6 +679,10 @@ class RegisterController extends Controller
                 'Email'                  => $request->email,
                 'Address'                => $step1['Address'],
                 'Registration_Date'      => now(),
+                // NEW FIELDS for certificate generation
+                'Civil_Status'           => $step1['Civil_Status'] ?? null,
+                'Years_Of_Residency'     => $step1['Years_Of_Residency'] ?? null,
+                'Birthdate'              => $step1['Birthdate'] ?? null,
             ]);
 
             // 2) FINALIZE GCS PATH (tmp -> users/{User_ID})

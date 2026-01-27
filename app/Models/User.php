@@ -26,10 +26,19 @@ class User extends Authenticatable
         'Barangay_ID',
         'Verification_Status_ID',
         'Account_Status_ID',
-        'Registration_Date'
+        'Registration_Date',
+        // NEW FIELDS for certificate generation
+        'Civil_Status',
+        'Years_Of_Residency',
+        'Birthdate',
     ];
 
     protected $hidden = ['Password', 'remember_token'];
+
+    protected $casts = [
+        'Birthdate' => 'date',
+        'Registration_Date' => 'datetime',
+    ];
 
     // Auth Overrides for your custom columns
     public function getAuthPassword()
@@ -43,41 +52,41 @@ class User extends Authenticatable
     }
 
     /**
- * Check if user is verified
- */
-public function isVerified(): bool
-{
-    return $this->Verification_Status_ID == 2; // 2 = Verified
-}
+     * Check if user is verified
+     */
+    public function isVerified(): bool
+    {
+        return $this->Verification_Status_ID == 2; // 2 = Verified
+    }
 
-/**
- * Get verification status name
- */
-public function getVerificationStatusName(): string
-{
-    return match($this->Verification_Status_ID) {
-        1 => 'Pending Verification',
-        2 => 'Verified',
-        3 => 'Not Verified',
-        default => 'Unknown'
-    };
-}
+    /**
+     * Get verification status name
+     */
+    public function getVerificationStatusName(): string
+    {
+        return match($this->Verification_Status_ID) {
+            1 => 'Pending Verification',
+            2 => 'Verified',
+            3 => 'Not Verified',
+            default => 'Unknown'
+        };
+    }
 
-/**
- * Check if verification is pending
- */
-public function isVerificationPending(): bool
-{
-    return $this->Verification_Status_ID == 1;
-}
+    /**
+     * Check if verification is pending
+     */
+    public function isVerificationPending(): bool
+    {
+        return $this->Verification_Status_ID == 1;
+    }
 
-/**
- * Check if verification was rejected
- */
-public function isVerificationRejected(): bool
-{
-    return $this->Verification_Status_ID == 3;
-}
+    /**
+     * Check if verification was rejected
+     */
+    public function isVerificationRejected(): bool
+    {
+        return $this->Verification_Status_ID == 3;
+    }
 
     /**
      * Relationship with Pets
@@ -186,5 +195,21 @@ public function isVerificationRejected(): bool
         }
         $name .= ' ' . $this->Last_Name;
         return $name;
+    }
+
+    /**
+     * Get formatted birthdate for certificates
+     */
+    public function getFormattedBirthdateAttribute(): ?string
+    {
+        return $this->Birthdate ? $this->Birthdate->format('F d, Y') : null;
+    }
+
+    /**
+     * Calculate age from birthdate
+     */
+    public function getAgeAttribute(): ?int
+    {
+        return $this->Birthdate ? $this->Birthdate->age : null;
     }
 }

@@ -80,7 +80,7 @@ class AdminController extends Controller
     {
         return [
             'pending_users' => User::where('Verification_Status_ID', 1)->count(),
-            'today_appointments' => Appointment::whereDate('Date', now())->count(),
+            'today_appointments' => Appointment::whereDate('Date', today())->count(),
             'total_pets' => Pet::count(),
         ];
     }
@@ -185,7 +185,9 @@ class AdminController extends Controller
             ->orderBy('Date')->orderBy('Time')
             ->get()
             ->map(fn($apt) => tap($apt, function ($a) {
-                $a->Date = Carbon::parse($a->Date)->format('Y-m-d');
+                // FIX: Use format directly without re-parsing to avoid timezone shift
+                // The Date is already a Carbon instance from the model cast
+                $a->Date = $a->Date->format('Y-m-d');
                 $a->Time = Carbon::parse($a->Time)->format('H:i');
                 $a->qr_released = QRCodeService::isQRCodeReleased($a);
             }));
