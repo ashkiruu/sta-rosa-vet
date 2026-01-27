@@ -55,6 +55,12 @@
             $petColor = old('pet_color', $certificate['pet_color'] ?? $appointment->pet->Color ?? '');
             $breedMissing = empty($petBreed);
             $colorMissing = empty($petColor);
+            
+            // ✅ FIX: Properly pull user data for civil status, residency, and birthdate
+            $user = $appointment->user ?? null;
+            $defaultCivilStatus = old('civil_status', $certificate['civil_status'] ?? ($user->Civil_Status ?? ''));
+            $defaultYearsOfResidency = old('years_of_residency', $certificate['years_of_residency'] ?? ($user->Years_Of_Residency ?? ''));
+            $defaultOwnerBirthdate = old('owner_birthdate', $certificate['owner_birthdate'] ?? ($user->Birthdate ? $user->Birthdate->format('Y-m-d') : ''));
         @endphp
 
         {{-- Missing Info Alert --}}
@@ -109,7 +115,7 @@
             {{-- Pet Information Card --}}
             <div class="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden mb-8">
                 <div class="bg-blue-600 px-8 py-5 flex items-center justify-between">
-                    <h2 class="text-xs font-black text-white uppercase tracking-[0.2em]">Patient Profile</h2>
+                    <h2 class="text-xs font-black text-white uppercase tracking-[0.2em]">Pet Profile</h2>
                     <i class="fas fa-paw text-white/50 text-xl"></i>
                 </div>
                 <div class="p-8">
@@ -178,7 +184,7 @@
             {{-- Owner Information Card --}}
             <div class="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden mb-8">
                 <div class="bg-green-600 px-8 py-5 flex items-center justify-between">
-                    <h2 class="text-xs font-black text-white uppercase tracking-[0.2em]">Guardian Details</h2>
+                    <h2 class="text-xs font-black text-white uppercase tracking-[0.2em]">Pet Owner Details</h2>
                     <i class="fas fa-user text-white/50 text-xl"></i>
                 </div>
                 <div class="p-8">
@@ -207,16 +213,15 @@
                             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Civil Status <span class="text-red-500">*</span></label>
                             <select name="civil_status" required class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 font-bold text-gray-700 text-sm transition-all appearance-none cursor-pointer">
                                 <option value="">Select Status</option>
-                                @php $civilStatus = old('civil_status', $certificate['civil_status'] ?? ''); @endphp
                                 @foreach(['Single', 'Married', 'Widowed', 'Separated', 'Divorced'] as $status)
-                                    <option value="{{ $status }}" {{ $civilStatus == $status ? 'selected' : '' }}>{{ $status }}</option>
+                                    <option value="{{ $status }}" {{ $defaultCivilStatus == $status ? 'selected' : '' }}>{{ $status }}</option>
                                 @endforeach
                             </select>
                         </div>
                         <div>
                             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Residency Length <span class="text-red-500">*</span></label>
                             <input type="text" name="years_of_residency" required placeholder="e.g., 5 years, Since birth"
-                                   value="{{ old('years_of_residency', $certificate['years_of_residency'] ?? '') }}"
+                                   value="{{ $defaultYearsOfResidency }}"
                                    class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 font-bold text-gray-700 text-sm transition-all">
                         </div>
                         <div>
@@ -228,7 +233,7 @@
                         <div>
                             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Birthdate</label>
                             <input type="date" name="owner_birthdate"
-                                   value="{{ old('owner_birthdate', $certificate['owner_birthdate'] ?? '') }}"
+                                   value="{{ $defaultOwnerBirthdate }}"
                                    class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 font-bold text-gray-700 text-sm transition-all">
                         </div>
                     </div>
