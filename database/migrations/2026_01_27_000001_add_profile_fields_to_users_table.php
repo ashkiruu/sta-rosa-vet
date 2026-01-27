@@ -10,7 +10,7 @@ return new class extends Migration
      * Run the migrations.
      * 
      * Adds Civil_Status, Years_Of_Residency, and Birthdate fields to users table
-     * for certificate generation purposes.
+     * for certificate generation purposes. Add.
      */
     public function up(): void
     {
