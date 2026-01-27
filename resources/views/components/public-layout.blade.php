@@ -33,7 +33,6 @@
                     <img src="{{ asset('images/logo.png') }}" alt="Logo" class="h-10 w-10 object-contain">
                     <div>
                         <h1 class="text-sm font-black text-gray-900 uppercase tracking-tight">Sta. Rosa Veterinary Clinic</h1>
-                        <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">QR Verification System</p>
                     </div>
                 </a>
                 
