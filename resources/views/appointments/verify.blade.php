@@ -1,4 +1,4 @@
-<x-dashboardheader-layout>
+<x-public-layout>
     <div class="max-w-4xl mx-auto px-4 py-10">
         
         {{-- Breadcrumbs --}}
@@ -269,4 +269,4 @@
             Secured Verification System • {{ now()->format('Y') }}
         </p>
     </div>
-</x-dashboardheader-layout>
+</x-public-layout>
