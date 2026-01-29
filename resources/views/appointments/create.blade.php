@@ -34,6 +34,17 @@
                             </div>
                         </div>
 
+                        {{-- Same-Day Booking Notice --}}
+                        <div class="mb-10 bg-amber-50 border-l-4 border-amber-500 p-5 rounded-r-xl">
+                            <div class="flex items-start gap-3">
+                                <span class="text-2xl">📅</span>
+                                <div>
+                                    <h3 class="text-amber-800 font-black uppercase text-[10px] tracking-widest mb-2">Advance Booking Required</h3>
+                                    <p class="text-sm text-amber-700 font-medium">Same-day appointments are not available. Please book at least one day in advance.</p>
+                                </div>
+                            </div>
+                        </div>
+
                         {{-- Appointment Limit Info Banner --}}
                         @if(isset($appointmentLimitInfo))
                             @if(!$appointmentLimitInfo['can_book'])
@@ -147,6 +158,7 @@
                             <section class="{{ isset($appointmentLimitInfo) && !$appointmentLimitInfo['can_book'] ? 'opacity-50 pointer-events-none' : '' }}">
                                 <div class="flex items-center gap-3 mb-6">
                                     <span class="text-red-700 font-black uppercase text-xs tracking-widest">02. Schedule Slot</span>
+                                    <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">(Tomorrow onwards)</span>
                                 </div>
 
                                 <div class="flex flex-col lg:flex-row gap-8">
@@ -166,6 +178,22 @@
                                         </div>
                                         <div id="calendarDays" class="grid grid-cols-7 gap-2"></div>
                                         <input type="hidden" name="Date" id="selectedDate" value="{{ old('Date') }}">
+                                        
+                                        {{-- Legend --}}
+                                        <div class="mt-6 pt-4 border-t border-gray-200 flex flex-wrap gap-4 text-[9px] font-bold uppercase tracking-widest text-gray-500">
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-4 h-4 rounded bg-gray-100 opacity-40"></div>
+                                                <span>Today/Past/Closed</span>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-4 h-4 rounded bg-red-700"></div>
+                                                <span>Selected</span>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-4 h-4 rounded border-2 border-gray-200"></div>
+                                                <span>Available</span>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     {{-- Time Selection --}}
@@ -282,9 +310,10 @@
             // =====================================================
             let clinicSchedule = { default_closed_days: [0, 6], opened_dates: [], closed_dates: [] };
             let masterTimeSlots = []; 
-            let currentTakenTimes = []; // NEW: Track taken times globally
+            let currentTakenTimes = [];
             let currentDate = new Date(); 
-            const todayDate = new Date(); 
+            const todayDate = new Date();
+            todayDate.setHours(0, 0, 0, 0); // Normalize to start of day
             let selectedDate = document.getElementById('selectedDate').value || null;
 
             // =====================================================
@@ -324,7 +353,7 @@
                 try {
                     const res = await fetch(`/appointments/taken-times?date=${date}`);
                     const data = await res.json();
-                    currentTakenTimes = data.takenTimes || []; // Store globally
+                    currentTakenTimes = data.takenTimes || [];
                     renderTimeSlots(currentTakenTimes);
                 } catch (err) {
                     console.error('Fetch Times Error:', err);
@@ -340,18 +369,15 @@
                 const selectedTimeText = document.getElementById('selectedTimeText');
                 timeMenu.innerHTML = '';
 
-                // 1. Check if date is selected
                 if (!selectedDate) {
                     timeMenu.innerHTML = '<div class="px-4 py-8 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Select a date on the<br>calendar first</div>';
                     return;
                 }
 
-                // 2. Render Slots
                 masterTimeSlots.forEach(slot => {
                     const isTaken = takenTimes.includes(slot.Slot_Val);
                     const div = document.createElement('div');
                     
-                    // Fixed styling logic
                     div.className = `px-5 py-3.5 text-[11px] font-black tracking-widest transition-colors border-b border-gray-50 last:border-0 uppercase 
                         ${isTaken 
                             ? 'bg-gray-100 text-gray-300 cursor-not-allowed' 
@@ -359,11 +385,10 @@
                     
                     div.textContent = isTaken ? `${slot.Slot_Display} (FULL)` : slot.Slot_Display;
 
-                    // 3. Strict Click Logic: Only allow if NOT taken
                     div.onclick = (e) => {
                         if (isTaken) {
                             e.stopPropagation();
-                            return; // Do absolutely nothing if full
+                            return;
                         }
                         
                         timeInput.value = slot.Slot_Val;
@@ -377,14 +402,17 @@
             }
 
             // =====================================================
-            // CALENDAR RENDERING
+            // CALENDAR RENDERING - TODAY IS DISABLED
             // =====================================================
             function renderCalendarDays() {
                 const year = currentDate.getFullYear();
                 const month = currentDate.getMonth();
                 const firstDay = new Date(year, month, 1).getDay();
                 const daysInMonth = new Date(year, month + 1, 0).getDate();
-                const todayReset = new Date().setHours(0,0,0,0);
+                
+                // Get today's date normalized to start of day
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
 
                 let daysHTML = '';
                 
@@ -394,23 +422,39 @@
 
                 for (let day = 1; day <= daysInMonth; day++) {
                     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                    const isPast = new Date(dateStr + 'T00:00:00').getTime() < todayReset;
+                    const thisDate = new Date(dateStr + 'T00:00:00');
+                    
+                    // CHANGED: Today and past dates are disabled (using <= instead of <)
+                    const isToday = thisDate.getTime() === today.getTime();
+                    const isPastOrToday = thisDate.getTime() <= today.getTime();
                     const isClosed = isDateClosed(dateStr);
                     const isSelected = selectedDate === dateStr;
                     
-                    let stateClass = "text-gray-700 hover:border-red-700 hover:text-red-700 cursor-pointer border-gray-100 hover:bg-gray-50";
+                    // Determine if date should be disabled
+                    const isDisabled = isPastOrToday || isClosed;
                     
-                    if (isPast || isClosed) {
+                    let stateClass = "text-gray-700 hover:border-red-700 hover:text-red-700 cursor-pointer border-gray-100 hover:bg-gray-50";
+                    let titleAttr = '';
+                    
+                    if (isDisabled) {
                         stateClass = "text-gray-200 cursor-not-allowed opacity-40 border-transparent bg-gray-50/30";
+                        if (isToday) {
+                            titleAttr = 'title="Same-day appointments are not available"';
+                        } else if (isClosed) {
+                            titleAttr = 'title="Clinic is closed on this date"';
+                        } else {
+                            titleAttr = 'title="This date has passed"';
+                        }
                     }
                     
-                    if (isSelected) {
+                    if (isSelected && !isDisabled) {
                         stateClass = "bg-red-700 text-white font-black border-red-700 shadow-md transform scale-105 z-10";
                     }
 
                     daysHTML += `
                         <div class="calendar-day aspect-square flex items-center justify-center rounded-xl border-2 transition-all text-[11px] font-black ${stateClass}" 
-                            onclick="${(isPast || isClosed) ? '' : `selectDate('${dateStr}')`}">
+                            ${titleAttr}
+                            onclick="${isDisabled ? '' : `selectDate('${dateStr}')`}">
                             ${day}
                         </div>`;
                 }
@@ -456,7 +500,6 @@
 
                 timeToggle.addEventListener('click', (e) => { 
                     e.stopPropagation(); 
-                    // Re-render whenever opened to show current state or "select date" message
                     renderTimeSlots(currentTakenTimes);
                     timeMenu.classList.toggle('hidden'); 
                 });
@@ -483,10 +526,19 @@
             }
 
             function selectDate(date) {
+                // Double-check: prevent selecting today or past dates
+                const selected = new Date(date + 'T00:00:00');
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                if (selected.getTime() <= today.getTime()) {
+                    alert('Same-day appointments are not available. Please select a future date.');
+                    return;
+                }
+                
                 selectedDate = date;
                 document.getElementById('selectedDate').value = date;
                 
-                // Reset time when date changes
                 document.getElementById('timeInput').value = '';
                 document.getElementById('selectedTimeText').textContent = 'SELECT A TIME';
                 

@@ -22,6 +22,12 @@
         </div>
     </div>
 
+    {{-- Same-Day Booking Policy Notice --}}
+    <div class="bg-amber-50 border-l-4 border-amber-500 text-amber-700 p-4 rounded-xl mb-6 shadow-sm flex items-center">
+        <i class="fas fa-info-circle mr-3"></i>
+        <span class="text-[10px] font-black uppercase tracking-widest">Policy: Same-day appointments are disabled. All bookings must be scheduled at least one day in advance.</span>
+    </div>
+
     {{-- Alerts --}}
     @if(session('success'))
         <div class="bg-green-50 border-l-4 border-green-500 text-green-700 p-4 rounded-xl mb-6 shadow-sm flex items-center">
@@ -76,6 +82,10 @@
                 <div class="px-6 pb-6 pt-2 border-t border-gray-50 bg-gray-50/30">
                     <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3">Status Legend</p>
                     <div class="grid grid-cols-2 gap-y-3">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-amber-400 border border-amber-500"></span>
+                            <span class="text-[9px] font-bold text-gray-500 uppercase">Today (Locked)</span>
+                        </div>
                         <div class="flex items-center gap-2">
                             <span class="w-2 h-2 rounded-full bg-gray-300"></span>
                             <span class="text-[9px] font-bold text-gray-500 uppercase">Closed</span>
@@ -136,7 +146,7 @@
                     <i class="fas fa-info-circle"></i> Manager Tip
                 </h4>
                 <p class="text-[10px] font-bold text-blue-600 leading-relaxed uppercase">
-                    Click any date to view details. Use the "Close Day" button to block online bookings for holidays.
+                    Click any date to view details. Today is always locked for new bookings per clinic policy.
                 </p>
             </div>
         </div>
@@ -157,8 +167,12 @@
                             <span class="bg-gray-900 text-white px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm" id="countBadge">0</span>
                         </div>
                         
-                        {{-- Hidden inputs for JS --}}
-                        <div id="toggleDateBtn" style="display: none;"></div>
+                        {{-- Today Indicator Badge --}}
+                        <div id="todayBadge" class="hidden">
+                            <span class="bg-amber-100 text-amber-700 px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border border-amber-200">
+                                <i class="fas fa-lock mr-1"></i> No New Bookings
+                            </span>
+                        </div>
                     </div>
                 </div>
 
@@ -179,6 +193,10 @@
                         <div class="flex items-center gap-2">
                             <span class="w-3 h-3 rounded bg-blue-100 border border-blue-200"></span>
                             <span class="text-[9px] font-black text-blue-700 uppercase tracking-wider">Approved</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded bg-gray-200 border border-gray-300"></span>
+                            <span class="text-[9px] font-black text-gray-500 uppercase tracking-wider">Locked (Today)</span>
                         </div>
                     </div>
                 </div>
@@ -220,8 +238,8 @@
                         <div class="w-20 h-20 bg-green-50 rounded-[2rem] flex items-center justify-center mb-6 text-green-400">
                             <i class="fas fa-check text-3xl"></i>
                         </div>
-                        <p class="text-[10px] font-black text-gray-900 uppercase tracking-widest mb-1">Schedule Clear</p>
-                        <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-6">No bookings for this date</p>
+                        <p class="text-[10px] font-black text-gray-900 uppercase tracking-widest mb-1" id="noAppointmentsTitle">Schedule Clear</p>
+                        <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-6" id="noAppointmentsSubtitle">No bookings for this date</p>
                         
                         <form id="closeDayForm" method="POST" action="{{ route('admin.schedule.toggle') }}">
                             @csrf
@@ -254,12 +272,27 @@
     let currentDate = new Date();
     let selectedDate = null;
 
+    // Get today's date string for comparison
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
     function isDateClosed(dateStr) {
         const date = new Date(dateStr + 'T00:00:00');
         const dayOfWeek = date.getDay();
         if (openedDates.includes(dateStr)) return false;
         if (closedDates.includes(dateStr)) return true;
         return defaultClosedDays.includes(dayOfWeek);
+    }
+
+    function isToday(dateStr) {
+        return dateStr === todayStr;
+    }
+
+    function isPastDate(dateStr) {
+        const checkDate = new Date(dateStr + 'T00:00:00');
+        const todayDate = new Date();
+        todayDate.setHours(0, 0, 0, 0);
+        return checkDate < todayDate;
     }
 
     function initCalendar() { renderCalendar(); }
@@ -283,19 +316,27 @@
         let html = '';
         for (let i = 0; i < firstDay; i++) html += '<div class="p-2"></div>';
         
-        const today = new Date();
         for (let day = 1; day <= daysInMonth; day++) {
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const dayAppointments = appointmentsByDate[dateStr] || [];
-            const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
+            const isTodayDate = isToday(dateStr);
             const isSelected = selectedDate === dateStr;
             const isClosed = isDateClosed(dateStr);
+            const isPast = isPastDate(dateStr);
             
             let statusClass = 'bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold text-xs';
             let dotHtml = '';
+            let iconHtml = '';
             
-            if (isClosed) {
+            // TODAY: Special amber styling - viewable but locked for new bookings
+            if (isTodayDate) {
+                statusClass = 'bg-amber-100 text-amber-700 hover:bg-amber-200 border-2 border-amber-300 shadow-sm';
+                iconHtml = '<i class="fas fa-clock absolute top-0.5 right-0.5 text-[6px] text-amber-500"></i>';
+            } else if (isClosed || isPast) {
                 statusClass = 'bg-gray-100 text-gray-300 cursor-pointer hover:bg-gray-200 text-xs font-medium';
+                if (isClosed && !isPast) {
+                    iconHtml = '<i class="fas fa-lock absolute top-1 right-1 text-[6px]"></i>';
+                }
             } else if (dayAppointments.length > 0) {
                 const hasPending = dayAppointments.some(a => a.Status === 'Pending');
                 const hasApproved = dayAppointments.some(a => a.Status === 'Approved');
@@ -313,10 +354,6 @@
                 }
             }
             
-            if (isToday && !isClosed) {
-                statusClass = 'bg-gray-900 text-white hover:bg-black shadow-lg';
-            }
-            
             if (isSelected) {
                 statusClass = 'bg-red-600 text-white hover:bg-red-700 shadow-lg ring-2 ring-red-200 ring-offset-2';
             }
@@ -326,7 +363,7 @@
                     ${day}
                     ${dotHtml}
                     ${dayAppointments.length > 0 && !isClosed ? `<span class="absolute -top-1 -right-1 w-4 h-4 bg-white text-gray-900 rounded-full text-[8px] font-black flex items-center justify-center shadow-sm border border-gray-100">${dayAppointments.length}</span>` : ''}
-                    ${isClosed ? '<i class="fas fa-lock absolute top-1 right-1 text-[6px]"></i>' : ''}
+                    ${iconHtml}
                 </button>
             `;
         }
@@ -348,6 +385,8 @@
         const date = new Date(dateStr + 'T00:00:00');
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
         const isClosed = isDateClosed(dateStr);
+        const isTodayDate = isToday(dateStr);
+        const isPast = isPastDate(dateStr);
         
         document.getElementById('selectedDateTitle').textContent = date.toLocaleDateString('en-US', options);
         
@@ -358,33 +397,54 @@
         document.getElementById('openDayDate').value = dateStr;
         document.getElementById('closeDayDate').value = dateStr;
         
-        if (isClosed) {
+        // Hide all states first
+        document.getElementById('closedDayMessage').classList.add('hidden');
+        document.getElementById('closedDayMessage').style.display = 'none';
+        document.getElementById('noDateSelected').style.display = 'none';
+        document.getElementById('appointmentsList').style.display = 'none';
+        document.getElementById('noAppointments').style.display = 'none';
+        document.getElementById('todayBadge').classList.add('hidden');
+        document.getElementById('closeDayForm').style.display = 'block';
+        
+        if (isClosed && !isTodayDate) {
+            // Regular closed day (not today)
             document.getElementById('selectedDateSubtitle').textContent = 'Clinic Operations Suspended';
             document.getElementById('appointmentCount').classList.add('hidden');
             document.getElementById('timeSlotsSection').style.display = 'none';
-            document.getElementById('noDateSelected').style.display = 'none';
-            document.getElementById('appointmentsList').style.display = 'none';
-            document.getElementById('noAppointments').style.display = 'none';
+            document.getElementById('closedDayMessage').classList.remove('hidden');
             document.getElementById('closedDayMessage').style.display = 'flex';
             document.getElementById('appointmentsContainer').style.display = 'none';
         } else {
-            document.getElementById('closedDayMessage').style.display = 'none';
             document.getElementById('appointmentsContainer').style.display = 'flex';
             
-            document.getElementById('selectedDateSubtitle').textContent = 
-                dayAppointments.length > 0 ? 'Managing scheduled visits' : 'Schedule is open for bookings';
+            // Show "today" badge if it's today
+            if (isTodayDate) {
+                document.getElementById('todayBadge').classList.remove('hidden');
+                document.getElementById('selectedDateSubtitle').textContent = 'Today - View existing appointments only';
+                document.getElementById('closeDayForm').style.display = 'none';
+            } else {
+                document.getElementById('selectedDateSubtitle').textContent = 
+                    dayAppointments.length > 0 ? 'Managing scheduled visits' : 'Schedule is open for bookings';
+            }
             
             document.getElementById('appointmentCount').classList.remove('hidden');
             document.getElementById('countBadge').textContent = dayAppointments.length + ' Bookings';
             
             document.getElementById('timeSlotsSection').style.display = 'block';
-            renderTimeSlots(dayAppointments);
-            
-            document.getElementById('noDateSelected').style.display = 'none';
+            renderTimeSlots(dayAppointments, isTodayDate);
             
             if (dayAppointments.length === 0) {
                 document.getElementById('appointmentsList').style.display = 'none';
                 document.getElementById('noAppointments').style.display = 'flex';
+                
+                // Update no appointments message for today
+                if (isTodayDate) {
+                    document.getElementById('noAppointmentsTitle').textContent = 'No Appointments Today';
+                    document.getElementById('noAppointmentsSubtitle').textContent = 'Same-day bookings are not accepted';
+                } else {
+                    document.getElementById('noAppointmentsTitle').textContent = 'Schedule Clear';
+                    document.getElementById('noAppointmentsSubtitle').textContent = 'No bookings for this date';
+                }
             } else {
                 document.getElementById('noAppointments').style.display = 'none';
                 document.getElementById('appointmentsList').style.display = 'block';
@@ -393,7 +453,7 @@
         }
     }
 
-    function renderTimeSlots(dayAppointments) {
+    function renderTimeSlots(dayAppointments, isTodayDate = false) {
         const takenSlots = {};
         dayAppointments.forEach(appt => {
             let time = appt.Time;
@@ -407,10 +467,14 @@
         timeSlots.forEach(slot => {
             const status = takenSlots[slot];
             let slotClass = 'bg-gray-50 border-gray-200 text-gray-400';
-            let icon = '';
             
             if (!status) {
-                slotClass = 'bg-green-50 border-green-200 text-green-700'; // Available
+                // If today, show available slots as "locked"
+                if (isTodayDate) {
+                    slotClass = 'bg-gray-200 border-gray-300 text-gray-400';
+                } else {
+                    slotClass = 'bg-green-50 border-green-200 text-green-700';
+                }
             } else if (status === 'Pending') {
                 slotClass = 'bg-yellow-50 border-yellow-200 text-yellow-700';
             } else if (status === 'Approved') {
@@ -437,7 +501,6 @@
         appointments.forEach(appt => {
             const [h, m] = appt.Time.substring(0, 5).split(':');
             const ampm = h < 12 ? 'AM' : 'PM';
-            const formattedTime = `${h % 12 || 12}:${m} ${ampm}`;
             
             let statusBadge = '';
             let actionButtons = '';
@@ -504,8 +567,7 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         initCalendar();
-        const today = new Date();
-        selectDate(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`);
+        selectDate(todayStr);
     });
 </script>
 @endsection

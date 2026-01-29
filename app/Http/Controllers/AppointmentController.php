@@ -296,21 +296,21 @@ class AppointmentController extends Controller
     }
 
     public function markAllNotificationsSeen(Request $request)
-{
-    NotificationService::markAllSeen($this->userId());
-    
-    // If AJAX request, return JSON
-    if ($request->wantsJson() || $request->ajax()) {
-        return response()->json([
-            'success' => true,
-            'message' => 'All notifications marked as read.'
-        ]);
+    {
+        NotificationService::markAllSeen($this->userId());
+        
+        // If AJAX request, return JSON
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'All notifications marked as read.'
+            ]);
+        }
+        
+        // Otherwise redirect back
+        return redirect()->back()
+            ->with('success', 'All notifications marked as read.');
     }
-    
-    // Otherwise redirect back
-    return redirect()->back()
-        ->with('success', 'All notifications marked as read.');
-}
 
     // =====================================================
     // CERTIFICATE METHODS
@@ -372,7 +372,8 @@ class AppointmentController extends Controller
         $rules = [
             'Pet_ID' => 'required|exists:pets,Pet_ID',
             'Service_ID' => 'required|exists:service_types,Service_ID',
-            'Date' => 'required|date|after_or_equal:today',
+            // CHANGED: 'after:today' instead of 'after_or_equal:today' to disable same-day appointments
+            'Date' => 'required|date|after:today',
             'Time' => 'required',
         ];
 
@@ -381,7 +382,10 @@ class AppointmentController extends Controller
             $rules['Special_Notes'] = 'nullable|string|max:500';
         }
 
-        $validated = $request->validate($rules);
+        $validated = $request->validate($rules, [
+            // Custom error message for same-day booking attempts
+            'Date.after' => 'Same-day appointments are not available. Please select a future date.',
+        ]);
 
         $pet = Pet::find($validated['Pet_ID']);
         if ($pet->Owner_ID != $this->userId()) {
@@ -393,6 +397,11 @@ class AppointmentController extends Controller
 
     private function checkAppointmentConflicts(array $data): ?array
     {
+        // Additional check for same-day appointments (belt and suspenders)
+        if (Carbon::parse($data['Date'])->isToday()) {
+            return ['Date' => 'Same-day appointments are not available. Please select a future date.'];
+        }
+
         if (ClinicScheduleService::isDateClosed($data['Date'])) {
             return ['Date' => 'The clinic is closed on this date. Please select another date.'];
         }
@@ -545,9 +554,9 @@ class AppointmentController extends Controller
      * Get notifications for user (now database-backed)
      */
     private function getNotifications(): array
-{
-    // Return only unseen notifications
-    return NotificationService::getUnseenNotifications($this->userId());
-}
+    {
+        // Return only unseen notifications
+        return NotificationService::getUnseenNotifications($this->userId());
+    }
 }
     

@@ -71,8 +71,7 @@
                             <div class="relative mt-1">
                                 <x-text-input id="password" name="password" type="password" 
                                     class="block w-full border-gray-200 focus:border-red-500 focus:ring-red-500 rounded-xl bg-gray-50/50 pr-10" required autocomplete="new-password" />
-                                <x-input-error :messages="$errors->get('password')" class="mt-2" />
-
+                                
                                 <button type="button" onclick="togglePassword('password', this)" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-red-700 transition-colors">
                                     <svg class="h-5 w-5" fill="none" id="eye-icon-password" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -80,6 +79,7 @@
                                     </svg>
                                 </button>
                             </div>
+                            <x-input-error :messages="$errors->get('password')" class="mt-2" />
                         </div>
 
                         {{-- Confirm Password --}}
@@ -88,14 +88,77 @@
                             <div class="relative mt-1">
                                 <x-text-input id="password_confirmation" name="password_confirmation" type="password" 
                                     class="block w-full border-gray-200 focus:border-red-500 focus:ring-red-500 rounded-xl bg-gray-50/50 pr-10" required />
-                                <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
-
+                                
                                 <button type="button" onclick="togglePassword('password_confirmation', this)" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-red-700 transition-colors">
                                     <svg class="h-5 w-5" fill="none" id="eye-icon-password_confirmation" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                     </svg>
                                 </button>
+                            </div>
+                            <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
+                        </div>
+
+                        {{-- Password Requirements Guide --}}
+                        <div class="md:col-span-2">
+                            <div class="p-4 bg-gray-50 rounded-2xl border border-gray-200">
+                                <p class="text-red-700 font-black uppercase text-[10px] tracking-widest mb-3">Password Requirements</p>
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    {{-- At least 8 characters --}}
+                                    <div class="flex items-center gap-2" id="req-length">
+                                        <div class="w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center transition-all duration-200" id="check-length">
+                                            <svg class="w-3 h-3 text-white hidden" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                            </svg>
+                                        </div>
+                                        <span class="text-xs text-gray-600 font-semibold">8+ characters</span>
+                                    </div>
+                                    {{-- One uppercase --}}
+                                    <div class="flex items-center gap-2" id="req-upper">
+                                        <div class="w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center transition-all duration-200" id="check-upper">
+                                            <svg class="w-3 h-3 text-white hidden" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                            </svg>
+                                        </div>
+                                        <span class="text-xs text-gray-600 font-semibold">1 uppercase (A-Z)</span>
+                                    </div>
+                                    {{-- One lowercase --}}
+                                    <div class="flex items-center gap-2" id="req-lower">
+                                        <div class="w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center transition-all duration-200" id="check-lower">
+                                            <svg class="w-3 h-3 text-white hidden" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                            </svg>
+                                        </div>
+                                        <span class="text-xs text-gray-600 font-semibold">1 lowercase (a-z)</span>
+                                    </div>
+                                    {{-- One number --}}
+                                    <div class="flex items-center gap-2" id="req-number">
+                                        <div class="w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center transition-all duration-200" id="check-number">
+                                            <svg class="w-3 h-3 text-white hidden" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                            </svg>
+                                        </div>
+                                        <span class="text-xs text-gray-600 font-semibold">1 number (0-9)</span>
+                                    </div>
+                                    {{-- One special character --}}
+                                    <div class="flex items-center gap-2 md:col-span-2" id="req-special">
+                                        <div class="w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center transition-all duration-200" id="check-special">
+                                            <svg class="w-3 h-3 text-white hidden" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                            </svg>
+                                        </div>
+                                        <span class="text-xs text-gray-600 font-semibold">1 special character (!@#$%^&*)</span>
+                                    </div>
+                                    {{-- Passwords match --}}
+                                    <div class="flex items-center gap-2 md:col-span-2" id="req-match">
+                                        <div class="w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center transition-all duration-200" id="check-match">
+                                            <svg class="w-3 h-3 text-white hidden" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                            </svg>
+                                        </div>
+                                        <span class="text-xs text-gray-600 font-semibold">Passwords match</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -115,6 +178,46 @@
                                     icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />';
                                 }
                             }
+
+                            // Real-time password validation
+                            document.addEventListener('DOMContentLoaded', function() {
+                                const passwordInput = document.getElementById('password');
+                                const confirmInput = document.getElementById('password_confirmation');
+
+                                function validatePassword() {
+                                    const password = passwordInput.value;
+                                    const confirm = confirmInput.value;
+
+                                    // Check each requirement
+                                    const checks = {
+                                        length: password.length >= 8,
+                                        upper: /[A-Z]/.test(password),
+                                        lower: /[a-z]/.test(password),
+                                        number: /[0-9]/.test(password),
+                                        special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(password),
+                                        match: password.length > 0 && password === confirm
+                                    };
+
+                                    // Update UI for each check
+                                    Object.keys(checks).forEach(key => {
+                                        const checkEl = document.getElementById('check-' + key);
+                                        const svgEl = checkEl.querySelector('svg');
+                                        
+                                        if (checks[key]) {
+                                            checkEl.classList.remove('border-gray-300', 'border-red-400');
+                                            checkEl.classList.add('bg-green-500', 'border-green-500');
+                                            svgEl.classList.remove('hidden');
+                                        } else {
+                                            checkEl.classList.remove('bg-green-500', 'border-green-500');
+                                            checkEl.classList.add('border-gray-300');
+                                            svgEl.classList.add('hidden');
+                                        }
+                                    });
+                                }
+
+                                passwordInput.addEventListener('input', validatePassword);
+                                confirmInput.addEventListener('input', validatePassword);
+                            });
                         </script>
                     </div>
 
