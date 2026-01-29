@@ -621,6 +621,22 @@ class RegisterController extends Controller
             return redirect()->route('register.step1')->withErrors(['error' => 'Please complete previous steps first.']);
         }
 
+        // ✅ FIX: Determine ocr_status from step2 data and reflash it
+        $step2 = session('register.step2');
+        if ($step2 && isset($step2['verification_status_id'])) {
+            $statusId = $step2['verification_status_id'];
+            
+            // Set ocr_status based on verification_status_id
+            if ($statusId == 2) {
+                session()->flash('ocr_status', 'Verified');
+            } elseif ($statusId == 1) {
+                session()->flash('ocr_status', 'Pending');
+            } else {
+                // Status 3 or null means skipped/unsubmitted
+                session()->forget('ocr_status');
+            }
+        }
+
         return view('auth.register.step3');
     }
 
@@ -751,6 +767,8 @@ class RegisterController extends Controller
             // Clear only the register session keys you use
             session()->forget('register.step1');
             session()->forget('register.step2');
+            session()->forget('ocr_status');
+            session()->forget('ocr_message');
 
             return redirect()->route('dashboard')->with('success', 'Registration complete!');
 
