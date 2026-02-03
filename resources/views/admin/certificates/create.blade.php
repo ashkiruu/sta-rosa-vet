@@ -81,12 +81,13 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ isset($certificate) ? route('admin.certificates.update', $certificate['id']) : route('admin.certificates.store') }}">
+        <form method="POST" action="{{ isset($certificate) ? route('admin.certificates.update', $certificate['id']) : route('admin.certificates.store') }}" id="certificateForm">
             @csrf
             @if(isset($certificate)) @method('PUT') @endif
             
             <input type="hidden" name="appointment_id" value="{{ $appointment->Appointment_ID ?? $certificate['appointment_id'] }}">
             <input type="hidden" name="service_type" value="{{ $serviceType }}">
+            <input type="hidden" name="signature_data" id="signature_data" value="">
 
             {{-- Service Overview Card --}}
             <div class="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden mb-8">
@@ -378,6 +379,43 @@
                                    class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-red-500 font-bold text-gray-700 text-sm transition-all font-mono" 
                                    placeholder="e.g., PTR-2024-001">
                         </div>
+
+                        {{-- E-Signature Section --}}
+                        <div class="md:col-span-2 pt-6 border-t border-gray-100">
+                            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 ml-1">
+                                <i class="fas fa-pen-fancy mr-2 text-red-500"></i>
+                                E-Signature <span class="text-red-500">*</span>
+                                <span class="ml-2 text-[9px] text-gray-400 font-medium normal-case">(Draw your signature below)</span>
+                            </label>
+                            
+                            <div class="relative">
+                                {{-- Signature Canvas Container --}}
+                                <div class="bg-gray-50 rounded-2xl p-4 border-2 border-dashed border-gray-200 hover:border-red-300 transition-colors" id="signatureContainer">
+                                    <canvas id="signatureCanvas" class="w-full bg-white rounded-xl cursor-crosshair shadow-inner" style="height: 200px; touch-action: none;"></canvas>
+                                    
+                                    {{-- Signature Line --}}
+                                    <div class="absolute bottom-12 left-8 right-8 border-b-2 border-gray-300 pointer-events-none"></div>
+                                    <p class="text-center text-[9px] text-gray-400 uppercase tracking-widest mt-3 font-bold">Sign Above the Line</p>
+                                </div>
+
+                                {{-- Signature Controls --}}
+                                <div class="flex items-center justify-between mt-4">
+                                    <div class="flex items-center gap-2">
+                                        <span id="signatureStatus" class="text-[10px] font-bold uppercase tracking-widest text-amber-600">
+                                            <i class="fas fa-exclamation-circle mr-1"></i> No signature
+                                        </span>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button type="button" onclick="undoSignature()" class="px-4 py-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 text-[10px] font-black uppercase tracking-widest transition flex items-center gap-2">
+                                            <i class="fas fa-undo"></i> Undo
+                                        </button>
+                                        <button type="button" onclick="clearSignature()" class="px-4 py-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 text-[10px] font-black uppercase tracking-widest transition flex items-center gap-2">
+                                            <i class="fas fa-eraser"></i> Clear
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -400,6 +438,245 @@
         </form>
     </div>
 </div>
+
+{{-- E-Signature JavaScript --}}
+<script>
+    // Signature Pad Implementation
+    class SignaturePad {
+        constructor(canvas) {
+            this.canvas = canvas;
+            this.ctx = canvas.getContext('2d');
+            this.isDrawing = false;
+            this.lastX = 0;
+            this.lastY = 0;
+            this.strokes = [];
+            this.currentStroke = [];
+            
+            this.init();
+        }
+
+        init() {
+            this.resizeCanvas();
+            window.addEventListener('resize', () => this.resizeCanvas());
+            
+            // Mouse events
+            this.canvas.addEventListener('mousedown', (e) => this.startDrawing(e));
+            this.canvas.addEventListener('mousemove', (e) => this.draw(e));
+            this.canvas.addEventListener('mouseup', () => this.stopDrawing());
+            this.canvas.addEventListener('mouseout', () => this.stopDrawing());
+            
+            // Touch events
+            this.canvas.addEventListener('touchstart', (e) => this.startDrawing(e));
+            this.canvas.addEventListener('touchmove', (e) => this.draw(e));
+            this.canvas.addEventListener('touchend', () => this.stopDrawing());
+            
+            // Set drawing style
+            this.ctx.strokeStyle = '#1a1a2e';
+            this.ctx.lineWidth = 2.5;
+            this.ctx.lineCap = 'round';
+            this.ctx.lineJoin = 'round';
+        }
+
+        resizeCanvas() {
+            const rect = this.canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            
+            this.canvas.width = rect.width * dpr;
+            this.canvas.height = rect.height * dpr;
+            
+            this.ctx.scale(dpr, dpr);
+            this.canvas.style.width = rect.width + 'px';
+            this.canvas.style.height = rect.height + 'px';
+            
+            // Restore drawing style after resize
+            this.ctx.strokeStyle = '#1a1a2e';
+            this.ctx.lineWidth = 2.5;
+            this.ctx.lineCap = 'round';
+            this.ctx.lineJoin = 'round';
+            
+            // Redraw all strokes
+            this.redraw();
+        }
+
+        getCoordinates(e) {
+            const rect = this.canvas.getBoundingClientRect();
+            let x, y;
+            
+            if (e.touches && e.touches.length > 0) {
+                x = e.touches[0].clientX - rect.left;
+                y = e.touches[0].clientY - rect.top;
+            } else {
+                x = e.clientX - rect.left;
+                y = e.clientY - rect.top;
+            }
+            
+            return { x, y };
+        }
+
+        startDrawing(e) {
+            e.preventDefault();
+            this.isDrawing = true;
+            const coords = this.getCoordinates(e);
+            this.lastX = coords.x;
+            this.lastY = coords.y;
+            this.currentStroke = [{ x: coords.x, y: coords.y }];
+        }
+
+        draw(e) {
+            if (!this.isDrawing) return;
+            e.preventDefault();
+            
+            const coords = this.getCoordinates(e);
+            
+            this.ctx.beginPath();
+            this.ctx.moveTo(this.lastX, this.lastY);
+            this.ctx.lineTo(coords.x, coords.y);
+            this.ctx.stroke();
+            
+            this.currentStroke.push({ x: coords.x, y: coords.y });
+            this.lastX = coords.x;
+            this.lastY = coords.y;
+        }
+
+        stopDrawing() {
+            if (this.isDrawing && this.currentStroke.length > 0) {
+                this.strokes.push([...this.currentStroke]);
+                this.currentStroke = [];
+            }
+            this.isDrawing = false;
+            this.updateStatus();
+        }
+
+        redraw() {
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            for (const stroke of this.strokes) {
+                if (stroke.length < 2) continue;
+                
+                this.ctx.beginPath();
+                this.ctx.moveTo(stroke[0].x, stroke[0].y);
+                
+                for (let i = 1; i < stroke.length; i++) {
+                    this.ctx.lineTo(stroke[i].x, stroke[i].y);
+                }
+                this.ctx.stroke();
+            }
+        }
+
+        undo() {
+            if (this.strokes.length > 0) {
+                this.strokes.pop();
+                this.redraw();
+                this.updateStatus();
+            }
+        }
+
+        clear() {
+            this.strokes = [];
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this.updateStatus();
+        }
+
+        isEmpty() {
+            return this.strokes.length === 0;
+        }
+
+        updateStatus() {
+            const statusEl = document.getElementById('signatureStatus');
+            if (this.isEmpty()) {
+                statusEl.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i> No signature';
+                statusEl.className = 'text-[10px] font-bold uppercase tracking-widest text-amber-600';
+            } else {
+                statusEl.innerHTML = '<i class="fas fa-check-circle mr-1"></i> Signature captured';
+                statusEl.className = 'text-[10px] font-bold uppercase tracking-widest text-green-600';
+            }
+        }
+
+        toDataURL() {
+            if (this.isEmpty()) return '';
+            
+            // Create a temporary canvas with white background
+            const tempCanvas = document.createElement('canvas');
+            const rect = this.canvas.getBoundingClientRect();
+            tempCanvas.width = rect.width * 2;
+            tempCanvas.height = rect.height * 2;
+            
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.scale(2, 2);
+            
+            // Fill with white background
+            tempCtx.fillStyle = '#ffffff';
+            tempCtx.fillRect(0, 0, rect.width, rect.height);
+            
+            // Draw the signature
+            tempCtx.strokeStyle = '#1a1a2e';
+            tempCtx.lineWidth = 2.5;
+            tempCtx.lineCap = 'round';
+            tempCtx.lineJoin = 'round';
+            
+            for (const stroke of this.strokes) {
+                if (stroke.length < 2) continue;
+                
+                tempCtx.beginPath();
+                tempCtx.moveTo(stroke[0].x, stroke[0].y);
+                
+                for (let i = 1; i < stroke.length; i++) {
+                    tempCtx.lineTo(stroke[i].x, stroke[i].y);
+                }
+                tempCtx.stroke();
+            }
+            
+            return tempCanvas.toDataURL('image/png');
+        }
+    }
+
+    // Initialize signature pad
+    let signaturePad;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        const canvas = document.getElementById('signatureCanvas');
+        signaturePad = new SignaturePad(canvas);
+    });
+
+    function clearSignature() {
+        signaturePad.clear();
+    }
+
+    function undoSignature() {
+        signaturePad.undo();
+    }
+
+    // Form submission handling
+    document.getElementById('certificateForm').addEventListener('submit', function(e) {
+        const action = e.submitter?.value;
+        
+        // Only require signature for approval
+        if (action === 'approve') {
+            if (signaturePad.isEmpty()) {
+                e.preventDefault();
+                alert('Please provide your signature before approving the certificate.');
+                document.getElementById('signatureCanvas').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return false;
+            }
+        }
+        
+        // Set signature data
+        document.getElementById('signature_data').value = signaturePad.toDataURL();
+        
+        // Handle vaccine fields if applicable
+        const vaccineType = document.getElementById('vaccine_type')?.value;
+        const vaccineUsedFinal = document.getElementById('vaccine_used_final');
+        const lotNumberFinal = document.getElementById('lot_number_final');
+        
+        if (vaccineType === 'anti-rabies') {
+            vaccineUsedFinal.value = document.getElementById('vaccine_name_rabies').value;
+            lotNumberFinal.value = document.getElementById('lot_number_rabies').value;
+        } else if (vaccineType === 'other') {
+            vaccineUsedFinal.value = document.getElementById('vaccine_name_other').value;
+            lotNumberFinal.value = document.getElementById('lot_number_other').value;
+        }
+    });
+</script>
 
 @if($isVaccination)
 <script>
@@ -436,20 +713,6 @@
             document.getElementById('lot_number_other')?.removeAttribute('required');
         }
     }
-
-    document.querySelector('form').addEventListener('submit', function(e) {
-        const vaccineType = document.getElementById('vaccine_type')?.value;
-        const vaccineUsedFinal = document.getElementById('vaccine_used_final');
-        const lotNumberFinal = document.getElementById('lot_number_final');
-        
-        if (vaccineType === 'anti-rabies') {
-            vaccineUsedFinal.value = document.getElementById('vaccine_name_rabies').value;
-            lotNumberFinal.value = document.getElementById('lot_number_rabies').value;
-        } else if (vaccineType === 'other') {
-            vaccineUsedFinal.value = document.getElementById('vaccine_name_other').value;
-            lotNumberFinal.value = document.getElementById('lot_number_other').value;
-        }
-    });
 
     document.addEventListener('DOMContentLoaded', function() {
         toggleVaccineFields();

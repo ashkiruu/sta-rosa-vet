@@ -350,19 +350,33 @@ class AdminController extends Controller
     }
 
     public function certificatesStore(Request $request)
-    {
-        $data = $this->validateCertificateRequest($request, true);
-        $data['created_by'] = auth()->user()->First_Name ?? 'Admin';
+{
+    $data = $this->validateCertificateRequest($request, true);
+    $data['created_by'] = auth()->user()->First_Name ?? 'Admin';
 
-        $certificate = CertificateService::createCertificate($data);
-        AdminLogService::logCertificateAction($certificate['id'], 'created', $data['pet_name']);
+    $certificate = CertificateService::createCertificate($data);
+    AdminLogService::logCertificateAction($certificate['id'], 'created', $data['pet_name']);
 
-        if ($request->action === 'approve') {
-            return $this->approveCertificateAndRedirect($certificate['id'], $data['pet_name'], 'created and approved');
+    if ($request->action === 'approve') {
+        // Get signature data from request
+        $signatureData = $request->input('signature_data');
+        
+        // Validate signature is provided for approval
+        if (empty($signatureData)) {
+            return back()->withInput()->with('error', 'Signature is required to approve the certificate.');
         }
-
-        return redirect()->route('admin.certificates.index')->with('success', 'Certificate saved as draft.');
+        
+        return $this->approveCertificateAndRedirect(
+            $certificate['id'], 
+            $data['pet_name'], 
+            'created and approved',
+            $signatureData
+        );
     }
+
+    return redirect()->route('admin.certificates.index')->with('success', 'Certificate saved as draft.');
+}
+
 
     public function certificatesEdit($id)
     {
@@ -377,34 +391,41 @@ class AdminController extends Controller
     }
 
     public function certificatesUpdate(Request $request, $id)
-    {
-        $data = $this->validateCertificateRequest($request);
-        $certificate = CertificateService::updateCertificate($id, $data);
+{
+    $data = $this->validateCertificateRequest($request);
+    $certificate = CertificateService::updateCertificate($id, $data);
 
-        if (!$certificate) {
-            return redirect()->route('admin.certificates.index')->with('error', 'Certificate not found.');
-        }
-
-        AdminLogService::logCertificateAction($id, 'updated', $request->pet_name);
-
-        if ($request->action === 'approve') {
-            return $this->approveCertificateAndRedirect($id, $request->pet_name, 'updated and approved');
-        }
-
-        return redirect()->route('admin.certificates.index')->with('success', 'Certificate updated successfully.');
+    if (!$certificate) {
+        return redirect()->route('admin.certificates.index')->with('error', 'Certificate not found.');
     }
+
+    AdminLogService::logCertificateAction($id, 'updated', $request->pet_name);
+
+    if ($request->action === 'approve') {
+        // Get signature data from request
+        $signatureData = $request->input('signature_data');
+        
+        // Validate signature is provided for approval
+        if (empty($signatureData)) {
+            return back()->withInput()->with('error', 'Signature is required to approve the certificate.');
+        }
+        
+        return $this->approveCertificateAndRedirect(
+            $id, 
+            $request->pet_name, 
+            'updated and approved',
+            $signatureData
+        );
+    }
+
+    return redirect()->route('admin.certificates.index')->with('success', 'Certificate updated successfully.');
+}
 
     public function certificatesApprove($id)
-    {
-        $certificate = CertificateService::approveCertificate($id, auth()->user()->First_Name ?? 'Admin');
-
-        if (!$certificate) {
-            return redirect()->route('admin.certificates.index')->with('error', 'Certificate not found.');
-        }
-
-        AdminLogService::logCertificateAction($id, 'approved', $certificate['pet_name'] ?? 'Unknown');
-        return redirect()->route('admin.certificates.index')->with('success', 'Certificate approved!');
-    }
+{
+    return redirect()->route('admin.certificates.edit', $id)
+        ->with('info', 'Please add your signature before approving the certificate.');
+}
 
     public function certificatesView($id)
     {
@@ -427,94 +448,95 @@ class AdminController extends Controller
     }
 
     private function validateCertificateRequest(Request $request, bool $includeAppointmentId = false): array
-    {
-        $serviceType = $request->input('service_type', '');
-        $serviceTypeLower = strtolower($serviceType);
+{
+    $serviceType = $request->input('service_type', '');
+    $serviceTypeLower = strtolower($serviceType);
+    
+    $isVaccination = strpos($serviceTypeLower, 'vaccination') !== false || strpos($serviceTypeLower, 'vaccine') !== false;
+    $isDeworming = strpos($serviceTypeLower, 'deworming') !== false;
+    $isCheckup = strpos($serviceTypeLower, 'checkup') !== false || strpos($serviceTypeLower, 'check-up') !== false;
+
+    $rules = [
+        'pet_name' => 'required|string|max:255',
+        'animal_type' => 'required|string|max:100',
+        'pet_gender' => 'required|string|max:50',
+        'pet_age' => 'required|string|max:100',
+        'pet_breed' => 'required|string|max:255',
+        'pet_color' => 'required|string|max:100',
+        'pet_dob' => 'nullable|date',
+        'owner_name' => 'required|string|max:255',
+        'owner_address' => 'required|string',
+        'owner_phone' => 'required|string|max:50',
+        'civil_status' => 'required|string|max:50',
+        'years_of_residency' => 'required|string|max:100',
+        'owner_birthdate' => 'nullable|date',
+        'service_type' => 'required|string|max:255',
+        'service_date' => 'required|date',
+        'next_service_date' => 'nullable|date',
+        'veterinarian_name' => 'required|string|max:255',
+        'license_number' => 'required|string|max:100',
+        'ptr_number' => 'required|string|max:100',
+        'signature_data' => 'nullable|string', // NEW: Add signature validation
+    ];
+
+    if ($isVaccination) {
+        $rules['vaccine_type'] = 'required|in:anti-rabies,other';
+        $vaccineType = $request->input('vaccine_type');
+        if ($vaccineType === 'anti-rabies') {
+            $rules['vaccine_name_rabies'] = 'required|string|max:255';
+            $rules['lot_number'] = 'required|string|max:100';
+        } elseif ($vaccineType === 'other') {
+            $rules['vaccine_name_other'] = 'required|string|max:255';
+            $rules['lot_number_other'] = 'required|string|max:100';
+        }
+    }
+
+    if ($isDeworming) {
+        $rules['medicine_used'] = 'nullable|string|max:255';
+        $rules['dosage'] = 'nullable|string|max:100';
+    }
+
+    if ($isCheckup) {
+        $rules['findings'] = 'nullable|string';
+        $rules['recommendations'] = 'nullable|string';
+    }
+
+    if ($includeAppointmentId) {
+        $rules['appointment_id'] = 'required';
+    }
+
+    $validated = $request->validate($rules);
+
+    if ($isVaccination) {
+        $vaccineType = $request->input('vaccine_type');
+        $validated['vaccine_type'] = $vaccineType;
         
-        $isVaccination = strpos($serviceTypeLower, 'vaccination') !== false || strpos($serviceTypeLower, 'vaccine') !== false;
-        $isDeworming = strpos($serviceTypeLower, 'deworming') !== false;
-        $isCheckup = strpos($serviceTypeLower, 'checkup') !== false || strpos($serviceTypeLower, 'check-up') !== false;
-
-        $rules = [
-            'pet_name' => 'required|string|max:255',
-            'animal_type' => 'required|string|max:100',
-            'pet_gender' => 'required|string|max:50',
-            'pet_age' => 'required|string|max:100',
-            'pet_breed' => 'required|string|max:255',
-            'pet_color' => 'required|string|max:100',
-            'pet_dob' => 'nullable|date',
-            'owner_name' => 'required|string|max:255',
-            'owner_address' => 'required|string',
-            'owner_phone' => 'required|string|max:50',
-            'civil_status' => 'required|string|max:50',
-            'years_of_residency' => 'required|string|max:100',
-            'owner_birthdate' => 'nullable|date',
-            'service_type' => 'required|string|max:255',
-            'service_date' => 'required|date',
-            'next_service_date' => 'nullable|date',
-            'veterinarian_name' => 'required|string|max:255',
-            'license_number' => 'required|string|max:100',
-            'ptr_number' => 'required|string|max:100',
-        ];
-
-        if ($isVaccination) {
-            $rules['vaccine_type'] = 'required|in:anti-rabies,other';
-            $vaccineType = $request->input('vaccine_type');
-            if ($vaccineType === 'anti-rabies') {
-                $rules['vaccine_name_rabies'] = 'required|string|max:255';
-                $rules['lot_number'] = 'required|string|max:100';
-            } elseif ($vaccineType === 'other') {
-                $rules['vaccine_name_other'] = 'required|string|max:255';
-                $rules['lot_number_other'] = 'required|string|max:100';
-            }
+        if ($vaccineType === 'anti-rabies') {
+            $validated['vaccine_name_rabies'] = $request->input('vaccine_name_rabies');
+            $validated['vaccine_used'] = $request->input('vaccine_name_rabies');
+            $validated['lot_number'] = $request->input('lot_number');
+        } elseif ($vaccineType === 'other') {
+            $validated['vaccine_used'] = $request->input('vaccine_name_other');
+            $validated['lot_number'] = $request->input('lot_number_other');
         }
-
-        if ($isDeworming) {
-            $rules['medicine_used'] = 'nullable|string|max:255';
-            $rules['dosage'] = 'nullable|string|max:100';
-        }
-
-        if ($isCheckup) {
-            $rules['findings'] = 'nullable|string';
-            $rules['recommendations'] = 'nullable|string';
-        }
-
-        if ($includeAppointmentId) {
-            $rules['appointment_id'] = 'required';
-        }
-
-        $validated = $request->validate($rules);
-
-        if ($isVaccination) {
-            $vaccineType = $request->input('vaccine_type');
-            $validated['vaccine_type'] = $vaccineType;
-            
-            if ($vaccineType === 'anti-rabies') {
-                $validated['vaccine_name_rabies'] = $request->input('vaccine_name_rabies');
-                $validated['vaccine_used'] = $request->input('vaccine_name_rabies');
-                $validated['lot_number'] = $request->input('lot_number');
-            } elseif ($vaccineType === 'other') {
-                $validated['vaccine_used'] = $request->input('vaccine_name_other');
-                $validated['lot_number'] = $request->input('lot_number_other');
-            }
-        }
-
-        if (isset($validated['service_date'])) {
-            $validated['vaccination_date'] = $validated['service_date'];
-        }
-        if (isset($validated['next_service_date'])) {
-            $validated['next_vaccination_date'] = $validated['next_service_date'];
-        }
-
-        return $validated;
     }
 
-    private function approveCertificateAndRedirect($id, $petName, $action): \Illuminate\Http\RedirectResponse
-    {
-        CertificateService::approveCertificate($id, auth()->user()->First_Name ?? 'Admin');
-        AdminLogService::logCertificateAction($id, 'approved', $petName);
-        return redirect()->route('admin.certificates.index')->with('success', "Certificate {$action} successfully!");
+    if (isset($validated['service_date'])) {
+        $validated['vaccination_date'] = $validated['service_date'];
     }
+    if (isset($validated['next_service_date'])) {
+        $validated['next_vaccination_date'] = $validated['next_service_date'];
+    }
+
+    return $validated;
+}
+
+    private function approveCertificateAndRedirect($id, $petName, $action, $signatureData = null): \Illuminate\Http\RedirectResponse
+{
+    CertificateService::approveCertificate($id, auth()->user()->First_Name ?? 'Admin', $signatureData);
+    AdminLogService::logCertificateAction($id, 'approved', $petName);
+    return redirect()->route('admin.certificates.index')->with('success', "Certificate {$action} successfully!");
+}
 
     private function serveCertificatePdf($id)
     {

@@ -64,46 +64,27 @@
                             @enderror
                         </div>
 
-                        {{-- Role Selection --}}
+                        {{-- Role Selection - Only Administrator --}}
                         <div>
                             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 ml-1">
-                                2. Define Authority Level <span class="text-purple-500">*</span>
+                                2. Confirm Authority Level
                             </label>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {{-- Staff Role --}}
-                                <label class="relative group cursor-pointer">
-                                    <input type="radio" name="admin_role" value="staff" {{ old('admin_role', 'staff') === 'staff' ? 'checked' : '' }} class="peer hidden">
-                                    <div class="h-full p-6 border-2 border-gray-50 bg-gray-50 rounded-[1.5rem] transition-all peer-checked:border-purple-600 peer-checked:bg-white peer-checked:shadow-md group-hover:bg-white">
-                                        <div class="flex items-center gap-3 mb-3">
-                                            <div class="w-8 h-8 rounded-lg bg-green-100 text-green-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                <i class="fas fa-user text-xs"></i>
-                                            </div>
-                                            <span class="text-xs font-black text-gray-900 uppercase tracking-widest">Staff Member</span>
-                                        </div>
-                                        <p class="text-[9px] font-bold text-gray-400 leading-relaxed uppercase">Operation-centric access. verification, appointment logs, and reporting. full activity auditing enabled.</p>
+                            
+                            {{-- Hidden input to always submit 'admin' role --}}
+                            <input type="hidden" name="admin_role" value="admin">
+                            
+                            {{-- Administrator Role Display --}}
+                            <div class="p-6 border-2 border-purple-600 bg-white rounded-[1.5rem] shadow-md">
+                                <div class="flex items-center gap-3 mb-3">
+                                    <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                                        <i class="fas fa-user-tie text-xs"></i>
                                     </div>
-                                    <div class="absolute top-4 right-4 opacity-0 peer-checked:opacity-100 transition-opacity">
-                                        <i class="fas fa-check-circle text-purple-600 text-lg"></i>
-                                    </div>
-                                </label>
-
-                                {{-- Admin Role --}}
-                                <label class="relative group cursor-pointer">
-                                    <input type="radio" name="admin_role" value="admin" {{ old('admin_role') === 'admin' ? 'checked' : '' }} class="peer hidden">
-                                    <div class="h-full p-6 border-2 border-gray-50 bg-gray-50 rounded-[1.5rem] transition-all peer-checked:border-purple-600 peer-checked:bg-white peer-checked:shadow-md group-hover:bg-white">
-                                        <div class="flex items-center gap-3 mb-3">
-                                            <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                <i class="fas fa-user-tie text-xs"></i>
-                                            </div>
-                                            <span class="text-xs font-black text-gray-900 uppercase tracking-widest">Administrator</span>
-                                        </div>
-                                        <p class="text-[9px] font-bold text-gray-400 leading-relaxed uppercase">Management-centric access. inherited staff permissions with future oversight and system configuration modules.</p>
-                                    </div>
-                                    <div class="absolute top-4 right-4 opacity-0 peer-checked:opacity-100 transition-opacity">
-                                        <i class="fas fa-check-circle text-purple-600 text-lg"></i>
-                                    </div>
-                                </label>
+                                    <span class="text-xs font-black text-gray-900 uppercase tracking-widest">Administrator</span>
+                                    <i class="fas fa-check-circle text-purple-600 text-lg ml-auto"></i>
+                                </div>
+                                <p class="text-[9px] font-bold text-gray-400 leading-relaxed uppercase">Full administrative access including verifications, appointments, certificates, reports, and system oversight. All activity is logged and audited.</p>
                             </div>
+                            
                             @error('admin_role')
                                 <p class="text-red-500 text-[9px] font-black uppercase mt-2 ml-1 tracking-widest">{{ $message }}</p>
                             @enderror
@@ -146,14 +127,4 @@
         </div>
     </div>
 </div>
-
-{{-- Script for visual feedback on radio selection --}}
-<script>
-    document.querySelectorAll('input[name="admin_role"]').forEach(radio => {
-        radio.addEventListener('change', function() {
-            // Script logic preserved for behavior, though Peer-checked CSS handles most styling
-            console.log("Role updated to: " + this.value);
-        });
-    });
-</script>
 @endsection

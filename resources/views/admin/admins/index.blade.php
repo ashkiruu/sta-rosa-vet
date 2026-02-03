@@ -8,7 +8,7 @@
     <div class="mb-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
             <h1 class="text-3xl font-black text-gray-900 uppercase tracking-tight">Admin Accounts</h1>
-            <p class="text-[10px] font-bold text-purple-600 uppercase tracking-[0.2em]">Manage staff and system access levels</p>
+            <p class="text-[10px] font-bold text-purple-600 uppercase tracking-[0.2em]">Manage system access levels</p>
         </div>
         <a href="{{ route('admin.admins.create') }}" class="w-full md:w-auto bg-gray-900 hover:bg-purple-600 text-white px-6 py-3.5 rounded-[1.5rem] font-black text-xs uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 group">
             <i class="fas fa-user-plus group-hover:scale-110 transition-transform"></i> 
@@ -16,8 +16,8 @@
         </a>
     </div>
 
-    {{-- Summary Cards --}}
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+    {{-- Summary Cards - Only Super Admins and Administrators --}}
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
         <div class="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6 flex items-center group hover:border-purple-200 transition-colors">
             <div class="p-4 bg-purple-50 text-purple-600 rounded-2xl mr-4 group-hover:bg-purple-600 group-hover:text-white transition-all">
                 <i class="fas fa-crown text-xl"></i>
@@ -34,17 +34,7 @@
             </div>
             <div>
                 <p class="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">Administrators</p>
-                <h4 class="text-2xl font-black text-gray-900">{{ $admins->where('admin_role', 'admin')->where('is_super_admin', false)->count() }}</h4>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6 flex items-center group hover:border-green-200 transition-colors">
-            <div class="p-4 bg-green-50 text-green-600 rounded-2xl mr-4 group-hover:bg-green-600 group-hover:text-white transition-all">
-                <i class="fas fa-user text-xl"></i>
-            </div>
-            <div>
-                <p class="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">Staff Members</p>
-                <h4 class="text-2xl font-black text-gray-900">{{ $admins->where('admin_role', 'staff')->where('is_super_admin', false)->count() }}</h4>
+                <h4 class="text-2xl font-black text-gray-900">{{ $admins->where('is_super_admin', false)->count() }}</h4>
             </div>
         </div>
     </div>
@@ -88,13 +78,9 @@
                                 <span class="inline-flex items-center px-4 py-1.5 text-[9px] font-black bg-purple-100 text-purple-700 rounded-full uppercase tracking-widest border border-purple-200">
                                     <i class="fas fa-crown mr-2"></i> Super Admin
                                 </span>
-                            @elseif($admin->admin_role === 'admin')
+                            @else
                                 <span class="inline-flex items-center px-4 py-1.5 text-[9px] font-black bg-blue-100 text-blue-700 rounded-full uppercase tracking-widest border border-blue-200">
                                     <i class="fas fa-user-tie mr-2"></i> Administrator
-                                </span>
-                            @else
-                                <span class="inline-flex items-center px-4 py-1.5 text-[9px] font-black bg-green-100 text-green-700 rounded-full uppercase tracking-widest border border-green-200">
-                                    <i class="fas fa-user mr-2"></i> Staff
                                 </span>
                             @endif
                         </td>
@@ -114,23 +100,16 @@
                         <td class="px-8 py-6 text-right">
                             <div class="flex items-center justify-end gap-3">
                                 @if(!$admin->is_super_admin)
-                                    <form action="{{ route('admin.admins.update', $admin->User_ID) }}" method="POST" class="inline-block">
-                                        @csrf
-                                        @method('PUT')
-                                        <select name="admin_role" onchange="this.form.submit()" class="bg-gray-100 border-none text-[10px] font-black uppercase tracking-widest rounded-xl px-3 py-2 focus:ring-2 focus:ring-purple-500 transition-all cursor-pointer hover:bg-gray-200">
-                                            <option value="staff" {{ $admin->admin_role === 'staff' ? 'selected' : '' }}>Set Staff</option>
-                                            <option value="admin" {{ $admin->admin_role === 'admin' ? 'selected' : '' }}>Set Admin</option>
-                                        </select>
-                                    </form>
-                                    
                                     @if($admin->User_ID !== auth()->id())
                                     <form action="{{ route('admin.admins.destroy', $admin->User_ID) }}" method="POST" class="inline-block" onsubmit="return confirm('WARNING: REVOKE ACCESS? This administrator will lose all system privileges immediately.');">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="p-2.5 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-xl transition-all shadow-sm">
+                                        <button type="submit" class="p-2.5 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-xl transition-all shadow-sm" title="Remove Admin Access">
                                             <i class="fas fa-trash-alt text-xs"></i>
                                         </button>
                                     </form>
+                                    @else
+                                    <span class="text-[9px] font-black text-gray-300 uppercase tracking-widest border border-gray-100 px-3 py-1.5 rounded-lg bg-gray-50/50">Current User</span>
                                     @endif
                                 @else
                                     <span class="text-[9px] font-black text-gray-300 uppercase tracking-widest border border-gray-100 px-3 py-1.5 rounded-lg bg-gray-50/50">System Protected</span>
@@ -145,7 +124,7 @@
                                 <i class="fas fa-users-slash text-3xl text-gray-200"></i>
                             </div>
                             <h3 class="text-xs font-black text-gray-900 uppercase tracking-[0.2em]">No Directory Data</h3>
-                            <p class="text-[10px] font-bold text-gray-400 uppercase mt-2 italic">Add a staff member to begin management</p>
+                            <p class="text-[10px] font-bold text-gray-400 uppercase mt-2 italic">Add an administrator to begin management</p>
                         </td>
                     </tr>
                     @endforelse
@@ -162,18 +141,14 @@
         <h4 class="text-xs font-black uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
             <i class="fas fa-info-circle text-blue-400"></i> Role Governance Architecture
         </h4>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 relative z-10">
-            <div class="border-l border-white/10 pl-4">
-                <p class="text-green-400 text-[10px] font-black uppercase tracking-widest mb-1">Staff</p>
-                <p class="text-[10px] font-bold text-white leading-relaxed uppercase">Operation-focused: Verifications, Appointments, Certificates, and Reports. Full Audit Logs enabled.</p>
-            </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
             <div class="border-l border-white/10 pl-4">
                 <p class="text-blue-400 text-[10px] font-black uppercase tracking-widest mb-1">Administrator</p>
-                <p class="text-[10px] font-bold text-white leading-relaxed uppercase">Management-focused: Same as Staff with expanded system oversight and setting configurations.</p>
+                <p class="text-[10px] font-bold text-white leading-relaxed uppercase">Full operational access: Verifications, Appointments, Certificates, Reports, and System Configuration. All activity is logged.</p>
             </div>
             <div class="border-l border-white/10 pl-4">
                 <p class="text-purple-400 text-[10px] font-black uppercase tracking-widest mb-1">Super Admin</p>
-                <p class="text-[10px] font-bold text-white leading-relaxed uppercase">Root Access: Full control over directory and audit logs. Actions are bypassed from activity logs.</p>
+                <p class="text-[10px] font-bold text-white leading-relaxed uppercase">Root Access: Full control over admin directory and audit logs. Actions are bypassed from activity logs.</p>
             </div>
         </div>
     </div>

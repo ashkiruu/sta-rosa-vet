@@ -106,23 +106,33 @@
                 </div>
             </div>
 
-            {{-- Today's Overview Stats --}}
+            {{-- Today's Overview Stats - FIXED: Filter by CREATED_AT, not appointment Date --}}
             <div class="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6">
-                <h3 class="text-[10px] font-black text-gray-900 uppercase tracking-widest mb-4 border-b border-gray-50 pb-3">Daily Snapshot</h3>
+                <h3 class="text-[10px] font-black text-gray-900 uppercase tracking-widest mb-4 border-b border-gray-50 pb-3">
+                    Daily Snapshot
+                    <span class="text-[8px] font-bold text-gray-400 block mt-1">Appointments booked today</span>
+                </h3>
                 
                 @php
-                    $todayStr = now()->format('Y-m-d');
-                    $todayAppointments = $appointments->filter(function($appt) use ($todayStr) {
-                        return $appt->Date === $todayStr;
+                    // FIX: Filter by created_at (when appointment was BOOKED), not Date (when appointment is SCHEDULED)
+                    $todayAppointments = $appointments->filter(function($appt) {
+                        // Check if created_at is today
+                        if ($appt->created_at) {
+                            return $appt->created_at->isToday();
+                        }
+                        return false;
                     });
+                    
                     $pendingToday = $todayAppointments->where('Status', 'Pending')->count();
                     $approvedToday = $todayAppointments->where('Status', 'Approved')->count();
-                    $qrReleasedToday = $todayAppointments->where('qr_released', true)->count();
+                    $qrReleasedToday = $todayAppointments->filter(function($appt) {
+                        return isset($appt->qr_released) && $appt->qr_released === true;
+                    })->count();
                 @endphp
 
                 <div class="space-y-4">
                     <div class="flex justify-between items-end">
-                        <span class="text-[10px] font-bold text-gray-400 uppercase">Total Today</span>
+                        <span class="text-[10px] font-bold text-gray-400 uppercase">Booked Today</span>
                         <span class="text-xl font-black text-gray-900 leading-none">{{ $todayAppointments->count() }}</span>
                     </div>
                     <div class="flex justify-between items-end">
@@ -130,11 +140,11 @@
                         <span class="text-xl font-black text-yellow-500 leading-none">{{ $pendingToday }}</span>
                     </div>
                     <div class="flex justify-between items-end">
-                        <span class="text-[10px] font-bold text-green-600 uppercase">Confirmed</span>
+                        <span class="text-[10px] font-bold text-green-600 uppercase">Approved</span>
                         <span class="text-xl font-black text-green-500 leading-none">{{ $approvedToday }}</span>
                     </div>
                     <div class="flex justify-between items-end pt-2 border-t border-gray-50">
-                        <span class="text-[10px] font-bold text-blue-600 uppercase">QR Sent</span>
+                        <span class="text-[10px] font-bold text-blue-600 uppercase">QR Released</span>
                         <span class="text-xl font-black text-blue-500 leading-none">{{ $qrReleasedToday }}</span>
                     </div>
                 </div>
@@ -257,7 +267,15 @@
 </div>
 
 <script>
-    const allAppointments = @json($appointments);
+    // Normalize appointment dates for calendar display (by scheduled date)
+    const allAppointments = @json($appointments).map(appt => {
+        // Normalize the Date to Y-m-d format
+        if (appt.Date && appt.Date.includes('T')) {
+            appt.Date = appt.Date.split('T')[0];
+        }
+        return appt;
+    });
+    
     const schedule = @json($schedule);
     const defaultClosedDays = schedule.default_closed_days || [0, 6]; 
     const openedDates = schedule.opened_dates || [];
@@ -306,9 +324,10 @@
         const firstDay = new Date(year, month, 1).getDay();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
         
+        // Group appointments by their SCHEDULED date (for calendar display)
         const appointmentsByDate = {};
         allAppointments.forEach(appt => {
-            let date = appt.Date.split('T')[0];
+            let date = appt.Date;
             if (!appointmentsByDate[date]) appointmentsByDate[date] = [];
             appointmentsByDate[date].push(appt);
         });
@@ -390,9 +409,8 @@
         
         document.getElementById('selectedDateTitle').textContent = date.toLocaleDateString('en-US', options);
         
-        const dayAppointments = allAppointments.filter(appt => {
-            return (appt.Date && appt.Date.split('T')[0] === dateStr);
-        });
+        // Filter appointments by their SCHEDULED date (for viewing appointments on that day)
+        const dayAppointments = allAppointments.filter(appt => appt.Date === dateStr);
         
         document.getElementById('openDayDate').value = dateStr;
         document.getElementById('closeDayDate').value = dateStr;
