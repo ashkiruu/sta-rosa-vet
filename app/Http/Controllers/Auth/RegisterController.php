@@ -67,7 +67,7 @@ class RegisterController extends Controller
             'Address' => 'required|string|max:500',
             'Barangay_ID' => 'required|exists:barangays,Barangay_ID',
             // New fields for certificate generation
-            'Civil_Status' => 'required|string|in:Single,Married,Widowed,Separated,Divorced',
+            'Civil_Status' => 'required|string|in:Single,Married,Widowed,Separated',
             'Years_Of_Residency' => 'required|integer|min:0|max:100',
             'Birthdate' => 'required|date|before:today',
         ]);
