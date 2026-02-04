@@ -181,7 +181,7 @@ class AdminController extends Controller
     public function appointments()
     {
         $appointments = Appointment::with(['user', 'pet', 'service'])
-            ->whereIn('Status', ['Pending', 'Approved'])
+            ->whereIn('Status', ['Pending', 'Approved', 'No Show'])
             ->orderBy('Date')->orderBy('Time')
             ->get()
             ->map(fn($apt) => tap($apt, function ($a) {
@@ -252,6 +252,104 @@ class AdminController extends Controller
 
         return back()->with('success', 
             "QR code released for {$appointment->pet->Pet_Name}! The patient has been notified.");
+    }
+
+    /**
+     * Mark an approved appointment as No Show
+     */
+    public function markNoShow($id)
+    {
+        $appointment = Appointment::with(['pet', 'user', 'service'])->findOrFail($id);
+
+        if ($appointment->Status !== 'Approved') {
+            return back()->with('error', 'Only approved appointments can be marked as no-show.');
+        }
+
+        // Check if already checked in (has attendance record with 'checked_in' or 'completed' status)
+        $existingAttendance = AttendanceLog::where('Appointment_ID', $id)
+            ->whereIn('Status', ['checked_in', 'completed'])
+            ->first();
+
+        if ($existingAttendance) {
+            return back()->with('error', 'This appointment has already been checked in and cannot be marked as no-show.');
+        }
+
+        // Update appointment status
+        $appointment->update(['Status' => 'No Show']);
+
+        // Create or update attendance log with no_show status
+        AttendanceLog::updateOrCreate(
+            ['Appointment_ID' => $id],
+            [
+                'User_ID' => $appointment->User_ID,
+                'Pet_Name' => $appointment->pet->Pet_Name,
+                'Owner_Name' => "{$appointment->user->First_Name} {$appointment->user->Last_Name}",
+                'Service' => $appointment->service->Service_Name ?? null,
+                'Scheduled_Date' => $appointment->Date,
+                'Scheduled_Time' => $appointment->Time,
+                'Check_In_Time' => now(),
+                'Check_In_Date' => now()->toDateString(),
+                'Scanned_By' => auth()->user()->First_Name ?? 'Admin',
+                'Status' => 'no_show',
+            ]
+        );
+
+        AdminLogService::log(
+            'APPOINTMENT_NO_SHOW',
+            "Marked appointment for {$appointment->pet->Pet_Name} as no-show (ID: {$id})"
+        );
+
+        return back()->with('success', 
+            "{$appointment->pet->Pet_Name}'s appointment has been marked as No Show.");
+    }
+
+    /**
+     * Cancel an approved appointment (admin action)
+     */
+    public function cancelAppointment(Request $request, $id)
+    {
+        $appointment = Appointment::with(['pet', 'user', 'service'])->findOrFail($id);
+
+        if (!in_array($appointment->Status, ['Pending', 'Approved'])) {
+            return back()->with('error', 'This appointment cannot be cancelled.');
+        }
+
+        $reason = $request->input('reason', 'Cancelled by administrator');
+        $petName = $appointment->pet->Pet_Name;
+        $ownerName = "{$appointment->user->First_Name} {$appointment->user->Last_Name}";
+        $date = $appointment->Date instanceof \Carbon\Carbon 
+            ? $appointment->Date->format('M d, Y') 
+            : Carbon::parse($appointment->Date)->format('M d, Y');
+        $time = Carbon::parse($appointment->Time)->format('h:i A');
+
+        // Create notification for user about cancellation
+        UserNotification::create([
+            'User_ID' => $appointment->User_ID,
+            'Type' => 'appointment_cancelled',
+            'Title' => 'Appointment Cancelled',
+            'Message' => "Your appointment for {$petName} on {$date} at {$time} has been cancelled. Reason: {$reason}",
+            'Reference_Type' => 'appointment',
+            'Reference_ID' => $id,
+            'Data' => [
+                'pet_name' => $petName,
+                'service' => $appointment->service->Service_Name ?? 'N/A',
+                'date' => $date,
+                'time' => $time,
+                'reason' => $reason,
+                'cancelled_at' => now()->toDateTimeString(),
+            ],
+            'Expires_At' => now()->addDays(7),
+        ]);
+
+        AdminLogService::log(
+            'APPOINTMENT_CANCELLED',
+            "Cancelled appointment for {$petName} (Owner: {$ownerName}) scheduled on {$date} at {$time}. Reason: {$reason}"
+        );
+
+        $appointment->delete();
+
+        return back()->with('success', 
+            "Appointment for {$petName} on {$date} at {$time} has been cancelled.");
     }
 
     public function rejectAppointment($id)

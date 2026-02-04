@@ -26,15 +26,32 @@
         </form>
     </div>
 
-    {{-- Stats Cards - Red/Blue/Green Identification --}}
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    {{-- Stats Cards --}}
+    @php
+        $checkedInToday = collect($todayLogs)->whereIn('status', ['checked_in', 'completed'])->count();
+        $noShowToday = collect($todayLogs)->where('status', 'no_show')->count();
+        $checkedInFiltered = collect($filteredLogs)->whereIn('status', ['checked_in', 'completed'])->count();
+        $noShowFiltered = collect($filteredLogs)->where('status', 'no_show')->count();
+    @endphp
+    
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div class="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6 flex items-center group hover:border-green-200 transition-all">
             <div class="w-14 h-14 bg-green-100 text-green-700 rounded-2xl flex items-center justify-center mr-5 shadow-sm group-hover:bg-green-600 group-hover:text-white transition-all">
                 <i class="fas fa-check-double text-xl"></i>
             </div>
             <div>
-                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Today's Total</p>
-                <h3 class="text-2xl font-black text-gray-900 leading-none">{{ count($todayLogs) }}</h3>
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Checked In Today</p>
+                <h3 class="text-2xl font-black text-gray-900 leading-none">{{ $checkedInToday }}</h3>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6 flex items-center group hover:border-orange-200 transition-all">
+            <div class="w-14 h-14 bg-orange-100 text-orange-700 rounded-2xl flex items-center justify-center mr-5 shadow-sm group-hover:bg-orange-600 group-hover:text-white transition-all">
+                <i class="fas fa-user-slash text-xl"></i>
+            </div>
+            <div>
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">No Shows Today</p>
+                <h3 class="text-2xl font-black text-gray-900 leading-none">{{ $noShowToday }}</h3>
             </div>
         </div>
         
@@ -62,10 +79,16 @@
     {{-- Attendance Table --}}
     <div class="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
         <div class="px-8 py-6 border-b border-gray-50 flex items-center justify-between">
-            <h2 class="text-sm font-black text-gray-900 uppercase tracking-widest">Check-in Records</h2>
-            <div class="flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-green-500"></span>
-                <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Live Status</span>
+            <h2 class="text-sm font-black text-gray-900 uppercase tracking-widest">Attendance Records</h2>
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                    <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Checked In: {{ $checkedInFiltered }}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-orange-500"></span>
+                    <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">No Show: {{ $noShowFiltered }}</span>
+                </div>
             </div>
         </div>
         
@@ -83,7 +106,12 @@
                     </thead>
                     <tbody class="divide-y divide-gray-50">
                         @foreach($filteredLogs as $log)
-                            <tr class="hover:bg-gray-50/50 transition group">
+                            @php
+                                $status = $log['status'] ?? 'checked_in';
+                                $isNoShow = $status === 'no_show';
+                                $isCompleted = $status === 'completed';
+                            @endphp
+                            <tr class="hover:bg-gray-50/50 transition group {{ $isNoShow ? 'bg-orange-50/30' : '' }}">
                                 <td class="px-8 py-5">
                                     <span class="font-mono text-xs font-black text-gray-900 bg-gray-100 px-3 py-1 rounded-lg">
                                         VET-{{ str_pad($log['appointment_id'], 6, '0', STR_PAD_LEFT) }}
@@ -103,14 +131,28 @@
                                 <td class="px-8 py-5">
                                     <div class="text-center">
                                         <p class="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Scheduled: {{ \Carbon\Carbon::parse($log['scheduled_time'])->format('h:i A') }}</p>
-                                        <p class="text-xs font-black text-green-600 uppercase mt-1">Checked-in: {{ \Carbon\Carbon::parse($log['check_in_time'])->format('h:i A') }}</p>
+                                        @if($isNoShow)
+                                            <p class="text-xs font-black text-orange-600 uppercase mt-1">Marked: {{ \Carbon\Carbon::parse($log['check_in_time'])->format('h:i A') }}</p>
+                                        @else
+                                            <p class="text-xs font-black text-green-600 uppercase mt-1">Checked-in: {{ \Carbon\Carbon::parse($log['check_in_time'])->format('h:i A') }}</p>
+                                        @endif
                                     </div>
                                 </td>
                                 <td class="px-8 py-5">
                                     <div class="flex justify-center">
-                                        <span class="inline-flex items-center px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest bg-green-500 text-white shadow-sm shadow-green-100">
-                                            <i class="fas fa-check-circle mr-2"></i> Checked In
-                                        </span>
+                                        @if($isNoShow)
+                                            <span class="inline-flex items-center px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest bg-orange-500 text-white shadow-sm shadow-orange-100">
+                                                <i class="fas fa-user-slash mr-2"></i> No Show
+                                            </span>
+                                        @elseif($isCompleted)
+                                            <span class="inline-flex items-center px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest bg-blue-500 text-white shadow-sm shadow-blue-100">
+                                                <i class="fas fa-check-double mr-2"></i> Completed
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest bg-green-500 text-white shadow-sm shadow-green-100">
+                                                <i class="fas fa-check-circle mr-2"></i> Checked In
+                                            </span>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>
@@ -124,8 +166,8 @@
                     <div class="w-20 h-20 bg-gray-50 rounded-[2rem] flex items-center justify-center mb-4 border border-gray-100">
                         <i class="fas fa-clipboard-list text-3xl text-gray-200"></i>
                     </div>
-                    <h3 class="text-sm font-black text-gray-900 uppercase tracking-widest">No Check-ins Found</h3>
-                    <p class="text-[10px] font-bold text-gray-400 uppercase mt-2">No records for {{ \Carbon\Carbon::parse($selectedDate)->format('F d, Y') }}</p>
+                    <h3 class="text-sm font-black text-gray-900 uppercase tracking-widest">No Records Found</h3>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase mt-2">No attendance records for {{ \Carbon\Carbon::parse($selectedDate)->format('F d, Y') }}</p>
                 </div>
             </div>
         @endif

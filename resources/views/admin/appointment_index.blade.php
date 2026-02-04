@@ -102,6 +102,10 @@
                             <span class="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]"></span>
                             <span class="text-[9px] font-bold text-gray-500 uppercase">Full</span>
                         </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-orange-400 shadow-[0_0_5px_rgba(251,146,60,0.5)]"></span>
+                            <span class="text-[9px] font-bold text-gray-500 uppercase">No Show</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -125,6 +129,7 @@
                     
                     $pendingToday = $todayAppointments->where('Status', 'Pending')->count();
                     $approvedToday = $todayAppointments->where('Status', 'Approved')->count();
+                    $noShowToday = $todayAppointments->where('Status', 'No Show')->count();
                     $qrReleasedToday = $todayAppointments->filter(function($appt) {
                         return isset($appt->qr_released) && $appt->qr_released === true;
                     })->count();
@@ -142,6 +147,10 @@
                     <div class="flex justify-between items-end">
                         <span class="text-[10px] font-bold text-green-600 uppercase">Approved</span>
                         <span class="text-xl font-black text-green-500 leading-none">{{ $approvedToday }}</span>
+                    </div>
+                    <div class="flex justify-between items-end">
+                        <span class="text-[10px] font-bold text-orange-600 uppercase">No Show</span>
+                        <span class="text-xl font-black text-orange-500 leading-none">{{ $noShowToday }}</span>
                     </div>
                     <div class="flex justify-between items-end pt-2 border-t border-gray-50">
                         <span class="text-[10px] font-bold text-blue-600 uppercase">QR Released</span>
@@ -203,6 +212,10 @@
                         <div class="flex items-center gap-2">
                             <span class="w-3 h-3 rounded bg-blue-100 border border-blue-200"></span>
                             <span class="text-[9px] font-black text-blue-700 uppercase tracking-wider">Approved</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded bg-orange-100 border border-orange-200"></span>
+                            <span class="text-[9px] font-black text-orange-700 uppercase tracking-wider">No Show</span>
                         </div>
                         <div class="flex items-center gap-2">
                             <span class="w-3 h-3 rounded bg-gray-200 border border-gray-300"></span>
@@ -359,6 +372,7 @@
             } else if (dayAppointments.length > 0) {
                 const hasPending = dayAppointments.some(a => a.Status === 'Pending');
                 const hasApproved = dayAppointments.some(a => a.Status === 'Approved');
+                const hasNoShow = dayAppointments.some(a => a.Status === 'No Show');
                 const isFullyBooked = dayAppointments.length >= 17;
                 
                 if (isFullyBooked) {
@@ -370,6 +384,9 @@
                 } else if (hasApproved) {
                     statusClass = 'bg-green-50 hover:bg-green-100 text-green-700 border border-green-100';
                     dotHtml = '<span class="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-green-500"></span>';
+                } else if (hasNoShow) {
+                    statusClass = 'bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-100';
+                    dotHtml = '<span class="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-orange-500"></span>';
                 }
             }
             
@@ -497,6 +514,8 @@
                 slotClass = 'bg-yellow-50 border-yellow-200 text-yellow-700';
             } else if (status === 'Approved') {
                 slotClass = 'bg-blue-50 border-blue-200 text-blue-700';
+            } else if (status === 'No Show') {
+                slotClass = 'bg-orange-50 border-orange-200 text-orange-700';
             }
             
             const [h, m] = slot.split(':');
@@ -542,17 +561,50 @@
                 statusBadge = `<span class="inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black bg-green-50 text-green-700 border border-green-100 uppercase tracking-widest"><span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-2"></span> Approved</span>`;
                 
                 if (appt.qr_released) {
-                    actionButtons = `<div class="mt-3 p-2 bg-blue-50 rounded-xl text-center border border-blue-100"><p class="text-[9px] font-black text-blue-600 uppercase tracking-widest"><i class="fas fa-check-circle mr-1"></i> QR Sent</p></div>`;
+                    actionButtons = `
+                        <div class="mt-3 space-y-2">
+                            <div class="p-2 bg-blue-50 rounded-xl text-center border border-blue-100">
+                                <p class="text-[9px] font-black text-blue-600 uppercase tracking-widest"><i class="fas fa-check-circle mr-1"></i> QR Sent</p>
+                            </div>
+                            <div class="flex gap-2">
+                                <form action="/admin/appointments/${appt.Appointment_ID}/no-show" method="POST" class="flex-1" onsubmit="return confirm('Mark this appointment as No Show? This indicates the patient did not arrive.');">
+                                    <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="w-full bg-white border border-orange-200 text-orange-600 hover:bg-orange-50 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-1">
+                                        <i class="fas fa-user-slash"></i> No Show
+                                    </button>
+                                </form>
+                                <button type="button" onclick="showCancelModal(${appt.Appointment_ID}, '${appt.pet ? appt.pet.Pet_Name : 'Unknown'}', '${appt.user ? appt.user.First_Name + ' ' + appt.user.Last_Name : 'Unknown'}')" class="flex-1 bg-white border border-red-200 text-red-600 hover:bg-red-50 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-1">
+                                    <i class="fas fa-times"></i> Cancel
+                                </button>
+                            </div>
+                        </div>
+                    `;
                 } else {
                     actionButtons = `
-                        <form action="/admin/appointments/${appt.Appointment_ID}/release-qr" method="POST" class="mt-3">
-                            <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="w-full bg-gray-900 hover:bg-blue-600 text-white py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition shadow-sm flex items-center justify-center gap-2">
-                                <i class="fas fa-qrcode"></i> Release QR
-                            </button>
-                        </form>
+                        <div class="mt-3 space-y-2">
+                            <form action="/admin/appointments/${appt.Appointment_ID}/release-qr" method="POST">
+                                <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="w-full bg-gray-900 hover:bg-blue-600 text-white py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition shadow-sm flex items-center justify-center gap-2">
+                                    <i class="fas fa-qrcode"></i> Release QR
+                                </button>
+                            </form>
+                            <div class="flex gap-2">
+                                <form action="/admin/appointments/${appt.Appointment_ID}/no-show" method="POST" class="flex-1" onsubmit="return confirm('Mark this appointment as No Show? This indicates the patient did not arrive.');">
+                                    <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="w-full bg-white border border-orange-200 text-orange-600 hover:bg-orange-50 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-1">
+                                        <i class="fas fa-user-slash"></i> No Show
+                                    </button>
+                                </form>
+                                <button type="button" onclick="showCancelModal(${appt.Appointment_ID}, '${appt.pet ? appt.pet.Pet_Name : 'Unknown'}', '${appt.user ? appt.user.First_Name + ' ' + appt.user.Last_Name : 'Unknown'}')" class="flex-1 bg-white border border-red-200 text-red-600 hover:bg-red-50 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition flex items-center justify-center gap-1">
+                                    <i class="fas fa-times"></i> Cancel
+                                </button>
+                            </div>
+                        </div>
                     `;
                 }
+            } else if (appt.Status === 'No Show') {
+                statusBadge = `<span class="inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black bg-orange-50 text-orange-700 border border-orange-100 uppercase tracking-widest"><span class="w-1.5 h-1.5 rounded-full bg-orange-500 mr-2"></span> No Show</span>`;
+                actionButtons = `<div class="mt-3 p-2 bg-orange-50 rounded-xl text-center border border-orange-100"><p class="text-[9px] font-black text-orange-600 uppercase tracking-widest"><i class="fas fa-user-slash mr-1"></i> Did Not Arrive</p></div>`;
             }
 
             html += `
@@ -587,5 +639,90 @@
         initCalendar();
         selectDate(todayStr);
     });
+
+    // Cancel Modal Functions
+    let cancelAppointmentId = null;
+    
+    function showCancelModal(appointmentId, petName, ownerName) {
+        cancelAppointmentId = appointmentId;
+        document.getElementById('cancelModalPetName').textContent = petName;
+        document.getElementById('cancelModalOwnerName').textContent = ownerName;
+        document.getElementById('cancelReason').value = '';
+        document.getElementById('cancelModal').classList.remove('hidden');
+    }
+    
+    function hideCancelModal() {
+        document.getElementById('cancelModal').classList.add('hidden');
+        cancelAppointmentId = null;
+    }
+    
+    function submitCancelForm() {
+        if (!cancelAppointmentId) return;
+        
+        const reason = document.getElementById('cancelReason').value.trim();
+        if (!reason) {
+            alert('Please provide a reason for cancellation.');
+            return;
+        }
+        
+        document.getElementById('cancelFormReason').value = reason;
+        document.getElementById('cancelForm').action = `/admin/appointments/${cancelAppointmentId}/cancel`;
+        document.getElementById('cancelForm').submit();
+    }
 </script>
+
+{{-- Cancel Appointment Modal --}}
+<div id="cancelModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-[2rem] shadow-2xl max-w-md w-full overflow-hidden">
+        <div class="bg-red-600 text-white px-8 py-6">
+            <h3 class="text-sm font-black uppercase tracking-widest flex items-center gap-3">
+                <i class="fas fa-exclamation-triangle"></i>
+                Cancel Appointment
+            </h3>
+        </div>
+        
+        <div class="p-8">
+            <div class="mb-6">
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Appointment Details</p>
+                <div class="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                    <p class="text-sm font-black text-gray-900">🐾 <span id="cancelModalPetName">-</span></p>
+                    <p class="text-[11px] font-bold text-gray-500 mt-1">Owner: <span id="cancelModalOwnerName">-</span></p>
+                </div>
+            </div>
+            
+            <div class="mb-6">
+                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">
+                    Reason for Cancellation <span class="text-red-500">*</span>
+                </label>
+                <textarea id="cancelReason" rows="3" 
+                    class="w-full border-2 border-gray-100 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 transition resize-none"
+                    placeholder="Please provide a reason for cancelling this appointment..."></textarea>
+            </div>
+            
+            <div class="bg-amber-50 border border-amber-100 rounded-xl p-4 mb-6">
+                <p class="text-[10px] font-black text-amber-700 uppercase tracking-widest flex items-center gap-2">
+                    <i class="fas fa-info-circle"></i>
+                    The pet owner will be notified of this cancellation.
+                </p>
+            </div>
+            
+            <div class="flex gap-3">
+                <button type="button" onclick="hideCancelModal()" 
+                    class="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-200 transition">
+                    Keep Appointment
+                </button>
+                <button type="button" onclick="submitCancelForm()" 
+                    class="flex-1 bg-red-600 text-white py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition shadow-lg shadow-red-200">
+                    Confirm Cancellation
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Hidden form for cancel submission --}}
+<form id="cancelForm" method="POST" action="" class="hidden">
+    @csrf
+    <input type="hidden" name="reason" id="cancelFormReason" value="">
+</form>
 @endsection

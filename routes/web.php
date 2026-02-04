@@ -162,6 +162,10 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::post('/appointments/{id}/reject', [AdminController::class, 'rejectAppointment'])->name('appointments.reject');
     Route::post('/appointments/{id}/release-qr', [AdminController::class, 'releaseQRCode'])
         ->name('appointments.release-qr');
+    Route::post('/appointments/{id}/no-show', [AdminController::class, 'markNoShow'])
+        ->name('appointments.no-show');
+    Route::post('/appointments/{id}/cancel', [AdminController::class, 'cancelAppointment'])
+        ->name('appointments.cancel');
 
     // 3. Schedule Management
     Route::post('/schedule/toggle', [AdminController::class, 'toggleDateStatus'])->name('schedule.toggle');
