@@ -214,7 +214,7 @@
                             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Civil Status <span class="text-red-500">*</span></label>
                             <select name="civil_status" required class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 font-bold text-gray-700 text-sm transition-all appearance-none cursor-pointer">
                                 <option value="">Select Status</option>
-                                @foreach(['Single', 'Married', 'Widowed', 'Separated', 'Divorced'] as $status)
+                                @foreach(['Single', 'Married', 'Widowed', 'Separated'] as $status)
                                     <option value="{{ $status }}" {{ $defaultCivilStatus == $status ? 'selected' : '' }}>{{ $status }}</option>
                                 @endforeach
                             </select>
