@@ -102,7 +102,7 @@
                                 class="mt-1 block w-full border-gray-200 rounded-xl focus:border-red-500 focus:ring-red-500 shadow-sm bg-gray-50/50 py-2.5" required>
                                 <option value="">Select Civil Status</option>
                                 @php 
-                                    $civilStatuses = ['Single', 'Married', 'Widowed', 'Separated', 'Divorced'];
+                                    $civilStatuses = ['Single', 'Married', 'Widowed', 'Separated',];    
                                     $selectedCivil = old('Civil_Status', $data['Civil_Status'] ?? '');
                                 @endphp
                                 @foreach($civilStatuses as $status)
