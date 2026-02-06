@@ -97,7 +97,7 @@ class RegisterController extends Controller
             'Barangay_ID' => 'required|exists:barangays,Barangay_ID',
             
             // Civil Status: Must be one of the allowed values
-            'Civil_Status' => 'required|string|in:Single,Married,Widowed,Separated,Divorced',
+            'Civil_Status' => 'required|string|in:Single,Married,Widowed,Separated',
             
             // Years of Residency: Must be 0-100
             'Years_Of_Residency' => [
