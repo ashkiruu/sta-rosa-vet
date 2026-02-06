@@ -21,10 +21,6 @@ use Illuminate\Support\Facades\Log;
 use Symfony\Component\Process\Process;
 
 
-
-
-
-
 class RegisterController extends Controller
 {
     public function notice()
@@ -56,25 +52,120 @@ class RegisterController extends Controller
     }
 
 
-
     public function postStep1(Request $request)
     {
         $validated = $request->validate([
-            'Last_Name' => 'required|string|max:255',
-            'First_Name' => 'required|string|max:255',
-            'Middle_Name' => 'nullable|string|max:255',
-            'Contact_Number' => 'required|string|max:15',
-            'Address' => 'required|string|max:500',
+            // Name fields: Letters, spaces, hyphens, apostrophes, periods only
+            'Last_Name' => [
+                'required',
+                'string',
+                'min:2',
+                'max:50',
+                'regex:/^[A-Za-z][A-Za-z\s\-\'\.]*$/'
+            ],
+            'First_Name' => [
+                'required',
+                'string',
+                'min:2',
+                'max:50',
+                'regex:/^[A-Za-z][A-Za-z\s\-\'\.]*$/'
+            ],
+            'Middle_Name' => [
+                'nullable',
+                'string',
+                'max:50',
+                'regex:/^[A-Za-z][A-Za-z\s\-\'\.]*$/'
+            ],
+            
+            // Mobile number: Must be 10 digits starting with 9 (Philippine format)
+            'Contact_Number' => [
+                'required',
+                'string',
+                'size:10',
+                'regex:/^9[0-9]{9}$/'
+            ],
+            
+            // Address: Alphanumeric with common address characters
+            'Address' => [
+                'required',
+                'string',
+                'min:5',
+                'max:500'
+            ],
+            
+            // Barangay: Must exist in database
             'Barangay_ID' => 'required|exists:barangays,Barangay_ID',
-            // New fields for certificate generation
-            'Civil_Status' => 'required|string|in:Single,Married,Widowed,Separated',
-            'Years_Of_Residency' => 'required|integer|min:0|max:100',
-            'Birthdate' => 'required|date|before:today',
+            
+            // Civil Status: Must be one of the allowed values
+            'Civil_Status' => 'required|string|in:Single,Married,Widowed,Separated,Divorced',
+            
+            // Years of Residency: Must be 0-100
+            'Years_Of_Residency' => [
+                'required',
+                'integer',
+                'min:0',
+                'max:100'
+            ],
+            
+            // Birthdate: Must be at least 18 years old
+            'Birthdate' => [
+                'required',
+                'date',
+                'before:' . now()->subYears(18)->format('Y-m-d'),
+                'after:' . now()->subYears(120)->format('Y-m-d')
+            ],
+        ], [
+            // Custom error messages
+            'Last_Name.regex' => 'Last name must start with a letter and contain only letters, spaces, hyphens, apostrophes, and periods.',
+            'Last_Name.min' => 'Last name must be at least 2 characters.',
+            'First_Name.regex' => 'First name must start with a letter and contain only letters, spaces, hyphens, apostrophes, and periods.',
+            'First_Name.min' => 'First name must be at least 2 characters.',
+            'Middle_Name.regex' => 'Middle name must start with a letter and contain only letters, spaces, hyphens, apostrophes, and periods.',
+            'Contact_Number.regex' => 'Please enter a valid Philippine mobile number (10 digits starting with 9).',
+            'Contact_Number.size' => 'Mobile number must be exactly 10 digits.',
+            'Address.min' => 'Address must be at least 5 characters.',
+            'Address.max' => 'Address cannot exceed 500 characters.',
+            'Years_Of_Residency.min' => 'Years of residency cannot be negative.',
+            'Years_Of_Residency.max' => 'Years of residency cannot exceed 100 years.',
+            'Birthdate.before' => 'You must be at least 18 years old to register.',
+            'Birthdate.after' => 'Please enter a valid date of birth.',
         ]);
+
+        // Sanitize/normalize the data before storing
+        $validated['First_Name'] = $this->sanitizeName($validated['First_Name']);
+        $validated['Last_Name'] = $this->sanitizeName($validated['Last_Name']);
+        if (!empty($validated['Middle_Name'])) {
+            $validated['Middle_Name'] = $this->sanitizeName($validated['Middle_Name']);
+        }
+        
+        // Remove any non-numeric characters from contact number (extra safety)
+        $validated['Contact_Number'] = preg_replace('/[^0-9]/', '', $validated['Contact_Number']);
+        
+        // Trim and clean address
+        $validated['Address'] = trim($validated['Address']);
 
         session(['register.step1' => $validated]);
 
         return redirect()->route('register.step2');
+    }
+
+    /**
+     * Sanitize name fields: trim, normalize spaces, capitalize properly
+     */
+    private function sanitizeName(string $name): string
+    {
+        // Trim whitespace
+        $name = trim($name);
+        
+        // Normalize multiple spaces to single space
+        $name = preg_replace('/\s+/', ' ', $name);
+        
+        // Capitalize each word properly (handles hyphenated names)
+        $name = preg_replace_callback('/(?:^|[\s\-])(\w)/u', function($matches) {
+            return strtoupper($matches[0]);
+        }, strtolower($name));
+        
+        return $name;
     }
 
 
@@ -136,6 +227,7 @@ class RegisterController extends Controller
         // Average the score
         return $totalScore / count($inputTokens);
     }
+
     private function isFromStaRosa(string $normalizedOcrText): bool
     {
         $allowedKeywords = [
@@ -220,9 +312,6 @@ class RegisterController extends Controller
     }
 
 
-    // ✅ FINAL postStep2 (mobile-safe + HEIC normalize + GCS tmp upload + ML/OCR + session store)
-// Put this inside your RegisterController
-
     public function postStep2(Request $request, IDVerificationService $mlService)
     {
         \Log::info('UPLOAD_DEBUG', [
@@ -237,11 +326,11 @@ class RegisterController extends Controller
 
 
         $request->validate([
-            // ✅ allow HEIC/HEIF from iPhone/iPad, and bigger size for mobile
+            // allow HEIC/HEIF from iPhone/iPad, and bigger size for mobile
             'id_file' => 'nullable|file|mimetypes:image/jpeg,image/png,image/heic,image/heif|max:20480',
         ]);
 
-        // ✅ Skip logic
+        // Skip logic
         if (!$request->hasFile('id_file')) {
             session(['register.step2' => [
                 'id_file_path'           => null,
@@ -266,24 +355,21 @@ class RegisterController extends Controller
 
         $file = $request->file('id_file');
 
-        // ✅ Normalize HEIC/PNG/JPEG -> JPEG for ML/OCR
+        // Normalize HEIC/PNG/JPEG -> JPEG for ML/OCR
         $normalized = $this->normalizeIdImageToJpeg($file);
-        $absolutePath = $normalized['path']; // local temp jpg used for ML+OCR
+        $absolutePath = $normalized['path'];
 
         if (!file_exists($absolutePath) || filesize($absolutePath) === 0) {
             throw new \RuntimeException('Normalized image file missing or empty.');
         }
 
-        // ===============================
         // GCS UPLOAD (TMP - UBLA SAFE)
-        // ===============================
         $filename = 'id_' . now()->format('Ymd_His') . '_' . Str::random(10) . '.jpg';
 
         $bucketName = env('GOOGLE_CLOUD_STORAGE_BUCKET');
         $projectId  = env('GOOGLE_CLOUD_PROJECT_ID', env('GCLOUD_PROJECT'));
         $prefix     = trim((string) env('GOOGLE_CLOUD_STORAGE_PATH_PREFIX', ''), '/');
 
-        // object path inside bucket (includes prefix if any)
         $gcsPath = ($prefix !== '' ? $prefix . '/' : '') . 'id_uploads/tmp/' . $filename;
 
         \Log::info('BEFORE_GCS_UPLOAD', [
@@ -298,7 +384,6 @@ class RegisterController extends Controller
             $storage = new StorageClient(['projectId' => $projectId]);
             $bucket  = $storage->bucket($bucketName);
 
-            // ✅ UBLA-compliant upload: NO ACL, NO predefinedAcl
             $bucket->upload(
                 fopen($absolutePath, 'r'),
                 [
@@ -317,7 +402,6 @@ class RegisterController extends Controller
                 'path'    => $gcsPath,
             ]);
 
-            // cleanup local temp on upload failure
             if ($absolutePath && file_exists($absolutePath)) {
                 @unlink($absolutePath);
             }
@@ -327,21 +411,17 @@ class RegisterController extends Controller
 
         \Log::info('AFTER_GCS_UPLOAD', ['gcs_path' => $gcsPath]);
 
-        // ===============================
-        // CLEANUP HELPER (local temp + GCS tmp)
-        // ===============================
+        // CLEANUP HELPER
         $cleanupFiles = function () use ($absolutePath, $gcsPath, $bucket) {
             \Log::warning('CLEANUP_CALLED', [
                 'local_abs' => $absolutePath,
                 'gcs'       => $gcsPath,
             ]);
 
-            // delete normalized local temp
             if ($absolutePath && file_exists($absolutePath)) {
                 @unlink($absolutePath);
             }
 
-            // delete GCS tmp object
             if ($gcsPath && $bucket) {
                 $object = $bucket->object($gcsPath);
                 if ($object->exists()) {
@@ -350,9 +430,7 @@ class RegisterController extends Controller
             }
         };
 
-        // ============================================
         // STEP 1: ML DOCUMENT AUTHENTICITY CHECK
-        // ============================================
         $mlResult = $mlService->verifyIDAuthenticity($absolutePath);
 
         $ML_THRESHOLD = 0.80;
@@ -413,9 +491,7 @@ class RegisterController extends Controller
             ]);
         }
 
-        // ============================================
         // STEP 2: OCR TEXT EXTRACTION
-        // ============================================
         try {
             $ocr = new \thiagoalessio\TesseractOCR\TesseractOCR($absolutePath);
 
@@ -438,9 +514,7 @@ class RegisterController extends Controller
             $normalizedOcr = $this->normalizeText($ocrText);
             $ocrTokens = explode(' ', $normalizedOcr);
 
-            // ============================================
             // STEP 2.5: CITY VALIDATION (Sta. Rosa Only)
-            // ============================================
             $fromStaRosa = $this->isFromStaRosa($normalizedOcr);
 
             if (!$fromStaRosa) {
@@ -463,22 +537,18 @@ class RegisterController extends Controller
                 ])->withInput();
             }
 
-            // User Input
             $firstName  = $step1['First_Name'] ?? '';
             $middleName = $step1['Middle_Name'] ?? '';
             $lastName   = $step1['Last_Name'] ?? '';
             $address    = $this->normalizeText($step1['Address'] ?? '');
 
-            // ============================================
             // STEP 3: FUZZY MATCHING SCORES
-            // ============================================
             $firstNameScore = $this->getCompositeScore($firstName, $ocrTokens);
             $lastNameScore  = $this->getCompositeScore($lastName, $ocrTokens);
 
             $hasMiddleName = !empty($middleName);
             $middleNameScore = $hasMiddleName ? $this->getCompositeScore($middleName, $ocrTokens) : 0;
 
-            // Address Logic
             $addressTokens = explode(' ', $address);
             $addressMatches = 0;
             $validAddressTokens = 0;
@@ -496,7 +566,6 @@ class RegisterController extends Controller
 
             $addressScore = ($validAddressTokens > 0) ? ($addressMatches / $validAddressTokens) : 0;
 
-            // Final weighted score
             if ($hasMiddleName) {
                 $totalScore = ($lastNameScore * 0.35) +
                             ($firstNameScore * 0.30) +
@@ -508,17 +577,15 @@ class RegisterController extends Controller
                             ($addressScore * 0.25);
             }
 
-            // ============================================
-            // STEP 4: FINAL DECISION (ML + FUZZY)
-            // ============================================
+            // STEP 4: FINAL DECISION
             if ($mlCheckPassed && $totalScore >= 0.7) {
-                $statusID = 2; // Verified
+                $statusID = 2;
                 $verificationMethod = 'ml_and_ocr';
             } elseif (!$mlCheckPassed && $totalScore >= 0.7) {
-                $statusID = 1; // Pending manual review
+                $statusID = 1;
                 $verificationMethod = 'ocr_only_ml_unavailable';
             } else {
-                $statusID = 1; // Pending manual review
+                $statusID = 1;
                 $verificationMethod = 'pending_manual_review';
             }
 
@@ -558,7 +625,6 @@ class RegisterController extends Controller
                 ]
             ]);
 
-            // ✅ Store in session (store GCS tmp path)
             session(['register.step2' => [
                 'id_file_path'           => $gcsPath,
                 'id_file_disk'           => 'gcs',
@@ -577,12 +643,10 @@ class RegisterController extends Controller
                 ]
             ]]);
 
-            // ✅ IMPORTANT: keep local temp until here; now safe to delete
             if ($absolutePath && file_exists($absolutePath)) {
                 @unlink($absolutePath);
             }
 
-            // Success message
             if ($statusID == 2) {
                 $message = 'ID verified successfully! Both ML and text matching passed.';
             } elseif (!$mlCheckPassed) {
@@ -621,18 +685,15 @@ class RegisterController extends Controller
             return redirect()->route('register.step1')->withErrors(['error' => 'Please complete previous steps first.']);
         }
 
-        // ✅ FIX: Determine ocr_status from step2 data and reflash it
         $step2 = session('register.step2');
         if ($step2 && isset($step2['verification_status_id'])) {
             $statusId = $step2['verification_status_id'];
             
-            // Set ocr_status based on verification_status_id
             if ($statusId == 2) {
                 session()->flash('ocr_status', 'Verified');
             } elseif ($statusId == 1) {
                 session()->flash('ocr_status', 'Pending');
             } else {
-                // Status 3 or null means skipped/unsubmitted
                 session()->forget('ocr_status');
             }
         }
@@ -664,7 +725,6 @@ class RegisterController extends Controller
                 ->withErrors(['error' => 'Please complete Step 1 first.']);
         }
 
-        // If Step2 missing, treat as skipped
         $step2 = $step2 ?? [
             'id_file_path' => null,
             'id_file_disk' => null,
@@ -681,7 +741,6 @@ class RegisterController extends Controller
         DB::beginTransaction();
 
         try {
-            // 1) Save to 'users' table - NOW INCLUDING NEW FIELDS
             $user = \App\Models\User::create([
                 'Barangay_ID'            => $step1['Barangay_ID'],
                 'Verification_Status_ID' => $step2['verification_status_id'] ?? 3,
@@ -695,13 +754,11 @@ class RegisterController extends Controller
                 'Email'                  => $request->email,
                 'Address'                => $step1['Address'],
                 'Registration_Date'      => now(),
-                // NEW FIELDS for certificate generation
                 'Civil_Status'           => $step1['Civil_Status'] ?? null,
                 'Years_Of_Residency'     => $step1['Years_Of_Residency'] ?? null,
                 'Birthdate'              => $step1['Birthdate'] ?? null,
             ]);
 
-            // 2) FINALIZE GCS PATH (tmp -> users/{User_ID})
             $finalGcsPath = $step2['id_file_path'] ?? null;
 
             if (!empty($step2['id_file_path']) && ($step2['id_file_disk'] ?? null) === 'gcs') {
@@ -712,7 +769,7 @@ class RegisterController extends Controller
                 $storage = new StorageClient(['projectId' => $projectId]);
                 $bucket  = $storage->bucket($bucketName);
 
-                $tmpPath = $step2['id_file_path']; // includes prefix already, e.g. ids/id_uploads/tmp/xxx.jpg
+                $tmpPath = $step2['id_file_path'];
                 $filename = basename($tmpPath);
 
                 $finalPath = 'ids/id_uploads/users/' . $user->User_ID . '/' . $filename;
@@ -729,7 +786,6 @@ class RegisterController extends Controller
                     throw new \RuntimeException("GCS tmp object not found: {$tmpPath}");
                 }
 
-                // copy then delete (rename pattern)
                 $src->copy($bucket, ['name' => $finalPath]);
                 $src->delete();
 
@@ -741,12 +797,11 @@ class RegisterController extends Controller
                 ]);
             }
 
-            // 3) Save to 'ml_ocr_processing' table (store FINAL path)
             if (!empty($finalGcsPath)) {
                 \App\Models\MlOcrProcessing::create([
                     'User_ID'               => $user->User_ID,
                     'CertificateType_ID'    => 1,
-                    'Document_Image_Path'   => $finalGcsPath, // ✅ FINAL PATH
+                    'Document_Image_Path'   => $finalGcsPath,
                     'Extracted_Text'        => json_encode(trim(strval($step2['raw_text'] ?? ''))),
                     'Parsed_Data'           => json_encode([
                         'fuzzy_scores' => $step2['scores'] ?? [],
@@ -764,7 +819,6 @@ class RegisterController extends Controller
 
             Auth::login($user);
 
-            // Clear only the register session keys you use
             session()->forget('register.step1');
             session()->forget('register.step2');
             session()->forget('ocr_status');
@@ -780,34 +834,20 @@ class RegisterController extends Controller
             ]);
             return back()->withErrors(['error' => 'Registration failed: ' . $e->getMessage()]);
         }
-
-        // Finalize ID image: move from tmp to user-owned folder in GCS
-
     }
 
 
-    /**
-     * Show the standalone verification form for logged-in users
-     */
     public function showReverifyForm()
     {
-        // If already verified, don't let them upload again
         if (Auth::user()->Verification_Status_ID == 2) {
             return redirect()->route('dashboard')->with('info', 'Your account is already verified.');
         }
         
-        // We reuse the Step 2 view but ensure the form POSTs to verify.process
         return view('auth.register.step2')->with('isReverifying', true);
     }
 
-    /**
-     * Process late ID upload for existing users
-     */
-    // ✅ FINAL processReverify (required file + normalize + tmp upload + finalize + DB write)
-
     public function processReverify(Request $request)
     {
-        // ✅ reverify must require an upload
         $request->validate([
             'id_file' => 'required|file|mimetypes:image/jpeg,image/png,image/heic,image/heif|max:20480',
         ]);
@@ -815,7 +855,6 @@ class RegisterController extends Controller
         $user = Auth::user();
         $file = $request->file('id_file');
 
-        // ✅ Normalize to JPEG for OCR consistency
         $normalized = $this->normalizeIdImageToJpeg($file);
         $absolutePath = $normalized['path'];
 
@@ -832,7 +871,6 @@ class RegisterController extends Controller
         $filename = 'reverify_' . now()->format('Ymd_His') . '_' . Str::random(10) . '.jpg';
         $tmpGcsPath = 'ids/id_uploads/tmp/' . $filename;
 
-        // Cleanup helper (local + tmp)
         $cleanup = function () use ($absolutePath, $bucket, $tmpGcsPath) {
             if ($absolutePath && file_exists($absolutePath)) {
                 @unlink($absolutePath);
@@ -844,7 +882,6 @@ class RegisterController extends Controller
             }
         };
 
-        // 1) Upload TMP to GCS (UBLA-safe)
         try {
             $bucket->upload(
                 fopen($absolutePath, 'r'),
@@ -862,7 +899,6 @@ class RegisterController extends Controller
                 'tmp' => $tmpGcsPath,
             ]);
 
-            // local cleanup
             if ($absolutePath && file_exists($absolutePath)) {
                 @unlink($absolutePath);
             }
@@ -870,7 +906,6 @@ class RegisterController extends Controller
             return back()->withErrors(['id_file' => 'Upload failed. Please try again.']);
         }
 
-        // 2) OCR on normalized local file
         try {
             $ocr = new \thiagoalessio\TesseractOCR\TesseractOCR($absolutePath);
 
@@ -892,22 +927,19 @@ class RegisterController extends Controller
 
             $firstNameScore = $this->getCompositeScore($user->First_Name, $ocrTokens);
             $lastNameScore  = $this->getCompositeScore($user->Last_Name, $ocrTokens);
-            $addressScore   = 0.5; // TODO: replace with real address matching logic
+            $addressScore   = 0.5;
 
             $totalScore = ($lastNameScore * 0.40) + ($firstNameScore * 0.35) + ($addressScore * 0.25);
             $statusID = ($totalScore >= 0.7) ? 2 : 1;
 
-            // 3) Finalize: move tmp -> users/{id}/reverify/
             $finalGcsPath = 'ids/id_uploads/users/' . $user->User_ID . '/reverify/' . $filename;
 
             $finalGcsPath = $this->gcsMoveObject($tmpGcsPath, $finalGcsPath);
 
-            // local temp no longer needed
             if ($absolutePath && file_exists($absolutePath)) {
                 @unlink($absolutePath);
             }
 
-            // 4) Persist
             $user->update(['Verification_Status_ID' => $statusID]);
 
             MlOcrProcessing::create([
@@ -957,10 +989,6 @@ class RegisterController extends Controller
         }
     }
 
-
-
-    // ✅ FINAL gcsMoveObject (safe copy+delete, no undefined vars)
-
     private function gcsMoveObject(string $fromObjectName, string $toObjectName): string
     {
         $bucketName = env('GOOGLE_CLOUD_STORAGE_BUCKET');
@@ -975,7 +1003,6 @@ class RegisterController extends Controller
             throw new \RuntimeException("GCS source object not found: {$fromObjectName}");
         }
 
-        // Copy then delete (GCS "rename")
         $src->copy($bucket, ['name' => $toObjectName]);
         $src->delete();
 
@@ -987,8 +1014,4 @@ class RegisterController extends Controller
 
         return $toObjectName;
     }
-
-
 }
-
-
