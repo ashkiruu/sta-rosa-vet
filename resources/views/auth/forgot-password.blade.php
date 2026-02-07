@@ -1,14 +1,14 @@
 <x-guest-layout>
     <div class="fixed inset-0 flex flex-col md:flex-row bg-white overflow-auto">
         
-        {{-- Left Side: Image (Matching Login Structure) --}}
+        {{-- Left Side: Image --}}
         <div class="w-auto h-full hidden md:block">
             <img src="{{ asset('images/LogIn.png') }}" 
                 class="w-auto h-full block object-top" 
                 alt="City Arch">
         </div>
 
-        {{-- Right Side: Form (Matching Login Background & Padding) --}}
+        {{-- Right Side: Form --}}
         <div class="relative flex-1 h-full flex flex-col items-center justify-center p-6 md:p-12 bg-cover bg-center shrink-0" 
             style="background-image: url('{{ asset('images/PawsBackground.png') }}');">
             
@@ -26,19 +26,10 @@
                         <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-2">Enter your email to reset</p>
                     </div>
 
-                    {{-- Success & Reset Link Blocks --}}
+                    {{-- Success Message --}}
                     @if (session('status'))
                         <div class="mb-4 p-3 bg-green-50 border-l-4 border-green-500 text-green-700 rounded-lg shadow-sm">
                             <p class="text-[13px] font-bold">{{ session('status') }}</p>
-                        </div>
-                    @endif
-
-                    @if (session('reset_link'))
-                        <div class="mb-4 p-3 bg-blue-50 border-l-4 border-blue-500 text-blue-700 rounded-lg shadow-sm">
-                            <p class="text-[11px] font-black uppercase tracking-widest mb-1">🔗 Dev Link:</p>
-                            <a href="{{ session('reset_link') }}" class="text-[11px] text-blue-600 break-all hover:underline font-bold">
-                                {{ session('reset_link') }}
-                            </a>
                         </div>
                     @endif
 
