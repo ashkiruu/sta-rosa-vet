@@ -144,15 +144,19 @@ class PetController extends Controller
             ->where('Owner_ID', Auth::user()->User_ID)
             ->firstOrFail();
 
-        $hasPendingAppointments = \DB::table('appointments')
+        // Check for active appointments (Pending, Confirmed, Approved)
+        $hasActiveAppointments = \DB::table('appointments')
             ->where('Pet_ID', $id)
-            ->where('Status', 'Pending')
+            ->whereIn('Status', ['Pending', 'Confirmed', 'Approved'])
             ->exists();
 
-        if ($hasPendingAppointments) {
+        if ($hasActiveAppointments) {
             return redirect()->route('pets.index')
-                ->with('error', "Cannot remove {$pet->Pet_Name}. There is currently a pending appointment scheduled.");
+                ->with('error', "Cannot remove {$pet->Pet_Name}. There are active appointments scheduled for this pet.");
         }
+
+        // Delete non-active appointment records (Completed, Cancelled, etc.) to avoid FK constraint
+        \DB::table('appointments')->where('Pet_ID', $id)->delete();
 
         $pet->delete();
 

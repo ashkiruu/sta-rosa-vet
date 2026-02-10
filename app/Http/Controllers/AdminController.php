@@ -110,7 +110,6 @@ class AdminController extends Controller
         $user = User::findOrFail($id);
         $pets = Pet::where('Owner_ID', $id)->get();
 
-        // ✅ Always use latest processing record (registration OR reverify)
         $latestProcessing = \App\Models\MlOcrProcessing::where('User_ID', $user->User_ID)
             ->orderByDesc('Created_Date')
             ->first();
@@ -128,8 +127,6 @@ class AdminController extends Controller
 
         return view('admin.user_details', compact('user', 'pets', 'idImageUrl', 'latestProcessing'));
     }
-
-
 
     public function approveUser($id)
     {
@@ -180,13 +177,14 @@ class AdminController extends Controller
 
     public function appointments()
     {
+        // Auto-clean expired pending appointments (scheduled date has passed)
+        $this->cleanExpiredPendingAppointments();
+
         $appointments = Appointment::with(['user', 'pet', 'service'])
             ->whereIn('Status', ['Pending', 'Approved', 'No Show'])
             ->orderBy('Date')->orderBy('Time')
             ->get()
             ->map(fn($apt) => tap($apt, function ($a) {
-                // FIX: Use format directly without re-parsing to avoid timezone shift
-                // The Date is already a Carbon instance from the model cast
                 $a->Date = $a->Date->format('Y-m-d');
                 $a->Time = Carbon::parse($a->Time)->format('H:i');
                 $a->qr_released = QRCodeService::isQRCodeReleased($a);
@@ -194,7 +192,7 @@ class AdminController extends Controller
 
         return view('admin.appointment_index', [
             'appointments' => $appointments,
-            'schedule' => ClinicScheduleService::getSchedule() // Now database-backed
+            'schedule' => ClinicScheduleService::getSchedule()
         ]);
     }
 
@@ -208,7 +206,6 @@ class AdminController extends Controller
 
         $appointment->update(['Status' => 'Approved']);
         
-        // Create notification for user
         NotificationService::appointmentApproved($appointment);
         
         \Log::info("Appointment {$id} approved. QR code will be released when patient arrives.");
@@ -223,9 +220,6 @@ class AdminController extends Controller
             "Appointment for {$appointment->pet->Pet_Name} has been approved! Release QR code when patient arrives.");
     }
 
-    /**
-     * Release QR code for an approved appointment
-     */
     public function releaseQRCode($id)
     {
         $appointment = Appointment::with(['pet', 'user', 'service'])->findOrFail($id);
@@ -254,9 +248,6 @@ class AdminController extends Controller
             "QR code released for {$appointment->pet->Pet_Name}! The patient has been notified.");
     }
 
-    /**
-     * Mark an approved appointment as No Show
-     */
     public function markNoShow($id)
     {
         $appointment = Appointment::with(['pet', 'user', 'service'])->findOrFail($id);
@@ -265,7 +256,6 @@ class AdminController extends Controller
             return back()->with('error', 'Only approved appointments can be marked as no-show.');
         }
 
-        // Check if already checked in (has attendance record with 'checked_in' or 'completed' status)
         $existingAttendance = AttendanceLog::where('Appointment_ID', $id)
             ->whereIn('Status', ['checked_in', 'completed'])
             ->first();
@@ -274,10 +264,8 @@ class AdminController extends Controller
             return back()->with('error', 'This appointment has already been checked in and cannot be marked as no-show.');
         }
 
-        // Update appointment status
         $appointment->update(['Status' => 'No Show']);
 
-        // Create or update attendance log with no_show status
         AttendanceLog::updateOrCreate(
             ['Appointment_ID' => $id],
             [
@@ -303,9 +291,6 @@ class AdminController extends Controller
             "{$appointment->pet->Pet_Name}'s appointment has been marked as No Show.");
     }
 
-    /**
-     * Cancel an approved appointment (admin action)
-     */
     public function cancelAppointment(Request $request, $id)
     {
         $appointment = Appointment::with(['pet', 'user', 'service'])->findOrFail($id);
@@ -322,7 +307,6 @@ class AdminController extends Controller
             : Carbon::parse($appointment->Date)->format('M d, Y');
         $time = Carbon::parse($appointment->Time)->format('h:i A');
 
-        // Create notification for user about cancellation
         UserNotification::create([
             'User_ID' => $appointment->User_ID,
             'Type' => 'appointment_cancelled',
@@ -360,7 +344,6 @@ class AdminController extends Controller
             return back()->with('error', 'This appointment cannot be rejected.');
         }
 
-        // Create declined notification (now database-backed)
         NotificationService::appointmentDeclined($appointment);
         
         AdminLogService::logAppointmentAction(
@@ -383,7 +366,6 @@ class AdminController extends Controller
     {
         $request->validate(['date' => 'required|date', 'action' => 'required|in:open,close']);
 
-        // Now uses database via ClinicScheduleService
         $result = ClinicScheduleService::toggleDateStatus(
             $request->date, 
             $request->action,
@@ -400,12 +382,10 @@ class AdminController extends Controller
     {
         $selectedDate = $request->get('date', now()->format('Y-m-d'));
         
-        // Now uses database via AttendanceLog model
         $allLogs = AttendanceLog::getAllArray();
         $todayLogs = AttendanceLog::getByDateArray(now()->format('Y-m-d'));
         $filteredLogs = AttendanceLog::getByDateArray($selectedDate);
 
-        // Sort filtered logs by check-in time descending
         usort($filteredLogs, fn($a, $b) => strtotime($b['check_in_time']) - strtotime($a['check_in_time']));
 
         return view('admin.attendance', [
@@ -448,33 +428,30 @@ class AdminController extends Controller
     }
 
     public function certificatesStore(Request $request)
-{
-    $data = $this->validateCertificateRequest($request, true);
-    $data['created_by'] = auth()->user()->First_Name ?? 'Admin';
+    {
+        $data = $this->validateCertificateRequest($request, true);
+        $data['created_by'] = auth()->user()->First_Name ?? 'Admin';
 
-    $certificate = CertificateService::createCertificate($data);
-    AdminLogService::logCertificateAction($certificate['id'], 'created', $data['pet_name']);
+        $certificate = CertificateService::createCertificate($data);
+        AdminLogService::logCertificateAction($certificate['id'], 'created', $data['pet_name']);
 
-    if ($request->action === 'approve') {
-        // Get signature data from request
-        $signatureData = $request->input('signature_data');
-        
-        // Validate signature is provided for approval
-        if (empty($signatureData)) {
-            return back()->withInput()->with('error', 'Signature is required to approve the certificate.');
+        if ($request->action === 'approve') {
+            $signatureData = $request->input('signature_data');
+            
+            if (empty($signatureData)) {
+                return back()->withInput()->with('error', 'Signature is required to approve the certificate.');
+            }
+            
+            return $this->approveCertificateAndRedirect(
+                $certificate['id'], 
+                $data['pet_name'], 
+                'created and approved',
+                $signatureData
+            );
         }
-        
-        return $this->approveCertificateAndRedirect(
-            $certificate['id'], 
-            $data['pet_name'], 
-            'created and approved',
-            $signatureData
-        );
+
+        return redirect()->route('admin.certificates.index')->with('success', 'Certificate saved as draft.');
     }
-
-    return redirect()->route('admin.certificates.index')->with('success', 'Certificate saved as draft.');
-}
-
 
     public function certificatesEdit($id)
     {
@@ -489,41 +466,39 @@ class AdminController extends Controller
     }
 
     public function certificatesUpdate(Request $request, $id)
-{
-    $data = $this->validateCertificateRequest($request);
-    $certificate = CertificateService::updateCertificate($id, $data);
+    {
+        $data = $this->validateCertificateRequest($request);
+        $certificate = CertificateService::updateCertificate($id, $data);
 
-    if (!$certificate) {
-        return redirect()->route('admin.certificates.index')->with('error', 'Certificate not found.');
-    }
-
-    AdminLogService::logCertificateAction($id, 'updated', $request->pet_name);
-
-    if ($request->action === 'approve') {
-        // Get signature data from request
-        $signatureData = $request->input('signature_data');
-        
-        // Validate signature is provided for approval
-        if (empty($signatureData)) {
-            return back()->withInput()->with('error', 'Signature is required to approve the certificate.');
+        if (!$certificate) {
+            return redirect()->route('admin.certificates.index')->with('error', 'Certificate not found.');
         }
-        
-        return $this->approveCertificateAndRedirect(
-            $id, 
-            $request->pet_name, 
-            'updated and approved',
-            $signatureData
-        );
-    }
 
-    return redirect()->route('admin.certificates.index')->with('success', 'Certificate updated successfully.');
-}
+        AdminLogService::logCertificateAction($id, 'updated', $request->pet_name);
+
+        if ($request->action === 'approve') {
+            $signatureData = $request->input('signature_data');
+            
+            if (empty($signatureData)) {
+                return back()->withInput()->with('error', 'Signature is required to approve the certificate.');
+            }
+            
+            return $this->approveCertificateAndRedirect(
+                $id, 
+                $request->pet_name, 
+                'updated and approved',
+                $signatureData
+            );
+        }
+
+        return redirect()->route('admin.certificates.index')->with('success', 'Certificate updated successfully.');
+    }
 
     public function certificatesApprove($id)
-{
-    return redirect()->route('admin.certificates.edit', $id)
-        ->with('info', 'Please add your signature before approving the certificate.');
-}
+    {
+        return redirect()->route('admin.certificates.edit', $id)
+            ->with('info', 'Please add your signature before approving the certificate.');
+    }
 
     public function certificatesView($id)
     {
@@ -546,95 +521,95 @@ class AdminController extends Controller
     }
 
     private function validateCertificateRequest(Request $request, bool $includeAppointmentId = false): array
-{
-    $serviceType = $request->input('service_type', '');
-    $serviceTypeLower = strtolower($serviceType);
-    
-    $isVaccination = strpos($serviceTypeLower, 'vaccination') !== false || strpos($serviceTypeLower, 'vaccine') !== false;
-    $isDeworming = strpos($serviceTypeLower, 'deworming') !== false;
-    $isCheckup = strpos($serviceTypeLower, 'checkup') !== false || strpos($serviceTypeLower, 'check-up') !== false;
-
-    $rules = [
-        'pet_name' => 'required|string|max:255',
-        'animal_type' => 'required|string|max:100',
-        'pet_gender' => 'required|string|max:50',
-        'pet_age' => 'required|string|max:100',
-        'pet_breed' => 'required|string|max:255',
-        'pet_color' => 'required|string|max:100',
-        'pet_dob' => 'nullable|date',
-        'owner_name' => 'required|string|max:255',
-        'owner_address' => 'required|string',
-        'owner_phone' => 'required|string|max:50',
-        'civil_status' => 'required|string|max:50',
-        'years_of_residency' => 'required|string|max:100',
-        'owner_birthdate' => 'nullable|date',
-        'service_type' => 'required|string|max:255',
-        'service_date' => 'required|date',
-        'next_service_date' => 'nullable|date',
-        'veterinarian_name' => 'required|string|max:255',
-        'license_number' => 'required|string|max:100',
-        'ptr_number' => 'required|string|max:100',
-        'signature_data' => 'nullable|string', // NEW: Add signature validation
-    ];
-
-    if ($isVaccination) {
-        $rules['vaccine_type'] = 'required|in:anti-rabies,other';
-        $vaccineType = $request->input('vaccine_type');
-        if ($vaccineType === 'anti-rabies') {
-            $rules['vaccine_name_rabies'] = 'required|string|max:255';
-            $rules['lot_number'] = 'required|string|max:100';
-        } elseif ($vaccineType === 'other') {
-            $rules['vaccine_name_other'] = 'required|string|max:255';
-            $rules['lot_number_other'] = 'required|string|max:100';
-        }
-    }
-
-    if ($isDeworming) {
-        $rules['medicine_used'] = 'nullable|string|max:255';
-        $rules['dosage'] = 'nullable|string|max:100';
-    }
-
-    if ($isCheckup) {
-        $rules['findings'] = 'nullable|string';
-        $rules['recommendations'] = 'nullable|string';
-    }
-
-    if ($includeAppointmentId) {
-        $rules['appointment_id'] = 'required';
-    }
-
-    $validated = $request->validate($rules);
-
-    if ($isVaccination) {
-        $vaccineType = $request->input('vaccine_type');
-        $validated['vaccine_type'] = $vaccineType;
+    {
+        $serviceType = $request->input('service_type', '');
+        $serviceTypeLower = strtolower($serviceType);
         
-        if ($vaccineType === 'anti-rabies') {
-            $validated['vaccine_name_rabies'] = $request->input('vaccine_name_rabies');
-            $validated['vaccine_used'] = $request->input('vaccine_name_rabies');
-            $validated['lot_number'] = $request->input('lot_number');
-        } elseif ($vaccineType === 'other') {
-            $validated['vaccine_used'] = $request->input('vaccine_name_other');
-            $validated['lot_number'] = $request->input('lot_number_other');
+        $isVaccination = strpos($serviceTypeLower, 'vaccination') !== false || strpos($serviceTypeLower, 'vaccine') !== false;
+        $isDeworming = strpos($serviceTypeLower, 'deworming') !== false;
+        $isCheckup = strpos($serviceTypeLower, 'checkup') !== false || strpos($serviceTypeLower, 'check-up') !== false;
+
+        $rules = [
+            'pet_name' => 'required|string|max:255',
+            'animal_type' => 'required|string|max:100',
+            'pet_gender' => 'required|string|max:50',
+            'pet_age' => 'required|string|max:100',
+            'pet_breed' => 'required|string|max:255',
+            'pet_color' => 'required|string|max:100',
+            'pet_dob' => 'nullable|date',
+            'owner_name' => 'required|string|max:255',
+            'owner_address' => 'required|string',
+            'owner_phone' => 'required|string|max:50',
+            'civil_status' => 'required|string|max:50',
+            'years_of_residency' => 'required|string|max:100',
+            'owner_birthdate' => 'nullable|date',
+            'service_type' => 'required|string|max:255',
+            'service_date' => 'required|date',
+            'next_service_date' => 'nullable|date',
+            'veterinarian_name' => 'required|string|max:255',
+            'license_number' => 'required|string|max:100',
+            'ptr_number' => 'required|string|max:100',
+            'signature_data' => 'nullable|string',
+        ];
+
+        if ($isVaccination) {
+            $rules['vaccine_type'] = 'required|in:anti-rabies,other';
+            $vaccineType = $request->input('vaccine_type');
+            if ($vaccineType === 'anti-rabies') {
+                $rules['vaccine_name_rabies'] = 'required|string|max:255';
+                $rules['lot_number'] = 'required|string|max:100';
+            } elseif ($vaccineType === 'other') {
+                $rules['vaccine_name_other'] = 'required|string|max:255';
+                $rules['lot_number_other'] = 'required|string|max:100';
+            }
         }
-    }
 
-    if (isset($validated['service_date'])) {
-        $validated['vaccination_date'] = $validated['service_date'];
-    }
-    if (isset($validated['next_service_date'])) {
-        $validated['next_vaccination_date'] = $validated['next_service_date'];
-    }
+        if ($isDeworming) {
+            $rules['medicine_used'] = 'nullable|string|max:255';
+            $rules['dosage'] = 'nullable|string|max:100';
+        }
 
-    return $validated;
-}
+        if ($isCheckup) {
+            $rules['findings'] = 'nullable|string';
+            $rules['recommendations'] = 'nullable|string';
+        }
+
+        if ($includeAppointmentId) {
+            $rules['appointment_id'] = 'required';
+        }
+
+        $validated = $request->validate($rules);
+
+        if ($isVaccination) {
+            $vaccineType = $request->input('vaccine_type');
+            $validated['vaccine_type'] = $vaccineType;
+            
+            if ($vaccineType === 'anti-rabies') {
+                $validated['vaccine_name_rabies'] = $request->input('vaccine_name_rabies');
+                $validated['vaccine_used'] = $request->input('vaccine_name_rabies');
+                $validated['lot_number'] = $request->input('lot_number');
+            } elseif ($vaccineType === 'other') {
+                $validated['vaccine_used'] = $request->input('vaccine_name_other');
+                $validated['lot_number'] = $request->input('lot_number_other');
+            }
+        }
+
+        if (isset($validated['service_date'])) {
+            $validated['vaccination_date'] = $validated['service_date'];
+        }
+        if (isset($validated['next_service_date'])) {
+            $validated['next_vaccination_date'] = $validated['next_service_date'];
+        }
+
+        return $validated;
+    }
 
     private function approveCertificateAndRedirect($id, $petName, $action, $signatureData = null): \Illuminate\Http\RedirectResponse
-{
-    CertificateService::approveCertificate($id, auth()->user()->First_Name ?? 'Admin', $signatureData);
-    AdminLogService::logCertificateAction($id, 'approved', $petName);
-    return redirect()->route('admin.certificates.index')->with('success', "Certificate {$action} successfully!");
-}
+    {
+        CertificateService::approveCertificate($id, auth()->user()->First_Name ?? 'Admin', $signatureData);
+        AdminLogService::logCertificateAction($id, 'approved', $petName);
+        return redirect()->route('admin.certificates.index')->with('success', "Certificate {$action} successfully!");
+    }
 
     private function serveCertificatePdf($id)
     {
@@ -902,6 +877,55 @@ class AdminController extends Controller
     // =====================================================
     // HELPER METHODS
     // =====================================================
+
+    /**
+     * Clean up expired pending appointments (scheduled date has passed without approval).
+     * Notifies affected users and logs the cleanup.
+     */
+    private function cleanExpiredPendingAppointments(): void
+    {
+        $expiredAppointments = Appointment::with(['pet', 'user', 'service'])
+            ->where('Status', 'Pending')
+            ->whereDate('Date', '<', today())
+            ->get();
+
+        if ($expiredAppointments->isEmpty()) {
+            return;
+        }
+
+        foreach ($expiredAppointments as $appointment) {
+            try {
+                $petName = $appointment->pet->Pet_Name ?? 'your pet';
+                $date = $appointment->Date instanceof Carbon
+                    ? $appointment->Date->format('M d, Y')
+                    : Carbon::parse($appointment->Date)->format('M d, Y');
+                $time = Carbon::parse($appointment->Time)->format('h:i A');
+
+                UserNotification::create([
+                    'User_ID' => $appointment->User_ID,
+                    'Type' => 'appointment_expired',
+                    'Title' => 'Appointment Expired',
+                    'Message' => "Your pending appointment for {$petName} on {$date} at {$time} was not approved in time and has been automatically removed. Please book a new appointment.",
+                    'Reference_Type' => 'appointment',
+                    'Reference_ID' => $appointment->Appointment_ID,
+                    'Data' => [
+                        'pet_name' => $petName,
+                        'service' => $appointment->service->Service_Name ?? 'N/A',
+                        'date' => $date,
+                        'time' => $time,
+                        'expired_at' => now()->toDateTimeString(),
+                    ],
+                    'Expires_At' => now()->addDays(7),
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning("Failed to notify user for expired appointment {$appointment->Appointment_ID}: {$e->getMessage()}");
+            }
+
+            $appointment->delete();
+        }
+
+        Log::info("Auto-cleaned {$expiredAppointments->count()} expired pending appointment(s).");
+    }
 
     private function ensurePdfExists(array $item, callable $generator): string
     {
