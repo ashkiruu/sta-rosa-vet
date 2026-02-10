@@ -23,12 +23,12 @@
             </a>
         </div>
 
-        {{-- Error Handling --}}
+        {{-- Error Summary --}}
         @if($errors->any())
             <div class="bg-red-50 border-l-4 border-red-500 p-6 rounded-2xl mb-8 shadow-sm">
                 <div class="flex items-center mb-2">
                     <i class="fas fa-exclamation-circle text-red-500 mr-2"></i>
-                    <span class="text-xs font-black text-red-700 uppercase tracking-widest">Submission Errors</span>
+                    <span class="text-xs font-black text-red-700 uppercase tracking-widest">Please fix the following errors</span>
                 </div>
                 <ul class="list-disc list-inside text-sm font-medium text-red-600 space-y-1 ml-1">
                     @foreach($errors->all() as $error)
@@ -53,10 +53,9 @@
             
             $petBreed = old('pet_breed', $certificate['pet_breed'] ?? $appointment->pet->Breed ?? '');
             $petColor = old('pet_color', $certificate['pet_color'] ?? $appointment->pet->Color ?? '');
-            $breedMissing = empty($petBreed);
-            $colorMissing = empty($petColor);
+            $breedMissing = empty($petBreed) && !$errors->has('pet_breed');
+            $colorMissing = empty($petColor) && !$errors->has('pet_color');
             
-            // ✅ FIX: Properly pull user data for civil status, residency, and birthdate
             $user = $appointment->user ?? null;
             $defaultCivilStatus = old('civil_status', $certificate['civil_status'] ?? ($user->Civil_Status ?? ''));
             $defaultYearsOfResidency = old('years_of_residency', $certificate['years_of_residency'] ?? ($user->Years_Of_Residency ?? ''));
@@ -121,37 +120,66 @@
                 </div>
                 <div class="p-8">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {{-- Pet Name --}}
                         <div>
                             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Pet Name <span class="text-red-500">*</span></label>
                             <input type="text" name="pet_name" required
                                    value="{{ old('pet_name', $certificate['pet_name'] ?? $appointment->pet->Pet_Name ?? '') }}"
-                                   class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 text-sm transition-all">
+                                   class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 text-sm transition-all @error('pet_name') ring-2 ring-red-400 bg-red-50 @enderror">
+                            @error('pet_name')
+                                <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                    <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                </p>
+                            @enderror
                         </div>
+
+                        {{-- Animal Type --}}
                         <div>
                             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Species Type <span class="text-red-500">*</span></label>
-                            <select name="animal_type" required class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 text-sm transition-all appearance-none cursor-pointer">
+                            <select name="animal_type" required class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 text-sm transition-all appearance-none cursor-pointer @error('animal_type') ring-2 ring-red-400 bg-red-50 @enderror">
                                 <option value="">Select Type</option>
                                 @php $animalType = old('animal_type', $certificate['animal_type'] ?? ($appointment->pet->species->Species_Name ?? '')); @endphp
                                 @foreach(['Dog', 'Cat', 'Bird', 'Rabbit', 'Others'] as $type)
                                     <option value="{{ $type }}" {{ $animalType == $type ? 'selected' : '' }}>{{ $type }}</option>
                                 @endforeach
                             </select>
+                            @error('animal_type')
+                                <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                    <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                </p>
+                            @enderror
                         </div>
+
+                        {{-- Pet Gender --}}
                         <div>
                             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Gender <span class="text-red-500">*</span></label>
-                            <select name="pet_gender" required class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 text-sm transition-all appearance-none cursor-pointer">
+                            <select name="pet_gender" required class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 text-sm transition-all appearance-none cursor-pointer @error('pet_gender') ring-2 ring-red-400 bg-red-50 @enderror">
                                 <option value="">Select Gender</option>
                                 @php $petGender = old('pet_gender', $certificate['pet_gender'] ?? $appointment->pet->Sex ?? ''); @endphp
                                 <option value="Male" {{ $petGender == 'Male' ? 'selected' : '' }}>Male</option>
                                 <option value="Female" {{ $petGender == 'Female' ? 'selected' : '' }}>Female</option>
                             </select>
+                            @error('pet_gender')
+                                <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                    <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                </p>
+                            @enderror
                         </div>
+
+                        {{-- Pet Age --}}
                         <div>
                             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Age <span class="text-red-500">*</span></label>
                             <input type="text" name="pet_age" required placeholder="e.g., 2 years, 6 months"
                                    value="{{ old('pet_age', $certificate['pet_age'] ?? $appointment->pet->Age ?? '') }}"
-                                   class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 text-sm transition-all">
+                                   class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 text-sm transition-all @error('pet_age') ring-2 ring-red-400 bg-red-50 @enderror">
+                            @error('pet_age')
+                                <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                    <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                </p>
+                            @enderror
                         </div>
+
+                        {{-- Pet Breed --}}
                         <div>
                             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">
                                 Breed <span class="text-red-500">*</span>
@@ -160,8 +188,15 @@
                             <input type="text" name="pet_breed" required
                                    placeholder="{{ $breedMissing ? 'Please fill in the breed (e.g., Labrador, Aspin, Mixed)' : '' }}"
                                    value="{{ $petBreed }}"
-                                   class="w-full px-5 py-3 border-none rounded-xl focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 text-sm transition-all {{ $breedMissing ? 'bg-amber-50 ring-2 ring-amber-200' : 'bg-gray-50' }}">
+                                   class="w-full px-5 py-3 border-none rounded-xl focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 text-sm transition-all @error('pet_breed') ring-2 ring-red-400 bg-red-50 @elseif($breedMissing) bg-amber-50 ring-2 ring-amber-200 @else bg-gray-50 @endif">
+                            @error('pet_breed')
+                                <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                    <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                </p>
+                            @enderror
                         </div>
+
+                        {{-- Pet Color --}}
                         <div>
                             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">
                                 Color <span class="text-red-500">*</span>
@@ -170,13 +205,25 @@
                             <input type="text" name="pet_color" required
                                    placeholder="{{ $colorMissing ? 'Please fill in the color (e.g., Brown, Black & White)' : '' }}"
                                    value="{{ $petColor }}"
-                                   class="w-full px-5 py-3 border-none rounded-xl focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 text-sm transition-all {{ $colorMissing ? 'bg-amber-50 ring-2 ring-amber-200' : 'bg-gray-50' }}">
+                                   class="w-full px-5 py-3 border-none rounded-xl focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 text-sm transition-all @error('pet_color') ring-2 ring-red-400 bg-red-50 @elseif($colorMissing) bg-amber-50 ring-2 ring-amber-200 @else bg-gray-50 @endif">
+                            @error('pet_color')
+                                <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                    <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                </p>
+                            @enderror
                         </div>
+
+                        {{-- Pet DOB --}}
                         <div class="md:col-span-2">
                             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Date of Birth</label>
                             <input type="date" name="pet_dob"
                                    value="{{ old('pet_dob', $certificate['pet_dob'] ?? ($appointment->pet->Date_of_Birth ? $appointment->pet->Date_of_Birth->format('Y-m-d') : '')) }}"
-                                   class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 text-sm transition-all">
+                                   class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 text-sm transition-all @error('pet_dob') ring-2 ring-red-400 bg-red-50 @enderror">
+                            @error('pet_dob')
+                                <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                    <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                </p>
+                            @enderror
                         </div>
                     </div>
                 </div>
@@ -190,12 +237,20 @@
                 </div>
                 <div class="p-8">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {{-- Owner Name --}}
                         <div class="md:col-span-2">
                             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Full Name <span class="text-red-500">*</span></label>
                             <input type="text" name="owner_name" required
                                    value="{{ old('owner_name', $certificate['owner_name'] ?? (($appointment->user->First_Name ?? '') . ' ' . ($appointment->user->Middle_Name ?? '') . ' ' . ($appointment->user->Last_Name ?? ''))) }}"
-                                   class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 font-bold text-gray-700 text-sm transition-all">
+                                   class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 font-bold text-gray-700 text-sm transition-all @error('owner_name') ring-2 ring-red-400 bg-red-50 @enderror">
+                            @error('owner_name')
+                                <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                    <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                </p>
+                            @enderror
                         </div>
+
+                        {{-- Owner Address --}}
                         <div class="md:col-span-2">
                             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Complete Address <span class="text-red-500">*</span></label>
                             @php
@@ -208,34 +263,67 @@
                                 }
                             @endphp
                             <textarea name="owner_address" required rows="2"
-                                      class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 font-bold text-gray-700 text-sm transition-all resize-none">{{ old('owner_address', $certificate['owner_address'] ?? $defaultAddress) }}</textarea>
+                                      class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 font-bold text-gray-700 text-sm transition-all resize-none @error('owner_address') ring-2 ring-red-400 bg-red-50 @enderror">{{ old('owner_address', $certificate['owner_address'] ?? $defaultAddress) }}</textarea>
+                            @error('owner_address')
+                                <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                    <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                </p>
+                            @enderror
                         </div>
+
+                        {{-- Civil Status --}}
                         <div>
                             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Civil Status <span class="text-red-500">*</span></label>
-                            <select name="civil_status" required class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 font-bold text-gray-700 text-sm transition-all appearance-none cursor-pointer">
+                            <select name="civil_status" required class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 font-bold text-gray-700 text-sm transition-all appearance-none cursor-pointer @error('civil_status') ring-2 ring-red-400 bg-red-50 @enderror">
                                 <option value="">Select Status</option>
-                                @foreach(['Single', 'Married', 'Widowed', 'Separated'] as $status)
+                                @foreach(['Single', 'Married', 'Widowed', 'Separated', 'Divorced'] as $status)
                                     <option value="{{ $status }}" {{ $defaultCivilStatus == $status ? 'selected' : '' }}>{{ $status }}</option>
                                 @endforeach
                             </select>
+                            @error('civil_status')
+                                <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                    <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                </p>
+                            @enderror
                         </div>
+
+                        {{-- Years of Residency --}}
                         <div>
                             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Residency Length <span class="text-red-500">*</span></label>
-                            <input type="text" name="years_of_residency" required placeholder="e.g., 5 years, Since birth"
+                            <input type="text" name="years_of_residency" required placeholder="e.g., 5 years"
                                    value="{{ $defaultYearsOfResidency }}"
-                                   class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 font-bold text-gray-700 text-sm transition-all">
+                                   class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 font-bold text-gray-700 text-sm transition-all @error('years_of_residency') ring-2 ring-red-400 bg-red-50 @enderror">
+                            @error('years_of_residency')
+                                <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                    <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                </p>
+                            @enderror
                         </div>
+
+                        {{-- Owner Phone --}}
                         <div>
                             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Contact No. <span class="text-red-500">*</span></label>
                             <input type="text" name="owner_phone" required
                                    value="{{ old('owner_phone', $certificate['owner_phone'] ?? $appointment->user->Contact_Number ?? '') }}"
-                                   class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 font-bold text-gray-700 text-sm transition-all">
+                                   class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 font-bold text-gray-700 text-sm transition-all @error('owner_phone') ring-2 ring-red-400 bg-red-50 @enderror">
+                            @error('owner_phone')
+                                <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                    <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                </p>
+                            @enderror
                         </div>
+
+                        {{-- Owner Birthdate --}}
                         <div>
                             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Birthdate</label>
                             <input type="date" name="owner_birthdate"
                                    value="{{ $defaultOwnerBirthdate }}"
-                                   class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 font-bold text-gray-700 text-sm transition-all">
+                                   class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-green-500 font-bold text-gray-700 text-sm transition-all @error('owner_birthdate') ring-2 ring-red-400 bg-red-50 @enderror">
+                            @error('owner_birthdate')
+                                <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                    <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                </p>
+                            @enderror
                         </div>
                     </div>
                 </div>
@@ -249,31 +337,50 @@
                 </div>
                 <div class="p-8">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {{-- Service Date --}}
                         <div>
                             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Service Date <span class="text-red-500">*</span></label>
                             <input type="date" name="service_date" required
                                    value="{{ old('service_date', $certificate['service_date'] ?? $certificate['vaccination_date'] ?? (isset($appointment) ? \Carbon\Carbon::parse($appointment->Date)->format('Y-m-d') : '')) }}"
-                                   class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-gray-700 text-sm transition-all">
+                                   class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-gray-700 text-sm transition-all @error('service_date') ring-2 ring-red-400 bg-red-50 @enderror">
+                            @error('service_date')
+                                <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                    <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                </p>
+                            @enderror
                         </div>
+
+                        {{-- Next Service Date --}}
                         <div>
                             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Next Follow-up</label>
                             <input type="date" name="next_service_date"
                                    value="{{ old('next_service_date', $certificate['next_service_date'] ?? $certificate['next_vaccination_date'] ?? '') }}"
-                                   class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-gray-700 text-sm transition-all">
+                                   class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-gray-700 text-sm transition-all @error('next_service_date') ring-2 ring-red-400 bg-red-50 @enderror">
+                            @error('next_service_date')
+                                <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                    <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                </p>
+                            @enderror
                         </div>
 
                         @if($isVaccination)
+                            {{-- Vaccine Type --}}
                             <div class="md:col-span-2 pt-4 border-t border-gray-100">
                                 <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Vaccine Classification <span class="text-red-500">*</span></label>
                                 <select name="vaccine_type" id="vaccine_type" required onchange="toggleVaccineFields()"
-                                        class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-gray-700 text-sm transition-all appearance-none cursor-pointer">
+                                        class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-gray-700 text-sm transition-all appearance-none cursor-pointer @error('vaccine_type') ring-2 ring-red-400 bg-red-50 @enderror">
                                     <option value="">Select Category</option>
                                     <option value="anti-rabies" {{ $vaccineType == 'anti-rabies' ? 'selected' : '' }}>Anti-Rabies</option>
                                     <option value="other" {{ $vaccineType == 'other' ? 'selected' : '' }}>Other Vaccine</option>
                                 </select>
+                                @error('vaccine_type')
+                                    <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                        <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                    </p>
+                                @enderror
                             </div>
 
-                            {{-- Anti-Rabies --}}
+                            {{-- Anti-Rabies Fields --}}
                             <div id="antiRabiesFields" class="md:col-span-2 {{ $vaccineType != 'anti-rabies' ? 'hidden' : '' }}">
                                 <div class="bg-purple-50 p-6 rounded-[1.5rem] border border-purple-100">
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -281,21 +388,31 @@
                                             <label class="block text-[10px] font-black text-purple-400 uppercase tracking-widest mb-2 ml-1">Brand Name <span class="text-red-500">*</span></label>
                                             <input type="text" name="vaccine_name_rabies" id="vaccine_name_rabies" 
                                                    value="{{ old('vaccine_name_rabies', ($vaccineType == 'anti-rabies' ? ($vaccineUsed ?: 'Anti-Rabies Vaccine') : 'Anti-Rabies Vaccine')) }}"
-                                                   class="w-full px-5 py-3 bg-white border-none rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-purple-900 text-sm transition-all" 
+                                                   class="w-full px-5 py-3 bg-white border-none rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-purple-900 text-sm transition-all @error('vaccine_name_rabies') ring-2 ring-red-400 bg-red-50 @enderror" 
                                                    placeholder="e.g., Anti-Rabies Vaccine, Rabisin, Nobivac Rabies">
+                                            @error('vaccine_name_rabies')
+                                                <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                                    <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                                </p>
+                                            @enderror
                                         </div>
                                         <div class="md:col-span-2">
                                             <label class="block text-[10px] font-black text-purple-400 uppercase tracking-widest mb-2 ml-1">Lot / Batch No. <span class="text-red-500">*</span></label>
                                             <input type="text" name="lot_number" id="lot_number_rabies" 
                                                    value="{{ old('lot_number', $certificate['lot_number'] ?? '') }}"
-                                                   class="w-full px-5 py-3 bg-white border-none rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-purple-900 text-sm transition-all font-mono" 
+                                                   class="w-full px-5 py-3 bg-white border-none rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-purple-900 text-sm transition-all font-mono @error('lot_number') ring-2 ring-red-400 bg-red-50 @enderror" 
                                                    placeholder="e.g., LOT-2024-001">
+                                            @error('lot_number')
+                                                <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                                    <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                                </p>
+                                            @enderror
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            {{-- Other Vaccines --}}
+                            {{-- Other Vaccine Fields --}}
                             <div id="otherVaccineFields" class="md:col-span-2 {{ $vaccineType != 'other' ? 'hidden' : '' }}">
                                 <div class="bg-yellow-50 p-6 rounded-[1.5rem] border border-yellow-100">
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -303,15 +420,25 @@
                                             <label class="block text-[10px] font-black text-yellow-600 uppercase tracking-widest mb-2 ml-1">Vaccine Name <span class="text-red-500">*</span></label>
                                             <input type="text" name="vaccine_name_other" id="vaccine_name_other" 
                                                    value="{{ old('vaccine_name_other', ($vaccineType == 'other' ? $vaccineUsed : '')) }}"
-                                                   class="w-full px-5 py-3 bg-white border-none rounded-xl focus:ring-2 focus:ring-yellow-500 font-bold text-yellow-900 text-sm transition-all" 
+                                                   class="w-full px-5 py-3 bg-white border-none rounded-xl focus:ring-2 focus:ring-yellow-500 font-bold text-yellow-900 text-sm transition-all @error('vaccine_name_other') ring-2 ring-red-400 bg-red-50 @enderror" 
                                                    placeholder="Enter vaccine name (e.g., 5-in-1, Parvovirus, etc.)">
+                                            @error('vaccine_name_other')
+                                                <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                                    <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                                </p>
+                                            @enderror
                                         </div>
                                         <div class="md:col-span-2">
                                             <label class="block text-[10px] font-black text-yellow-600 uppercase tracking-widest mb-2 ml-1">Lot / Batch No. <span class="text-red-500">*</span></label>
                                             <input type="text" name="lot_number_other" id="lot_number_other" 
                                                    value="{{ old('lot_number_other', ($vaccineType == 'other' ? ($certificate['lot_number'] ?? '') : '')) }}"
-                                                   class="w-full px-5 py-3 bg-white border-none rounded-xl focus:ring-2 focus:ring-yellow-500 font-bold text-yellow-900 text-sm transition-all font-mono" 
+                                                   class="w-full px-5 py-3 bg-white border-none rounded-xl focus:ring-2 focus:ring-yellow-500 font-bold text-yellow-900 text-sm transition-all font-mono @error('lot_number_other') ring-2 ring-red-400 bg-red-50 @enderror" 
                                                    placeholder="e.g., LOT-2024-001">
+                                            @error('lot_number_other')
+                                                <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                                    <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                                </p>
+                                            @enderror
                                         </div>
                                     </div>
                                 </div>
@@ -321,30 +448,56 @@
                             <input type="hidden" name="lot_number_final" id="lot_number_final" value="{{ old('lot_number', $certificate['lot_number'] ?? '') }}">
 
                         @elseif($isDeworming)
+                            {{-- Medicine Used --}}
                             <div class="md:col-span-2 pt-4 border-t border-gray-100">
                                 <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Medication Used</label>
                                 <input type="text" name="medicine_used" 
                                        value="{{ old('medicine_used', $certificate['medicine_used'] ?? $certificate['vaccine_used'] ?? '') }}"
-                                       class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-gray-700 text-sm transition-all" 
+                                       class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-gray-700 text-sm transition-all @error('medicine_used') ring-2 ring-red-400 bg-red-50 @enderror" 
                                        placeholder="e.g., Albendazole, Pyrantel Pamoate">
+                                @error('medicine_used')
+                                    <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                        <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                    </p>
+                                @enderror
                             </div>
+
+                            {{-- Dosage --}}
                             <div class="md:col-span-2">
                                 <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Dosage</label>
                                 <input type="text" name="dosage" 
                                        value="{{ old('dosage', $certificate['dosage'] ?? '') }}"
-                                       class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-gray-700 text-sm transition-all" 
+                                       class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-gray-700 text-sm transition-all @error('dosage') ring-2 ring-red-400 bg-red-50 @enderror" 
                                        placeholder="e.g., 1 tablet, 5ml">
+                                @error('dosage')
+                                    <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                        <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                    </p>
+                                @enderror
                             </div>
                         @else
+                            {{-- Findings --}}
                             <div class="md:col-span-2 pt-4 border-t border-gray-100">
                                 <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Findings / Remarks</label>
-                                <textarea name="findings" rows="3" class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-gray-700 text-sm transition-all resize-none" 
+                                <textarea name="findings" rows="3" class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-gray-700 text-sm transition-all resize-none @error('findings') ring-2 ring-red-400 bg-red-50 @enderror" 
                                           placeholder="Enter checkup findings or remarks...">{{ old('findings', $certificate['findings'] ?? '') }}</textarea>
+                                @error('findings')
+                                    <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                        <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                    </p>
+                                @enderror
                             </div>
+
+                            {{-- Recommendations --}}
                             <div class="md:col-span-2">
                                 <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Recommendations</label>
-                                <textarea name="recommendations" rows="2" class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-gray-700 text-sm transition-all resize-none" 
+                                <textarea name="recommendations" rows="2" class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-purple-500 font-bold text-gray-700 text-sm transition-all resize-none @error('recommendations') ring-2 ring-red-400 bg-red-50 @enderror" 
                                           placeholder="Enter recommendations if any...">{{ old('recommendations', $certificate['recommendations'] ?? '') }}</textarea>
+                                @error('recommendations')
+                                    <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                        <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                    </p>
+                                @enderror
                             </div>
                         @endif
                     </div>
@@ -359,25 +512,45 @@
                 </div>
                 <div class="p-8">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {{-- Veterinarian Name --}}
                         <div class="md:col-span-2">
                             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Veterinarian Name <span class="text-red-500">*</span></label>
                             <input type="text" name="veterinarian_name" required
                                    value="{{ old('veterinarian_name', $certificate['veterinarian_name'] ?? '') }}"
-                                   class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-red-500 font-bold text-gray-700 text-sm transition-all">
+                                   class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-red-500 font-bold text-gray-700 text-sm transition-all @error('veterinarian_name') ring-2 ring-red-400 bg-red-50 @enderror">
+                            @error('veterinarian_name')
+                                <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                    <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                </p>
+                            @enderror
                         </div>
+
+                        {{-- License Number --}}
                         <div>
                             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">License No. <span class="text-red-500">*</span></label>
                             <input type="text" name="license_number" required
                                    value="{{ old('license_number', $certificate['license_number'] ?? '') }}"
-                                   class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-red-500 font-bold text-gray-700 text-sm transition-all font-mono" 
+                                   class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-red-500 font-bold text-gray-700 text-sm transition-all font-mono @error('license_number') ring-2 ring-red-400 bg-red-50 @enderror" 
                                    placeholder="e.g., VET-12345">
+                            @error('license_number')
+                                <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                    <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                </p>
+                            @enderror
                         </div>
+
+                        {{-- PTR Number --}}
                         <div>
                             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">PTR No. <span class="text-red-500">*</span></label>
                             <input type="text" name="ptr_number" required
                                    value="{{ old('ptr_number', $certificate['ptr_number'] ?? '') }}"
-                                   class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-red-500 font-bold text-gray-700 text-sm transition-all font-mono" 
+                                   class="w-full px-5 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-red-500 font-bold text-gray-700 text-sm transition-all font-mono @error('ptr_number') ring-2 ring-red-400 bg-red-50 @enderror" 
                                    placeholder="e.g., PTR-2024-001">
+                            @error('ptr_number')
+                                <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                    <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                </p>
+                            @enderror
                         </div>
 
                         {{-- E-Signature Section --}}
@@ -390,13 +563,19 @@
                             
                             <div class="relative">
                                 {{-- Signature Canvas Container --}}
-                                <div class="bg-gray-50 rounded-2xl p-4 border-2 border-dashed border-gray-200 hover:border-red-300 transition-colors" id="signatureContainer">
+                                <div class="bg-gray-50 rounded-2xl p-4 border-2 border-dashed border-gray-200 hover:border-red-300 transition-colors @error('signature_data') border-red-400 bg-red-50/30 @enderror" id="signatureContainer">
                                     <canvas id="signatureCanvas" class="w-full bg-white rounded-xl cursor-crosshair shadow-inner" style="height: 200px; touch-action: none;"></canvas>
                                     
                                     {{-- Signature Line --}}
                                     <div class="absolute bottom-12 left-8 right-8 border-b-2 border-gray-300 pointer-events-none"></div>
                                     <p class="text-center text-[9px] text-gray-400 uppercase tracking-widest mt-3 font-bold">Sign Above the Line</p>
                                 </div>
+
+                                @error('signature_data')
+                                    <p class="mt-1.5 ml-1 text-xs font-semibold text-red-600 flex items-center gap-1">
+                                        <i class="fas fa-exclamation-triangle text-[10px]"></i> {{ $message }}
+                                    </p>
+                                @enderror
 
                                 {{-- Signature Controls --}}
                                 <div class="flex items-center justify-between mt-4">
@@ -636,6 +815,17 @@
     document.addEventListener('DOMContentLoaded', function() {
         const canvas = document.getElementById('signatureCanvas');
         signaturePad = new SignaturePad(canvas);
+
+        // Auto-scroll to first error field on page load
+        @if($errors->any())
+            const firstError = document.querySelector('.ring-red-400');
+            if (firstError) {
+                setTimeout(() => {
+                    firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    firstError.focus();
+                }, 300);
+            }
+        @endif
     });
 
     function clearSignature() {
