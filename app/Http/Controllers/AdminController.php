@@ -530,26 +530,114 @@ class AdminController extends Controller
         $isCheckup = strpos($serviceTypeLower, 'checkup') !== false || strpos($serviceTypeLower, 'check-up') !== false;
 
         $rules = [
-            'pet_name' => 'required|string|max:255',
-            'animal_type' => 'required|string|max:100',
-            'pet_gender' => 'required|string|max:50',
-            'pet_age' => 'required|string|max:100',
-            'pet_breed' => 'required|string|max:255',
-            'pet_color' => 'required|string|max:100',
-            'pet_dob' => 'nullable|date',
-            'owner_name' => 'required|string|max:255',
-            'owner_address' => 'required|string',
-            'owner_phone' => 'required|string|max:50',
-            'civil_status' => 'required|string|max:50',
-            'years_of_residency' => 'required|string|max:100',
-            'owner_birthdate' => 'nullable|date',
+            // Pet Information
+            'pet_name' => [
+                'required',
+                'string',
+                'max:255',
+                'regex:/^[A-Za-z][A-Za-z0-9\s\-\'\.]*$/',
+            ],
+            'animal_type' => [
+                'required',
+                'string',
+                'max:100',
+                'regex:/^[A-Za-z][A-Za-z\s\-]*$/',
+            ],
+            'pet_gender' => 'required|in:Male,Female',
+            'pet_age' => [
+                'required',
+                'string',
+                'max:100',
+                'regex:/^[0-9]+\s*(months?|years?|yrs?|mos?|days?)?$/i',
+            ],
+            'pet_breed' => [
+                'required',
+                'string',
+                'max:255',
+                'regex:/^[A-Za-z][A-Za-z\s\-\'\/]*$/',
+            ],
+            'pet_color' => [
+                'required',
+                'string',
+                'max:100',
+                'regex:/^[A-Za-z][A-Za-z\s\,\&\-\']*$/',
+            ],
+            'pet_dob' => 'nullable|date|before_or_equal:today',
+
+            // Owner Information
+            'owner_name' => [
+                'required',
+                'string',
+                'max:255',
+                'regex:/^[A-Za-z][A-Za-z\s\-\'\.]*$/',
+            ],
+            'owner_address' => 'required|string|max:500',
+            'owner_phone' => [
+                'required',
+                'string',
+                'max:20',
+                'regex:/^[0-9\+\-\(\)\s]+$/',
+            ],
+            'civil_status' => 'required|in:Single,Married,Widowed,Separated',
+            'years_of_residency' => [
+                'required',
+                'string',
+                'max:50',
+                'regex:/^[0-9]+\s*(years?|yrs?)?$/i',
+            ],
+            'owner_birthdate' => 'nullable|date|before:today',
+
+            // Service Information
             'service_type' => 'required|string|max:255',
-            'service_date' => 'required|date',
-            'next_service_date' => 'nullable|date',
-            'veterinarian_name' => 'required|string|max:255',
-            'license_number' => 'required|string|max:100',
-            'ptr_number' => 'required|string|max:100',
-            'signature_data' => 'nullable|string',
+            'service_date' => 'required|date|before_or_equal:today',
+            'next_service_date' => 'nullable|date|after:service_date',
+
+            // Veterinarian Information
+            'veterinarian_name' => [
+                'required',
+                'string',
+                'max:255',
+                'regex:/^[A-Za-z][A-Za-z\s\-\'\.]*$/',
+            ],
+            'license_number' => [
+                'required',
+                'string',
+                'max:100',
+                'regex:/^[A-Za-z0-9\-]+$/',
+            ],
+            'ptr_number' => [
+                'required',
+                'string',
+                'max:100',
+                'regex:/^[A-Za-z0-9\-]+$/',
+            ],
+
+            // Signature (validated as base64 data URI to prevent XSS)
+            'signature_data' => [
+                'nullable',
+                'string',
+                'regex:/^data:image\/(png|jpeg|jpg|svg\+xml);base64,[A-Za-z0-9+\/=]+$/',
+            ],
+        ];
+
+        // Custom error messages
+        $messages = [
+            'pet_name.regex' => 'Pet name must start with a letter and can only contain letters, numbers, spaces, hyphens, apostrophes, and periods.',
+            'animal_type.regex' => 'Animal type must start with a letter and contain only letters, spaces, and hyphens.',
+            'pet_age.regex' => 'Pet age must be a number optionally followed by a unit (e.g., "3 years", "6 months").',
+            'pet_breed.regex' => 'Breed must start with a letter and can only contain letters, spaces, hyphens, apostrophes, and slashes.',
+            'pet_color.regex' => 'Color must start with a letter and can only contain letters, spaces, commas, ampersands, and hyphens.',
+            'owner_name.regex' => 'Owner name must start with a letter and can only contain letters, spaces, hyphens, apostrophes, and periods.',
+            'owner_phone.regex' => 'Phone number can only contain digits, +, -, (, ), and spaces.',
+            'years_of_residency.regex' => 'Years of residency must be a number optionally followed by "years" or "yrs".',
+            'veterinarian_name.regex' => 'Veterinarian name must start with a letter and can only contain letters, spaces, hyphens, apostrophes, and periods.',
+            'license_number.regex' => 'License number can only contain letters, numbers, and hyphens.',
+            'ptr_number.regex' => 'PTR number can only contain letters, numbers, and hyphens.',
+            'signature_data.regex' => 'Invalid signature data format.',
+            'service_date.before_or_equal' => 'Service date cannot be in the future.',
+            'next_service_date.after' => 'Next service date must be after the service date.',
+            'pet_dob.before_or_equal' => 'Pet date of birth cannot be in the future.',
+            'owner_birthdate.before' => 'Owner birthdate cannot be today or in the future.',
         ];
 
         if ($isVaccination) {
@@ -557,28 +645,46 @@ class AdminController extends Controller
             $vaccineType = $request->input('vaccine_type');
             if ($vaccineType === 'anti-rabies') {
                 $rules['vaccine_name_rabies'] = 'required|string|max:255';
-                $rules['lot_number'] = 'required|string|max:100';
+                $rules['lot_number'] = [
+                    'required',
+                    'string',
+                    'max:100',
+                    'regex:/^[A-Za-z0-9\-\/]+$/',
+                ];
+                $messages['lot_number.regex'] = 'Lot number can only contain letters, numbers, hyphens, and slashes.';
             } elseif ($vaccineType === 'other') {
                 $rules['vaccine_name_other'] = 'required|string|max:255';
-                $rules['lot_number_other'] = 'required|string|max:100';
+                $rules['lot_number_other'] = [
+                    'required',
+                    'string',
+                    'max:100',
+                    'regex:/^[A-Za-z0-9\-\/]+$/',
+                ];
+                $messages['lot_number_other.regex'] = 'Lot number can only contain letters, numbers, hyphens, and slashes.';
             }
         }
 
         if ($isDeworming) {
             $rules['medicine_used'] = 'nullable|string|max:255';
-            $rules['dosage'] = 'nullable|string|max:100';
+            $rules['dosage'] = [
+                'nullable',
+                'string',
+                'max:100',
+                'regex:/^[A-Za-z0-9\s\.\-\/\,]+$/',
+            ];
+            $messages['dosage.regex'] = 'Dosage can only contain letters, numbers, spaces, dots, hyphens, slashes, and commas.';
         }
 
         if ($isCheckup) {
-            $rules['findings'] = 'nullable|string';
-            $rules['recommendations'] = 'nullable|string';
+            $rules['findings'] = 'nullable|string|max:2000';
+            $rules['recommendations'] = 'nullable|string|max:2000';
         }
 
         if ($includeAppointmentId) {
-            $rules['appointment_id'] = 'required';
+            $rules['appointment_id'] = 'required|integer|exists:appointments,Appointment_ID';
         }
 
-        $validated = $request->validate($rules);
+        $validated = $request->validate($rules, $messages);
 
         if ($isVaccination) {
             $vaccineType = $request->input('vaccine_type');

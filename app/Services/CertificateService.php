@@ -348,16 +348,36 @@ class CertificateService
         return $filename;
     }
 
+    /**
+     * Validate and sanitize signature data to prevent XSS.
+     * Only allows proper base64-encoded image data URIs.
+     */
+    private static function sanitizeSignatureData(?string $signatureData): ?string
+    {
+        if (empty($signatureData)) {
+            return null;
+        }
+
+        // Strictly validate the data URI format: must be a base64 image
+        if (!preg_match('/^data:image\/(png|jpeg|jpg|svg\+xml);base64,[A-Za-z0-9+\/=]+$/', $signatureData)) {
+            Log::warning('Invalid signature data format rejected in certificate generation.');
+            return null;
+        }
+
+        return $signatureData;
+    }
+
     private static function generateSignatureHtml($certificate)
     {
-        $signatureData = $certificate['signature_data'] ?? '';
-        $veterinarianName = htmlspecialchars($certificate['veterinarian_name'] ?? '');
-        $licenseNumber = htmlspecialchars($certificate['license_number'] ?? '');
-        $ptrNumber = htmlspecialchars($certificate['ptr_number'] ?? '');
+        $signatureData = self::sanitizeSignatureData($certificate['signature_data'] ?? null);
+        $veterinarianName = htmlspecialchars($certificate['veterinarian_name'] ?? '', ENT_QUOTES, 'UTF-8');
+        $licenseNumber = htmlspecialchars($certificate['license_number'] ?? '', ENT_QUOTES, 'UTF-8');
+        $ptrNumber = htmlspecialchars($certificate['ptr_number'] ?? '', ENT_QUOTES, 'UTF-8');
         
         $signatureImage = '';
-        if (!empty($signatureData) && strpos($signatureData, 'data:image') === 0) {
-            $signatureImage = '<div style="text-align: center; margin-bottom: 5px;"><img src="' . $signatureData . '" alt="Signature" style="max-width: 150px; max-height: 60px; margin: 0 auto;"></div>';
+        if ($signatureData !== null) {
+            $escapedSrc = htmlspecialchars($signatureData, ENT_QUOTES, 'UTF-8');
+            $signatureImage = '<div style="text-align: center; margin-bottom: 5px;"><img src="' . $escapedSrc . '" alt="Signature" style="max-width: 150px; max-height: 60px; margin: 0 auto;"></div>';
         }
         
         return '<div class="signature-block">' . $signatureImage . '<div style="border-top: 1px solid #333; width: 200px; margin: 0 auto; padding-top: 5px;"><p style="margin: 0; font-weight: bold; font-size: 12px;">' . $veterinarianName . '</p><p style="margin: 2px 0; font-size: 10px; color: #666;">License No: ' . $licenseNumber . '</p><p style="margin: 2px 0; font-size: 10px; color: #666;">PTR No: ' . $ptrNumber . '</p><p style="margin: 5px 0 0 0; font-size: 9px; font-style: italic; color: #888;">Attending Veterinarian</p></div></div>';
@@ -365,27 +385,27 @@ class CertificateService
 
     public static function generateVaccinationCertificateHtml($certificate)
     {
-        $certificateNumber = $certificate['certificate_number'];
-        $petName = htmlspecialchars($certificate['pet_name']);
-        $animalType = htmlspecialchars($certificate['animal_type']);
-        $petGender = htmlspecialchars($certificate['pet_gender']);
-        $petAge = htmlspecialchars($certificate['pet_age']);
-        $petBreed = htmlspecialchars($certificate['pet_breed']);
-        $petColor = htmlspecialchars($certificate['pet_color']);
-        $petDob = $certificate['pet_dob'] ? date('F d, Y', strtotime($certificate['pet_dob'])) : '';
+        $certificateNumber = htmlspecialchars($certificate['certificate_number'] ?? '', ENT_QUOTES, 'UTF-8');
+        $petName = htmlspecialchars($certificate['pet_name'] ?? '', ENT_QUOTES, 'UTF-8');
+        $animalType = htmlspecialchars($certificate['animal_type'] ?? '', ENT_QUOTES, 'UTF-8');
+        $petGender = htmlspecialchars($certificate['pet_gender'] ?? '', ENT_QUOTES, 'UTF-8');
+        $petAge = htmlspecialchars($certificate['pet_age'] ?? '', ENT_QUOTES, 'UTF-8');
+        $petBreed = htmlspecialchars($certificate['pet_breed'] ?? '', ENT_QUOTES, 'UTF-8');
+        $petColor = htmlspecialchars($certificate['pet_color'] ?? '', ENT_QUOTES, 'UTF-8');
+        $petDob = !empty($certificate['pet_dob']) ? date('F d, Y', strtotime($certificate['pet_dob'])) : '';
         
-        $ownerName = htmlspecialchars($certificate['owner_name']);
-        $ownerAddress = htmlspecialchars($certificate['owner_address']);
-        $ownerPhone = htmlspecialchars($certificate['owner_phone']);
+        $ownerName = htmlspecialchars($certificate['owner_name'] ?? '', ENT_QUOTES, 'UTF-8');
+        $ownerAddress = htmlspecialchars($certificate['owner_address'] ?? '', ENT_QUOTES, 'UTF-8');
+        $ownerPhone = htmlspecialchars($certificate['owner_phone'] ?? '', ENT_QUOTES, 'UTF-8');
         
-        $vaccinationDate = ($certificate['service_date'] ?? $certificate['vaccination_date']) 
+        $vaccinationDate = ($certificate['service_date'] ?? $certificate['vaccination_date'] ?? null) 
             ? date('M d, Y', strtotime($certificate['service_date'] ?? $certificate['vaccination_date'])) 
             : '';
-        $lotNumber = htmlspecialchars($certificate['lot_number'] ?? '');
-        $nextVaccinationDate = ($certificate['next_service_date'] ?? $certificate['next_vaccination_date']) 
+        $lotNumber = htmlspecialchars($certificate['lot_number'] ?? '', ENT_QUOTES, 'UTF-8');
+        $nextVaccinationDate = ($certificate['next_service_date'] ?? $certificate['next_vaccination_date'] ?? null) 
             ? date('M d, Y', strtotime($certificate['next_service_date'] ?? $certificate['next_vaccination_date'])) 
             : '';
-        $vaccineUsed = htmlspecialchars($certificate['vaccine_used'] ?? '');
+        $vaccineUsed = htmlspecialchars($certificate['vaccine_used'] ?? '', ENT_QUOTES, 'UTF-8');
         
         $issuedDate = date('F d, Y');
         $signatureBlock = self::generateSignatureHtml($certificate);
@@ -395,27 +415,27 @@ class CertificateService
 
     public static function generateDewormingCertificateHtml($certificate)
     {
-        $certificateNumber = $certificate['certificate_number'];
-        $petName = htmlspecialchars($certificate['pet_name']);
-        $animalType = htmlspecialchars($certificate['animal_type']);
-        $petGender = htmlspecialchars($certificate['pet_gender']);
-        $petAge = htmlspecialchars($certificate['pet_age']);
-        $petBreed = htmlspecialchars($certificate['pet_breed']);
-        $petColor = htmlspecialchars($certificate['pet_color']);
-        $petDob = $certificate['pet_dob'] ? date('F d, Y', strtotime($certificate['pet_dob'])) : '';
+        $certificateNumber = htmlspecialchars($certificate['certificate_number'] ?? '', ENT_QUOTES, 'UTF-8');
+        $petName = htmlspecialchars($certificate['pet_name'] ?? '', ENT_QUOTES, 'UTF-8');
+        $animalType = htmlspecialchars($certificate['animal_type'] ?? '', ENT_QUOTES, 'UTF-8');
+        $petGender = htmlspecialchars($certificate['pet_gender'] ?? '', ENT_QUOTES, 'UTF-8');
+        $petAge = htmlspecialchars($certificate['pet_age'] ?? '', ENT_QUOTES, 'UTF-8');
+        $petBreed = htmlspecialchars($certificate['pet_breed'] ?? '', ENT_QUOTES, 'UTF-8');
+        $petColor = htmlspecialchars($certificate['pet_color'] ?? '', ENT_QUOTES, 'UTF-8');
+        $petDob = !empty($certificate['pet_dob']) ? date('F d, Y', strtotime($certificate['pet_dob'])) : '';
         
-        $ownerName = htmlspecialchars($certificate['owner_name']);
-        $ownerAddress = htmlspecialchars($certificate['owner_address']);
-        $ownerPhone = htmlspecialchars($certificate['owner_phone']);
+        $ownerName = htmlspecialchars($certificate['owner_name'] ?? '', ENT_QUOTES, 'UTF-8');
+        $ownerAddress = htmlspecialchars($certificate['owner_address'] ?? '', ENT_QUOTES, 'UTF-8');
+        $ownerPhone = htmlspecialchars($certificate['owner_phone'] ?? '', ENT_QUOTES, 'UTF-8');
         
-        $serviceDate = ($certificate['service_date'] ?? $certificate['vaccination_date']) 
+        $serviceDate = ($certificate['service_date'] ?? $certificate['vaccination_date'] ?? null) 
             ? date('M d, Y', strtotime($certificate['service_date'] ?? $certificate['vaccination_date'])) 
             : '';
-        $nextServiceDate = ($certificate['next_service_date'] ?? $certificate['next_vaccination_date']) 
+        $nextServiceDate = ($certificate['next_service_date'] ?? $certificate['next_vaccination_date'] ?? null) 
             ? date('M d, Y', strtotime($certificate['next_service_date'] ?? $certificate['next_vaccination_date'])) 
             : '';
-        $medicineUsed = htmlspecialchars($certificate['medicine_used'] ?? $certificate['vaccine_used'] ?? '');
-        $dosage = htmlspecialchars($certificate['dosage'] ?? '');
+        $medicineUsed = htmlspecialchars($certificate['medicine_used'] ?? $certificate['vaccine_used'] ?? '', ENT_QUOTES, 'UTF-8');
+        $dosage = htmlspecialchars($certificate['dosage'] ?? '', ENT_QUOTES, 'UTF-8');
         
         $issuedDate = date('F d, Y');
         $signatureBlock = self::generateSignatureHtml($certificate);
@@ -425,27 +445,27 @@ class CertificateService
 
     public static function generateCheckupCertificateHtml($certificate)
     {
-        $certificateNumber = $certificate['certificate_number'];
-        $petName = htmlspecialchars($certificate['pet_name']);
-        $animalType = htmlspecialchars($certificate['animal_type']);
-        $petGender = htmlspecialchars($certificate['pet_gender']);
-        $petAge = htmlspecialchars($certificate['pet_age']);
-        $petBreed = htmlspecialchars($certificate['pet_breed']);
-        $petColor = htmlspecialchars($certificate['pet_color']);
-        $petDob = $certificate['pet_dob'] ? date('F d, Y', strtotime($certificate['pet_dob'])) : '';
+        $certificateNumber = htmlspecialchars($certificate['certificate_number'] ?? '', ENT_QUOTES, 'UTF-8');
+        $petName = htmlspecialchars($certificate['pet_name'] ?? '', ENT_QUOTES, 'UTF-8');
+        $animalType = htmlspecialchars($certificate['animal_type'] ?? '', ENT_QUOTES, 'UTF-8');
+        $petGender = htmlspecialchars($certificate['pet_gender'] ?? '', ENT_QUOTES, 'UTF-8');
+        $petAge = htmlspecialchars($certificate['pet_age'] ?? '', ENT_QUOTES, 'UTF-8');
+        $petBreed = htmlspecialchars($certificate['pet_breed'] ?? '', ENT_QUOTES, 'UTF-8');
+        $petColor = htmlspecialchars($certificate['pet_color'] ?? '', ENT_QUOTES, 'UTF-8');
+        $petDob = !empty($certificate['pet_dob']) ? date('F d, Y', strtotime($certificate['pet_dob'])) : '';
         
-        $ownerName = htmlspecialchars($certificate['owner_name']);
-        $ownerAddress = htmlspecialchars($certificate['owner_address']);
-        $ownerPhone = htmlspecialchars($certificate['owner_phone']);
+        $ownerName = htmlspecialchars($certificate['owner_name'] ?? '', ENT_QUOTES, 'UTF-8');
+        $ownerAddress = htmlspecialchars($certificate['owner_address'] ?? '', ENT_QUOTES, 'UTF-8');
+        $ownerPhone = htmlspecialchars($certificate['owner_phone'] ?? '', ENT_QUOTES, 'UTF-8');
         
-        $serviceDate = ($certificate['service_date'] ?? $certificate['vaccination_date']) 
+        $serviceDate = ($certificate['service_date'] ?? $certificate['vaccination_date'] ?? null) 
             ? date('M d, Y', strtotime($certificate['service_date'] ?? $certificate['vaccination_date'])) 
             : '';
-        $nextServiceDate = ($certificate['next_service_date'] ?? $certificate['next_vaccination_date']) 
+        $nextServiceDate = ($certificate['next_service_date'] ?? $certificate['next_vaccination_date'] ?? null) 
             ? date('M d, Y', strtotime($certificate['next_service_date'] ?? $certificate['next_vaccination_date'])) 
             : '';
-        $findings = htmlspecialchars($certificate['findings'] ?? 'No significant findings. Pet is in good health.');
-        $recommendations = htmlspecialchars($certificate['recommendations'] ?? '');
+        $findings = htmlspecialchars($certificate['findings'] ?? 'No significant findings. Pet is in good health.', ENT_QUOTES, 'UTF-8');
+        $recommendations = htmlspecialchars($certificate['recommendations'] ?? '', ENT_QUOTES, 'UTF-8');
         
         $issuedDate = date('F d, Y');
         $signatureBlock = self::generateSignatureHtml($certificate);
