@@ -438,10 +438,6 @@ class AdminController extends Controller
         if ($request->action === 'approve') {
             $signatureData = $request->input('signature_data');
             
-            if (empty($signatureData)) {
-                return back()->withInput()->with('error', 'Signature is required to approve the certificate.');
-            }
-            
             return $this->approveCertificateAndRedirect(
                 $certificate['id'], 
                 $data['pet_name'], 
@@ -478,10 +474,6 @@ class AdminController extends Controller
 
         if ($request->action === 'approve') {
             $signatureData = $request->input('signature_data');
-            
-            if (empty($signatureData)) {
-                return back()->withInput()->with('error', 'Signature is required to approve the certificate.');
-            }
             
             return $this->approveCertificateAndRedirect(
                 $id, 
@@ -617,12 +609,7 @@ class AdminController extends Controller
                 'regex:/^[A-Za-z0-9\-]+$/',
             ],
 
-            // Signature (validated as base64 data URI to prevent XSS)
-            'signature_data' => [
-                'nullable',
-                'string',
-                'regex:/^data:image\/(png|jpeg|jpg|svg\+xml);base64,[A-Za-z0-9+\/=]+$/',
-            ],
+            // Signature is handled separately outside validation (too large for session flash)
         ];
 
         // Custom error messages
@@ -639,7 +626,6 @@ class AdminController extends Controller
             'veterinarian_name.regex' => 'Veterinarian name must start with a letter and can only contain letters, numbers, spaces, hyphens, apostrophes, and periods.',
             'license_number.regex' => 'License number can only contain letters, numbers, and hyphens.',
             'ptr_number.regex' => 'PTR number can only contain letters, numbers, and hyphens.',
-            'signature_data.regex' => 'Invalid signature data format.',
             'service_date.before_or_equal' => 'Service date cannot be in the future.',
             'next_service_date.after' => 'Next service date must be after the service date.',
             'pet_dob.before_or_equal' => 'Pet date of birth cannot be in the future.',
@@ -690,7 +676,21 @@ class AdminController extends Controller
             $rules['appointment_id'] = 'required|integer|exists:appointments,Appointment_ID';
         }
 
-        $validated = $request->validate($rules, $messages);
+        // Store signature_data separately and remove from request
+        // to prevent the massive base64 string from being flashed to session on validation failure
+        $signatureData = $request->input('signature_data');
+        $request->request->remove('signature_data');
+
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), $rules, $messages);
+
+        if ($validator->fails()) {
+            throw new \Illuminate\Validation\ValidationException($validator);
+        }
+
+        $validated = $validator->validated();
+        
+        // Re-attach signature_data to the request for later use
+        $request->merge(['signature_data' => $signatureData]);
 
         if ($isVaccination) {
             $vaccineType = $request->input('vaccine_type');
