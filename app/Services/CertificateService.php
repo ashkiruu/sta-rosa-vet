@@ -111,6 +111,7 @@ class CertificateService
             'Vet_Name' => $data['veterinarian_name'],
             'License_Number' => $data['license_number'],
             'PTR_Number' => $data['ptr_number'],
+            'Signature_Data' => $data['signature_data'] ?? null,
             'Status' => Certificate::STATUS_DRAFT,
             'Created_By' => $data['created_by'] ?? 'Admin',
         ]);
@@ -194,16 +195,26 @@ class CertificateService
         }
         
         $certificateArray = self::certificateToArray($certificate);
-        $certificateArray['signature_data'] = $signatureData;
+        
+        // Use provided signature, or fall back to the one saved in DB
+        $effectiveSignature = $signatureData ?? $certificate->Signature_Data;
+        $certificateArray['signature_data'] = $effectiveSignature;
         
         $pdfPath = self::generatePdf($certificateArray);
         
-        $certificate->update([
+        $updateData = [
             'Status' => Certificate::STATUS_APPROVED,
             'Approved_At' => now(),
             'Approved_By' => $approvedBy,
             'File_Path' => $pdfPath,
-        ]);
+        ];
+        
+        // Persist signature to DB if provided
+        if ($signatureData) {
+            $updateData['Signature_Data'] = $signatureData;
+        }
+        
+        $certificate->update($updateData);
         
         self::syncAppointmentStatus($certificate->Appointment_ID);
         
@@ -308,6 +319,7 @@ class CertificateService
             'veterinarian_name' => $certificate->Vet_Name,
             'license_number' => $certificate->License_Number,
             'ptr_number' => $certificate->PTR_Number,
+            'signature_data' => $certificate->Signature_Data,
             'status' => $certificate->Status,
             'pdf_path' => $certificate->File_Path,
             'created_at' => $certificate->created_at?->format('Y-m-d H:i:s'),

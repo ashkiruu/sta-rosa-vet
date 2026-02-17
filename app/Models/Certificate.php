@@ -43,6 +43,7 @@ class Certificate extends Model
         'Vet_Name',
         'License_Number',
         'PTR_Number',
+        'Signature_Data',
         'Status',
         'File_Path',
         'Created_By',
