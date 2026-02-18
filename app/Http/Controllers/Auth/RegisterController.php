@@ -85,12 +85,13 @@ class RegisterController extends Controller
                 'regex:/^9[0-9]{9}$/'
             ],
             
-            // Address: Alphanumeric with common address characters
+            // Address: Alphanumeric with common address characters, no angle brackets or backticks
             'Address' => [
                 'required',
                 'string',
                 'min:5',
-                'max:500'
+                'max:500',
+                'regex:/^[A-Za-zÀ-ÿ0-9\#][A-Za-zÀ-ÿ0-9\s\-\'\.\,\#\(\)\/\&]*$/',
             ],
             
             // Barangay: Must exist in database
@@ -123,6 +124,7 @@ class RegisterController extends Controller
             'Middle_Name.regex' => 'Middle name must start with a letter and contain only letters, spaces, hyphens, apostrophes, and periods.',
             'Contact_Number.regex' => 'Please enter a valid Philippine mobile number (10 digits starting with 9).',
             'Contact_Number.size' => 'Mobile number must be exactly 10 digits.',
+            'Address.regex' => 'Address must start with a letter or number and can only contain letters, numbers, spaces, hyphens, periods, commas, #, parentheses, slashes, and ampersands.',
             'Address.min' => 'Address must be at least 5 characters.',
             'Address.max' => 'Address cannot exceed 500 characters.',
             'Years_Of_Residency.min' => 'Years of residency cannot be negative.',

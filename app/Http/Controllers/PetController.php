@@ -76,8 +76,13 @@ class PetController extends Controller
             // Reproductive Status: Must be one of allowed values
             'Reproductive_Status' => 'required|in:Intact,Neutered,Spayed,Unknown',
             
-            // Medical History: Optional, max 1000 characters
-            'medical_history' => 'nullable|string|max:1000',
+            // Medical History: Optional, max 1000 characters, no dangerous characters
+            'medical_history' => [
+                'nullable',
+                'string',
+                'max:1000',
+                'regex:/^[A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9\s\-\'\.\,\;\:\(\)\/\&\!\?\#\@\+\=\%]*$/',
+            ],
         ], [
             // Custom error messages
             'Pet_Name.regex' => 'Pet name must start with a letter and can only contain letters, numbers, spaces, hyphens, apostrophes, and periods.',
@@ -89,6 +94,7 @@ class PetController extends Controller
             'Breed.regex' => 'Breed must start with a letter and can only contain letters, spaces, hyphens, apostrophes, and slashes.',
             'Color.regex' => 'Color must start with a letter and can only contain letters, spaces, commas, ampersands, and hyphens.',
             'Color.min' => 'Color must be at least 2 characters.',
+            'medical_history.regex' => 'Medical history contains invalid characters. Only letters, numbers, spaces, and common punctuation are allowed.',
         ]);
 
         // Sanitize inputs
@@ -154,6 +160,33 @@ class PetController extends Controller
             return redirect()->route('pets.index')
                 ->with('error', "Cannot remove {$pet->Pet_Name}. There are active appointments scheduled for this pet.");
         }
+
+        // Get all appointment IDs for this pet before deleting them
+        $appointmentIds = \DB::table('appointments')
+            ->where('Pet_ID', $id)
+            ->pluck('Appointment_ID')
+            ->toArray();
+
+        // Detach certificates from the pet and its appointments so they remain accessible.
+        // Certificate records store all pet/owner data as denormalized fields,
+        // so they don't need the FK references to display correctly.
+        if (!empty($appointmentIds)) {
+            \DB::table('certificates')
+                ->whereIn('Appointment_ID', $appointmentIds)
+                ->update([
+                    'Appointment_ID' => null,
+                    'Pet_ID' => null,
+                ]);
+        }
+
+        // Also nullify any certificates linked directly by Pet_ID
+        // (in case some were created outside of an appointment context)
+        \DB::table('certificates')
+            ->where('Pet_ID', $id)
+            ->update([
+                'Pet_ID' => null,
+                'Appointment_ID' => null,
+            ]);
 
         // Delete non-active appointment records (Completed, Cancelled, etc.) to avoid FK constraint
         \DB::table('appointments')->where('Pet_ID', $id)->delete();
