@@ -400,20 +400,48 @@ class AdminController extends Controller
     // CERTIFICATES
     // =====================================================
 
-    public function certificatesIndex()
+    public function certificatesIndex(Request $request)
     {
+        // Paginate completed appointments (sidebar) - 10 per page
         $completedAppointments = Appointment::with(['pet', 'user', 'service'])
             ->where('Status', 'Completed')
             ->orderBy('Date', 'desc')
-            ->get();
+            ->paginate(10, ['*'], 'apt_page');
+
+        // Build certificates query with optional status filter
+        $certificatesQuery = \App\Models\Certificate::orderBy('created_at', 'desc');
+
+        if ($request->filled('cert_status') && in_array($request->cert_status, ['draft', 'approved'])) {
+            $certificatesQuery->where('Status', $request->cert_status);
+        }
+
+        // Paginate certificates (main table) - 10 per page
+        $certificates = $certificatesQuery->paginate(10, ['*'], 'page');
+
+        // Counts for stats cards
+        $totalCertificates = \App\Models\Certificate::count();
+        $draftCount = \App\Models\Certificate::where('Status', 'draft')->count();
+        $approvedCount = \App\Models\Certificate::where('Status', 'approved')->count();
+
+        // Pending generation = completed appointments that do NOT yet have a certificate
+        $pendingGenerationCount = Appointment::where('Status', 'Completed')
+            ->whereNotExists(function ($query) {
+                $query->select(\Illuminate\Support\Facades\DB::raw(1))
+                    ->from('certificates')
+                    ->whereColumn('certificates.Appointment_ID', 'appointments.Appointment_ID');
+            })
+            ->count();
 
         return view('admin.certificates.index', [
-            'allCertificates' => CertificateService::getAllCertificates(),
-            'draftCertificates' => CertificateService::getAllCertificates('draft'),
-            'approvedCertificates' => CertificateService::getAllCertificates('approved'),
+            'certificates' => $certificates,
             'completedAppointments' => $completedAppointments,
+            'totalCertificates' => $totalCertificates,
+            'draftCount' => $draftCount,
+            'approvedCount' => $approvedCount,
+            'pendingGenerationCount' => $pendingGenerationCount,
         ]);
     }
+
 
     public function certificatesCreate($appointmentId)
     {
