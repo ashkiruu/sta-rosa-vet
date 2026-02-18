@@ -43,6 +43,18 @@
     </form>
 </div>
 
+{{-- Results Summary --}}
+<div class="flex items-center justify-between mb-4 px-2">
+    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+        Showing {{ $users->firstItem() ?? 0 }}–{{ $users->lastItem() ?? 0 }} of {{ $users->total() }} residents
+    </p>
+    @if(request('search') || request('status'))
+        <a href="{{ route('admin.verifications') }}" class="text-[10px] font-black text-red-500 uppercase tracking-widest hover:text-red-700 transition">
+            <i class="fas fa-times mr-1"></i> Clear Filters
+        </a>
+    @endif
+</div>
+
 {{-- Residents Table --}}
 <div class="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
     <div class="overflow-x-auto">
@@ -61,7 +73,7 @@
                     {{-- User Profile --}}
                     <td class="px-8 py-5">
                         <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 rounded-2xl bg-gray-900 text-white flex items-center justify-center font-black text-xs shadow-md group-hover:bg-red-700 transition-colors">
+                            <div class="w-12 h-12 rounded-2xl bg-gray-400 text-white flex items-center justify-center font-black text-xs shadow-md group-hover:bg-red-700 transition-colors">
                                 {{ substr($user->First_Name, 0, 1) }}{{ substr($user->Last_Name, 0, 1) }}
                             </div>
                             <div>
@@ -131,5 +143,85 @@
             </tbody>
         </table>
     </div>
+
+    {{-- Pagination --}}
+    @if($users->hasPages())
+        <div class="px-8 py-6 border-t border-gray-100 bg-gray-50/30">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                {{-- Page Info --}}
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    Page {{ $users->currentPage() }} of {{ $users->lastPage() }}
+                </p>
+
+                {{-- Pagination Links --}}
+                <div class="flex items-center gap-2">
+                    {{-- Previous Button --}}
+                    @if($users->onFirstPage())
+                        <span class="px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest bg-gray-100 text-gray-300 cursor-not-allowed border border-gray-100">
+                            <i class="fas fa-chevron-left mr-1"></i> Prev
+                        </span>
+                    @else
+                        <a href="{{ $users->appends(request()->query())->previousPageUrl() }}" 
+                           class="px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest bg-white text-gray-600 hover:bg-gray-900 hover:text-white transition shadow-sm border border-gray-200">
+                            <i class="fas fa-chevron-left mr-1"></i> Prev
+                        </a>
+                    @endif
+
+                    {{-- Page Numbers --}}
+                    @php
+                        $currentPage = $users->currentPage();
+                        $lastPage = $users->lastPage();
+                        $startPage = max(1, $currentPage - 2);
+                        $endPage = min($lastPage, $currentPage + 2);
+                    @endphp
+
+                    @if($startPage > 1)
+                        <a href="{{ $users->appends(request()->query())->url(1) }}" 
+                           class="w-10 h-10 rounded-xl text-[10px] font-black flex items-center justify-center bg-white text-gray-600 hover:bg-gray-900 hover:text-white transition shadow-sm border border-gray-200">
+                            1
+                        </a>
+                        @if($startPage > 2)
+                            <span class="w-10 h-10 flex items-center justify-center text-gray-300 text-xs font-black">…</span>
+                        @endif
+                    @endif
+
+                    @for($page = $startPage; $page <= $endPage; $page++)
+                        @if($page == $currentPage)
+                            <span class="w-10 h-10 rounded-xl text-[10px] font-black flex items-center justify-center bg-gray-900 text-white shadow-md">
+                                {{ $page }}
+                            </span>
+                        @else
+                            <a href="{{ $users->appends(request()->query())->url($page) }}" 
+                               class="w-10 h-10 rounded-xl text-[10px] font-black flex items-center justify-center bg-white text-gray-600 hover:bg-gray-900 hover:text-white transition shadow-sm border border-gray-200">
+                                {{ $page }}
+                            </a>
+                        @endif
+                    @endfor
+
+                    @if($endPage < $lastPage)
+                        @if($endPage < $lastPage - 1)
+                            <span class="w-10 h-10 flex items-center justify-center text-gray-300 text-xs font-black">…</span>
+                        @endif
+                        <a href="{{ $users->appends(request()->query())->url($lastPage) }}" 
+                           class="w-10 h-10 rounded-xl text-[10px] font-black flex items-center justify-center bg-white text-gray-600 hover:bg-gray-900 hover:text-white transition shadow-sm border border-gray-200">
+                            {{ $lastPage }}
+                        </a>
+                    @endif
+
+                    {{-- Next Button --}}
+                    @if($users->hasMorePages())
+                        <a href="{{ $users->appends(request()->query())->nextPageUrl() }}" 
+                           class="px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest bg-white text-gray-600 hover:bg-gray-900 hover:text-white transition shadow-sm border border-gray-200">
+                            Next <i class="fas fa-chevron-right ml-1"></i>
+                        </a>
+                    @else
+                        <span class="px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest bg-gray-100 text-gray-300 cursor-not-allowed border border-gray-100">
+                            Next <i class="fas fa-chevron-right ml-1"></i>
+                        </span>
+                    @endif
+                </div>
+            </div>
+        </div>
+    @endif
 </div>
 @endsection
