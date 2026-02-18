@@ -46,6 +46,12 @@
                         </div>
                     @endif
 
+                    @if(session('error'))
+                        <div class="mb-8 bg-red-50 border-l-4 border-red-600 text-red-700 p-5 rounded-r-2xl font-bold text-sm uppercase tracking-wide shadow-sm">
+                            <span class="mr-2">⚠️</span> {{ session('error') }}
+                        </div>
+                    @endif
+
                     <div id="petGrid" class="space-y-4">
                         @forelse($pets as $pet)
                             {{-- Expansive Rectangle Pet Card --}}

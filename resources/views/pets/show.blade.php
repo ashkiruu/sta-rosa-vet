@@ -11,6 +11,19 @@
                 <span class="text-red-700">{{ $pet->Pet_Name }}</span>
             </nav>
 
+            {{-- Flash Messages --}}
+            @if(session('success'))
+                <div class="mb-6 bg-green-50 border-l-4 border-green-500 text-green-700 p-5 rounded-r-2xl font-bold text-sm uppercase tracking-wide shadow-sm">
+                    <span class="mr-2">✅</span> {{ session('success') }}
+                </div>
+            @endif
+
+            @if(session('error'))
+                <div class="mb-6 bg-red-50 border-l-4 border-red-600 text-red-700 p-5 rounded-r-2xl font-bold text-sm uppercase tracking-wide shadow-sm">
+                    <span class="mr-2">⚠️</span> {{ session('error') }}
+                </div>
+            @endif
+
             {{-- Main Profile Layout --}}
             <div class="bg-white rounded-[3rem] border-2 border-gray-100 shadow-2xl shadow-gray-200/50 overflow-hidden">
                 
