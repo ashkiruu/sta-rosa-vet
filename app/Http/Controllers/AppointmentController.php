@@ -327,10 +327,30 @@ class AppointmentController extends Controller
         $certificate = CertificateService::getCertificate($id);
         
         abort_if(!$certificate, 404, 'Certificate not found.');
-        
-        $appointment = Appointment::find($certificate['appointment_id']);
-        abort_if(!$appointment || $appointment->User_ID != $this->userId(), 403, 'Unauthorized.');
         abort_if($certificate['status'] !== 'approved', 403, 'Certificate is not yet approved.');
+
+        // Check ownership via Owner_ID on the certificate directly.
+        // This works even when the linked pet/appointment has been deleted,
+        // because Owner_ID is stored as a denormalized field on the certificate.
+        // Fall back to checking through the appointment if Owner_ID is null.
+        $isOwner = false;
+
+        if (!empty($certificate['appointment_id'])) {
+            $appointment = Appointment::find($certificate['appointment_id']);
+            if ($appointment && $appointment->User_ID == $this->userId()) {
+                $isOwner = true;
+            }
+        }
+
+        if (!$isOwner) {
+            // Check directly via the Owner_ID stored on the certificate
+            $certModel = \App\Models\Certificate::find($id);
+            if ($certModel && $certModel->Owner_ID == $this->userId()) {
+                $isOwner = true;
+            }
+        }
+
+        abort_if(!$isOwner, 403, 'Unauthorized.');
 
         $pdfPath = $this->ensureCertificatePdf($certificate);
 
