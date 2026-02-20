@@ -279,6 +279,16 @@
                                                         </div>
                                                         <span class="text-[9px] font-black uppercase tracking-widest">{{ $urgencyLabel }}</span>
                                                     </div>
+                                                @else
+                                                    <div class="mt-4 flex items-center px-5 py-3 rounded-xl border bg-gray-50 border-gray-200 text-gray-400">
+                                                        <div class="flex items-center gap-3">
+                                                            <span class="text-base">📅</span>
+                                                            <div>
+                                                                <span class="block text-[8px] font-black uppercase tracking-widest opacity-70">Next Vaccination Date</span>
+                                                                <span class="text-sm font-black">N/A</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 @endif
 
                                                 @if($cert->Findings)
