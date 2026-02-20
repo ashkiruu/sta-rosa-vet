@@ -245,6 +245,42 @@
                                                     @endif
                                                 </div>
 
+                                                {{-- Next Vaccination Date Banner --}}
+                                                @if($cert->Next_Service_Date)
+                                                    @php
+                                                        $nextDate = \Carbon\Carbon::parse($cert->Next_Service_Date);
+                                                        $daysUntil = now()->startOfDay()->diffInDays($nextDate->startOfDay(), false);
+                                                        
+                                                        if ($daysUntil < 0) {
+                                                            $urgencyClass = 'bg-red-50 border-red-200 text-red-700';
+                                                            $urgencyIcon = '🚨';
+                                                            $urgencyLabel = 'Overdue by ' . abs($daysUntil) . ' day(s)';
+                                                        } elseif ($daysUntil <= 7) {
+                                                            $urgencyClass = 'bg-amber-50 border-amber-200 text-amber-700';
+                                                            $urgencyIcon = '⚡';
+                                                            $urgencyLabel = 'Due in ' . $daysUntil . ' day(s)';
+                                                        } elseif ($daysUntil <= 30) {
+                                                            $urgencyClass = 'bg-blue-50 border-blue-200 text-blue-700';
+                                                            $urgencyIcon = '📅';
+                                                            $urgencyLabel = 'Due in ' . $daysUntil . ' days';
+                                                        } else {
+                                                            $urgencyClass = 'bg-green-50 border-green-200 text-green-700';
+                                                            $urgencyIcon = '✅';
+                                                            $urgencyLabel = 'Due in ' . $daysUntil . ' days';
+                                                        }
+                                                    @endphp
+                                                    <div class="mt-4 flex items-center justify-between px-5 py-3 rounded-xl border {{ $urgencyClass }}">
+                                                        <div class="flex items-center gap-3">
+                                                            <span class="text-base">{{ $urgencyIcon }}</span>
+                                                            <div>
+                                                                <span class="block text-[8px] font-black uppercase tracking-widest opacity-70">Next Vaccination Date</span>
+                                                                <span class="text-sm font-black">{{ $nextDate->format('F d, Y') }}</span>
+                                                            </div>
+                                                        </div>
+                                                        <span class="text-[9px] font-black uppercase tracking-widest">{{ $urgencyLabel }}</span>
+                                                    </div>
+                                                @endif
+
                                                 @if($cert->Findings)
                                                     <div class="mt-4 pt-4 border-t border-gray-200">
                                                         <span class="block text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Findings / Remarks</span>
