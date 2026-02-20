@@ -141,7 +141,39 @@ class PetController extends Controller
             ->where('Owner_ID', Auth::user()->User_ID)
             ->firstOrFail();
 
-        return view('pets.show', compact('pet'));
+        // Load past appointment history with service details
+        $appointmentHistory = \App\Models\Appointment::where('Pet_ID', $id)
+            ->where('User_ID', Auth::user()->User_ID)
+            ->with(['service'])
+            ->orderBy('Date', 'desc')
+            ->get();
+
+        // Load certificates for this pet (contains medicine, vaccine, dosage details)
+        $certificates = \App\Models\Certificate::where('Pet_ID', $id)
+            ->where('Status', 'approved')
+            ->orderBy('Service_Date', 'desc')
+            ->get();
+
+        // Also check certificates by appointment ID for cases where Pet_ID was nullified
+        $appointmentIds = $appointmentHistory->pluck('Appointment_ID')->toArray();
+        if (!empty($appointmentIds)) {
+            $certsByAppointment = \App\Models\Certificate::whereIn('Appointment_ID', $appointmentIds)
+                ->where('Status', 'approved')
+                ->get();
+            
+            // Merge without duplicates
+            $existingCertIds = $certificates->pluck('Certificate_ID')->toArray();
+            foreach ($certsByAppointment as $cert) {
+                if (!in_array($cert->Certificate_ID, $existingCertIds)) {
+                    $certificates->push($cert);
+                }
+            }
+        }
+
+        // Index certificates by appointment ID for easy lookup in the view
+        $certificatesByAppointment = $certificates->keyBy('Appointment_ID');
+
+        return view('pets.show', compact('pet', 'appointmentHistory', 'certificatesByAppointment'));
     }
 
     public function destroy($id)

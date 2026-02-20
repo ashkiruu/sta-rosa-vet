@@ -151,6 +151,144 @@
                 </div>
                 @endif
 
+                {{-- Appointment History Section --}}
+                <div class="px-8 md:px-12 pb-8">
+                    <div class="bg-white border-2 border-gray-100 rounded-[2rem] overflow-hidden">
+                        <div class="bg-gray-900 px-8 py-5 flex items-center justify-between">
+                            <h3 class="text-[10px] font-black text-white uppercase tracking-[0.2em] flex items-center">
+                                <span class="mr-2 text-base">🩺</span> Appointment History
+                            </h3>
+                            <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest bg-gray-800 px-3 py-1 rounded-lg">
+                                {{ $appointmentHistory->count() }} records
+                            </span>
+                        </div>
+
+                        @if($appointmentHistory->count() > 0)
+                            <div class="divide-y divide-gray-50">
+                                @foreach($appointmentHistory as $appointment)
+                                    @php
+                                        $cert = $certificatesByAppointment->get($appointment->Appointment_ID);
+                                        $statusColors = [
+                                            'Completed' => 'bg-green-100 text-green-700 border-green-200',
+                                            'Approved' => 'bg-blue-100 text-blue-700 border-blue-200',
+                                            'Pending' => 'bg-amber-100 text-amber-700 border-amber-200',
+                                            'No Show' => 'bg-gray-100 text-gray-600 border-gray-200',
+                                            'Cancelled' => 'bg-red-100 text-red-600 border-red-200',
+                                        ];
+                                        $statusClass = $statusColors[$appointment->Status] ?? 'bg-gray-100 text-gray-600 border-gray-200';
+                                    @endphp
+                                    <div class="p-6 hover:bg-gray-50/50 transition">
+                                        {{-- Appointment Header --}}
+                                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                                            <div class="flex items-center gap-3">
+                                                <span class="text-xs font-black text-gray-900 uppercase tracking-tight">
+                                                    {{ $appointment->service->Service_Name ?? 'Service' }}
+                                                </span>
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border {{ $statusClass }}">
+                                                    {{ $appointment->Status }}
+                                                </span>
+                                            </div>
+                                            <div class="flex items-center gap-3">
+                                                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                                    {{ \Carbon\Carbon::parse($appointment->Date)->format('M d, Y') }}
+                                                </span>
+                                                <span class="text-[10px] font-bold text-gray-400">
+                                                    {{ \Carbon\Carbon::parse($appointment->Time)->format('h:i A') }}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {{-- Certificate Details (medicine, vaccine, findings) --}}
+                                        @if($cert)
+                                            <div class="bg-gray-50 rounded-2xl p-5 border border-gray-100">
+                                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                    @if($cert->Vaccine_Used)
+                                                        <div>
+                                                            <span class="block text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Vaccine Used</span>
+                                                            <span class="text-xs font-bold text-gray-700">{{ $cert->Vaccine_Used }}</span>
+                                                        </div>
+                                                    @endif
+
+                                                    @if($cert->Lot_Number)
+                                                        <div>
+                                                            <span class="block text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Lot / Batch No.</span>
+                                                            <span class="text-xs font-bold text-gray-700 font-mono">{{ $cert->Lot_Number }}</span>
+                                                        </div>
+                                                    @endif
+
+                                                    @if($cert->Medicine_Used)
+                                                        <div>
+                                                            <span class="block text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Medicine Used</span>
+                                                            <span class="text-xs font-bold text-gray-700">{{ $cert->Medicine_Used }}</span>
+                                                        </div>
+                                                    @endif
+
+                                                    @if($cert->Dosage)
+                                                        <div>
+                                                            <span class="block text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Dosage</span>
+                                                            <span class="text-xs font-bold text-gray-700">{{ $cert->Dosage }}</span>
+                                                        </div>
+                                                    @endif
+
+                                                    @if($cert->Vet_Name)
+                                                        <div>
+                                                            <span class="block text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Veterinarian</span>
+                                                            <span class="text-xs font-bold text-gray-700">{{ $cert->Vet_Name }}</span>
+                                                        </div>
+                                                    @endif
+
+                                                    @if($cert->Next_Service_Date)
+                                                        <div>
+                                                            <span class="block text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Next Visit</span>
+                                                            <span class="text-xs font-bold text-purple-600">{{ \Carbon\Carbon::parse($cert->Next_Service_Date)->format('M d, Y') }}</span>
+                                                        </div>
+                                                    @endif
+                                                </div>
+
+                                                @if($cert->Findings)
+                                                    <div class="mt-4 pt-4 border-t border-gray-200">
+                                                        <span class="block text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Findings / Remarks</span>
+                                                        <p class="text-xs font-medium text-gray-600 leading-relaxed">{{ $cert->Findings }}</p>
+                                                    </div>
+                                                @endif
+
+                                                @if($cert->Recommendations)
+                                                    <div class="mt-3">
+                                                        <span class="block text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Recommendations</span>
+                                                        <p class="text-xs font-medium text-purple-600 leading-relaxed italic">{{ $cert->Recommendations }}</p>
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        @elseif($appointment->Status === 'Completed')
+                                            <div class="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                                                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic text-center">
+                                                    Certificate details not yet available
+                                                </p>
+                                            </div>
+                                        @endif
+
+                                        {{-- Special Notes --}}
+                                        @if($appointment->Special_Notes)
+                                            <div class="mt-3 px-1">
+                                                <span class="text-[8px] font-black text-gray-400 uppercase tracking-widest">Note:</span>
+                                                <span class="text-[10px] font-medium text-gray-500 italic ml-1">{{ $appointment->Special_Notes }}</span>
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <div class="p-12 text-center">
+                                <div class="text-4xl mb-4 opacity-20">📅</div>
+                                <p class="text-[10px] font-black text-gray-300 uppercase tracking-widest">No appointment history yet</p>
+                                <a href="{{ route('appointments.create') }}" class="inline-block mt-4 text-[9px] font-black text-red-600 uppercase tracking-widest hover:text-red-800 transition">
+                                    Book first appointment →
+                                </a>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+
                 {{-- Actions: Spacious Bottom Bar --}}
                 <div class="bg-gray-50/50 p-8 md:p-12 border-t border-gray-100 flex flex-col md:flex-row items-center gap-4">
                     

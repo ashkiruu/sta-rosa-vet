@@ -433,6 +433,9 @@ class AppointmentController extends Controller
         return null;
     }
 
+    // Maximum number of pending/approved appointments a single user can have at once
+    private const MAX_ACTIVE_APPOINTMENTS_PER_USER = 3;
+
     private function checkPendingAppointmentLimit(?int $petId = null): ?array
     {
         $userId = $this->userId();
@@ -441,35 +444,46 @@ class AppointmentController extends Controller
         if ($petCount === 0) {
             return ['limit' => 'You must register at least one pet before booking an appointment.'];
         }
+
+        // Global cap: prevent one user from filling up all timeslots
+        $activeCount = Appointment::where('User_ID', $userId)
+            ->whereIn('Status', ['Pending', 'Approved'])
+            ->count();
+
+        if ($activeCount >= self::MAX_ACTIVE_APPOINTMENTS_PER_USER) {
+            return [
+                'limit' => "You can only have up to " . self::MAX_ACTIVE_APPOINTMENTS_PER_USER . " active appointments at a time. Please wait for your current appointment(s) to be completed or cancelled."
+            ];
+        }
         
         if ($petId) {
             $petHasPending = Appointment::where('User_ID', $userId)
                 ->where('Pet_ID', $petId)
-                ->where('Status', 'Pending')
+                ->whereIn('Status', ['Pending', 'Approved'])
                 ->exists();
             
             if ($petHasPending) {
                 $pet = Pet::find($petId);
                 $petName = $pet ? $pet->Pet_Name : 'This pet';
                 return [
-                    'limit' => "{$petName} already has a pending appointment. Each pet can only have one pending appointment at a time."
+                    'limit' => "{$petName} already has an active appointment. Each pet can only have one active appointment at a time."
                 ];
             }
         }
         
-        $petsWithPending = Appointment::where('User_ID', $userId)
-            ->where('Status', 'Pending')
+        $petsWithActive = Appointment::where('User_ID', $userId)
+            ->whereIn('Status', ['Pending', 'Approved'])
             ->distinct()
             ->pluck('Pet_ID')
             ->toArray();
         
         $availablePets = Pet::where('Owner_ID', $userId)
-            ->whereNotIn('Pet_ID', $petsWithPending)
+            ->whereNotIn('Pet_ID', $petsWithActive)
             ->count();
         
         if ($availablePets === 0) {
             return [
-                'limit' => "All your pets already have pending appointments. Please wait for your current appointment(s) to be processed."
+                'limit' => "All your pets already have active appointments. Please wait for your current appointment(s) to be completed."
             ];
         }
         
@@ -481,33 +495,44 @@ class AppointmentController extends Controller
         $userId = $this->userId();
         
         $petCount = Pet::where('Owner_ID', $userId)->count();
-        $pendingCount = Appointment::where('User_ID', $userId)->where('Status', 'Pending')->count();
+        $activeCount = Appointment::where('User_ID', $userId)
+            ->whereIn('Status', ['Pending', 'Approved'])
+            ->count();
         
-        $petsWithPending = Appointment::where('User_ID', $userId)
-            ->where('Status', 'Pending')
+        $petsWithActive = Appointment::where('User_ID', $userId)
+            ->whereIn('Status', ['Pending', 'Approved'])
             ->distinct()
             ->pluck('Pet_ID')
             ->toArray();
         
         $availablePets = Pet::where('Owner_ID', $userId)
-            ->whereNotIn('Pet_ID', $petsWithPending)
+            ->whereNotIn('Pet_ID', $petsWithActive)
             ->get();
         
         $availableCount = $availablePets->count();
-        $canBook = $availableCount > 0;
+        $globalLimitReached = $activeCount >= self::MAX_ACTIVE_APPOINTMENTS_PER_USER;
+        $canBook = $availableCount > 0 && !$globalLimitReached;
+        
+        if ($globalLimitReached) {
+            $message = "You have reached the maximum of " . self::MAX_ACTIVE_APPOINTMENTS_PER_USER . " active appointments. Please wait for current appointments to be completed.";
+        } elseif ($petCount === 0) {
+            $message = "Please register a pet first to book appointments.";
+        } elseif ($availableCount === 0) {
+            $message = "All your pets have active appointments. Wait for them to be completed.";
+        } else {
+            $message = "You have {$availableCount} pet(s) available for booking. ({$activeCount}/" . self::MAX_ACTIVE_APPOINTMENTS_PER_USER . " slots used)";
+        }
         
         return [
             'pet_count' => $petCount,
-            'pending_count' => $pendingCount,
+            'active_count' => $activeCount,
+            'max_active' => self::MAX_ACTIVE_APPOINTMENTS_PER_USER,
             'available_pets' => $availablePets,
             'available_count' => $availableCount,
-            'pets_with_pending' => $petsWithPending,
+            'pets_with_active' => $petsWithActive,
             'can_book' => $canBook,
-            'message' => $canBook 
-                ? "You have {$availableCount} pet(s) available for booking."
-                : ($petCount === 0 
-                    ? "Please register a pet first to book appointments."
-                    : "All your pets have pending appointments. Wait for them to be processed.")
+            'global_limit_reached' => $globalLimitReached,
+            'message' => $message,
         ];
     }
 

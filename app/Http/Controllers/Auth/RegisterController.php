@@ -580,14 +580,16 @@ class RegisterController extends Controller
             }
 
             // STEP 4: FINAL DECISION
+            // All registrations require staff verification regardless of ML/OCR score.
+            // The algorithm pre-screens and flags confidence levels, but final approval
+            // is always done by admin staff to ensure identity integrity.
+            $statusID = 1; // Always pending staff review
+
             if ($mlCheckPassed && $totalScore >= 0.7) {
-                $statusID = 2;
-                $verificationMethod = 'ml_and_ocr';
+                $verificationMethod = 'ml_and_ocr_passed_pending_staff';
             } elseif (!$mlCheckPassed && $totalScore >= 0.7) {
-                $statusID = 1;
                 $verificationMethod = 'ocr_only_ml_unavailable';
             } else {
-                $statusID = 1;
                 $verificationMethod = 'pending_manual_review';
             }
 
@@ -649,16 +651,16 @@ class RegisterController extends Controller
                 @unlink($absolutePath);
             }
 
-            if ($statusID == 2) {
-                $message = 'ID verified successfully! Both ML and text matching passed.';
+            if ($mlCheckPassed && $totalScore >= 0.7) {
+                $message = 'ID uploaded and pre-screening passed. Your account is pending staff verification.';
             } elseif (!$mlCheckPassed) {
-                $message = 'ID uploaded. ML verification unavailable - pending manual review.';
+                $message = 'ID uploaded. ML verification unavailable - pending staff review.';
             } else {
-                $message = 'ID uploaded. Text matching below threshold - pending manual review.';
+                $message = 'ID uploaded. Pending staff review for verification.';
             }
 
             return redirect()->route('register.step3')->with([
-                'ocr_status'  => ($statusID == 2 ? 'Verified' : 'Pending'),
+                'ocr_status'  => 'Pending',
                 'ocr_message' => $message
             ]);
 
@@ -689,15 +691,8 @@ class RegisterController extends Controller
 
         $step2 = session('register.step2');
         if ($step2 && isset($step2['verification_status_id'])) {
-            $statusId = $step2['verification_status_id'];
-            
-            if ($statusId == 2) {
-                session()->flash('ocr_status', 'Verified');
-            } elseif ($statusId == 1) {
-                session()->flash('ocr_status', 'Pending');
-            } else {
-                session()->forget('ocr_status');
-            }
+            // All registrations are pending staff review
+            session()->flash('ocr_status', 'Pending');
         }
 
         return view('auth.register.step3');
@@ -932,7 +927,7 @@ class RegisterController extends Controller
             $addressScore   = 0.5;
 
             $totalScore = ($lastNameScore * 0.40) + ($firstNameScore * 0.35) + ($addressScore * 0.25);
-            $statusID = ($totalScore >= 0.7) ? 2 : 1;
+            $statusID = 1; // Always pending staff review, even on reverify
 
             $finalGcsPath = 'ids/id_uploads/users/' . $user->User_ID . '/reverify/' . $filename;
 
@@ -972,11 +967,7 @@ class RegisterController extends Controller
                 'score' => $totalScore,
             ]);
 
-            if ($statusID == 2) {
-                return redirect()->route('dashboard')->with('success', 'Verification successful! You can now book appointments.');
-            }
-
-            return redirect()->route('dashboard')->with('warning', 'ID uploaded, but details did not match perfectly. Admin will review it.');
+            return redirect()->route('dashboard')->with('info', 'ID uploaded successfully. A staff member will review your submission and verify your account.');
 
         } catch (\Throwable $e) {
             \Log::error('REVERIFY_PROCESSING_ERROR', [
