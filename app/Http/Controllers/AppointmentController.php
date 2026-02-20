@@ -526,10 +526,12 @@ class AppointmentController extends Controller
         return [
             'pet_count' => $petCount,
             'active_count' => $activeCount,
+            'pending_count' => $activeCount, // backward compat with existing views
             'max_active' => self::MAX_ACTIVE_APPOINTMENTS_PER_USER,
             'available_pets' => $availablePets,
             'available_count' => $availableCount,
             'pets_with_active' => $petsWithActive,
+            'pets_with_pending' => $petsWithActive, // backward compat with existing views
             'can_book' => $canBook,
             'global_limit_reached' => $globalLimitReached,
             'message' => $message,
