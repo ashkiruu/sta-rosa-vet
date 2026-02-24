@@ -904,7 +904,7 @@ class AdminController extends Controller
     {
         $request->validate([
             'user_id' => 'required|exists:users,User_ID',
-            'admin_role' => 'required|in:staff,doctor,admin',
+            'admin_role' => 'required|in:staff,doctor',
         ]);
 
         if (Admin::find($request->user_id)) {
@@ -933,13 +933,18 @@ class AdminController extends Controller
 
     public function adminsUpdate(Request $request, $id)
     {
-        $request->validate(['admin_role' => 'required|in:staff,doctor,admin']);
+        $request->validate(['admin_role' => 'required|in:staff,doctor']);
 
         $admin = Admin::with('user')->findOrFail($id);
 
         // Prevent modifying your own role
         if ($admin->User_ID == auth()->id()) {
             return back()->with('error', 'You cannot modify your own role.');
+        }
+
+        // Prevent modifying other admin accounts
+        if ($admin->isAdmin()) {
+            return back()->with('error', 'You cannot modify other admin accounts.');
         }
 
         $oldRole = $admin->admin_role;
@@ -957,6 +962,10 @@ class AdminController extends Controller
 
         if ($admin->User_ID == auth()->id()) {
             return back()->with('error', 'You cannot remove your own admin privileges.');
+        }
+
+        if ($admin->isAdmin()) {
+            return back()->with('error', 'You cannot remove other admin accounts.');
         }
 
         $userName = "{$admin->user->First_Name} {$admin->user->Last_Name}";

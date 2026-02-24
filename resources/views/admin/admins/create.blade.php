@@ -104,21 +104,6 @@
                                     </div>
                                 </label>
 
-                                {{-- Admin Role --}}
-                                <label class="block cursor-pointer">
-                                    <input type="radio" name="admin_role" value="admin" class="peer hidden" {{ old('admin_role') === 'admin' ? 'checked' : '' }}>
-                                    <div class="p-6 border-2 border-gray-200 peer-checked:border-purple-600 bg-white peer-checked:bg-purple-50/30 rounded-[1.5rem] transition-all hover:border-gray-300">
-                                        <div class="flex items-center gap-3 mb-3">
-                                            <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center">
-                                                <i class="fas fa-shield-alt text-xs"></i>
-                                            </div>
-                                            <span class="text-xs font-black text-gray-900 uppercase tracking-widest">Admin</span>
-                                        </div>
-                                        <p class="text-[9px] font-bold text-gray-400 leading-relaxed uppercase">
-                                            System management: role assignment, activity log monitoring, and full oversight of staff and doctor accounts.
-                                        </p>
-                                    </div>
-                                </label>
                             </div>
 
                             @error('admin_role')

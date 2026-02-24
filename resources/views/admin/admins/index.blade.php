@@ -112,14 +112,14 @@
                         <td class="px-8 py-6 text-right">
                             <div class="flex items-center justify-end gap-3">
                                 @if($admin->User_ID !== auth()->id())
-                                    {{-- Role Change Dropdown --}}
+                                    @if($admin->admin_role !== 'admin')
+                                    {{-- Role Change Dropdown (only for staff/doctor) --}}
                                     <form action="{{ route('admin.admins.update', $admin->User_ID) }}" method="POST" class="inline-flex items-center gap-2">
                                         @csrf
                                         @method('PUT')
                                         <select name="admin_role" onchange="this.form.submit()" class="text-[10px] font-bold bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 cursor-pointer focus:ring-2 focus:ring-purple-500">
                                             <option value="staff" {{ $admin->admin_role === 'staff' ? 'selected' : '' }}>Staff</option>
                                             <option value="doctor" {{ $admin->admin_role === 'doctor' ? 'selected' : '' }}>Doctor</option>
-                                            <option value="admin" {{ $admin->admin_role === 'admin' ? 'selected' : '' }}>Admin</option>
                                         </select>
                                     </form>
 
@@ -130,6 +130,9 @@
                                             <i class="fas fa-trash-alt text-xs"></i>
                                         </button>
                                     </form>
+                                    @else
+                                    <span class="text-[9px] font-black text-gray-300 uppercase tracking-widest border border-gray-100 px-3 py-1.5 rounded-lg bg-gray-50/50">Protected</span>
+                                    @endif
                                 @else
                                     <span class="text-[9px] font-black text-gray-300 uppercase tracking-widest border border-gray-100 px-3 py-1.5 rounded-lg bg-gray-50/50">Current User</span>
                                 @endif
