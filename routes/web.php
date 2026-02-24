@@ -13,8 +13,6 @@ use Illuminate\Support\Facades\Auth;
 
 Route::get('/', function () {
     if (Auth::check()) {
-        // Always redirect authenticated users to dashboard
-        // The dashboard will show verification status
         return redirect()->route('dashboard');
     }
     return redirect()->route('login');
@@ -63,17 +61,14 @@ Route::post('/reset-password', [ResetPasswordController::class, 'reset'])
 // AUTHENTICATED ROUTES - Accessible to ALL authenticated users (verified or not)
 // ============================================================================
 Route::middleware('auth')->group(function () {
-    // Dashboard - Always accessible to authenticated users
     Route::get('/dashboard', function () {
         return view('dashboard');
     })->name('dashboard');
 
-    // Verification Pages - Accessible to all authenticated users
     Route::get('/verification-pending', function () {
         return view('verification.pending');
     })->name('verification.pending');
 
-    // Verify Process - Accessible to all authenticated users
     Route::get('/verify-account', [RegisterController::class, 'showReverifyForm'])->name('verify.reverify');
     Route::post('/verify-account', [RegisterController::class, 'processReverify'])->name('verify.process');
 });
@@ -112,13 +107,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/appointments/{id}', [AppointmentController::class, 'show'])->name('appointments.show');
     Route::post('/appointments/{id}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
 
-    // QR Code Routes (for authenticated users to view their QR codes)
+    // QR Code Routes
     Route::get('/appointments/{id}/qrcode', [AppointmentController::class, 'showQRCode'])
         ->name('appointments.qrcode');
     Route::get('/appointments/{id}/qrcode/download', [AppointmentController::class, 'downloadQRCode'])
         ->name('appointments.qrcode.download');
 
-    // Check appointment status (AJAX polling for auto-redirect)
     Route::get('/appointments/{id}/check-status', [AppointmentController::class, 'checkStatus'])
         ->name('appointments.checkStatus');
 
@@ -128,13 +122,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/notifications/mark-all-seen', [NotificationController::class, 'markAllSeen'])
         ->name('notifications.markAllSeen');
 
-    // Appointment Notifications (file-based)
     Route::post('/appointments/notifications/mark-seen', [AppointmentController::class, 'markNotificationSeen'])
         ->name('appointments.notifications.markSeen');
     Route::post('/appointments/notifications/mark-all-seen', [AppointmentController::class, 'markAllNotificationsSeen'])
         ->name('appointments.notifications.markAllSeen');
 
-    // User Certificate Routes (for regular users to view/download their certificates)
+    // User Certificate Routes
     Route::get('/my-certificates', [AppointmentController::class, 'certificatesIndex'])
         ->name('certificates.index');
     Route::get('/my-certificates/{id}/download', [AppointmentController::class, 'certificateDownload'])
@@ -144,36 +137,40 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 // ============================================================================
-// ADMIN ROUTES - ADDED 'verified' MIDDLEWARE
+// ADMIN ROUTES - All admin roles can access dashboard and user details
 // ============================================================================
 Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {
-    // Admin Dashboard Overview
+    // Dashboard - accessible to ALL admin roles
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
-    Route::get('/users/{id}', [AdminController::class, 'showUser'])->name('user.show'); 
+    Route::get('/users/{id}', [AdminController::class, 'showUser'])->name('user.show');
+});
 
-    // 1. User Verification (The OCR Review Module)
+// ============================================================================
+// STAFF ROUTES - Verification, Reports, Attendance
+// ============================================================================
+Route::middleware(['auth', 'verified', 'admin', 'role:staff'])->prefix('admin')->name('admin.')->group(function () {
+    // User Verification
     Route::get('/verifications', [AdminController::class, 'pendingVerifications'])->name('verifications');
     Route::post('/verifications/{id}/approve', [AdminController::class, 'approveUser'])->name('user.approve');
     Route::post('/verifications/{id}/reject', [AdminController::class, 'rejectUser'])->name('user.reject');
+});
 
-    // 2. Appointment Management (The Conflict Resolution Module)
+// ============================================================================
+// DOCTOR ROUTES - Appointments, Certificates
+// ============================================================================
+Route::middleware(['auth', 'verified', 'admin', 'role:doctor'])->prefix('admin')->name('admin.')->group(function () {
+    // Appointment Management
     Route::get('/appointments', [AdminController::class, 'appointments'])->name('appointment_index');
     Route::post('/appointments/{id}/approve', [AdminController::class, 'approveAppointment'])->name('appointments.approve');
     Route::post('/appointments/{id}/reject', [AdminController::class, 'rejectAppointment'])->name('appointments.reject');
-    Route::post('/appointments/{id}/release-qr', [AdminController::class, 'releaseQRCode'])
-        ->name('appointments.release-qr');
-    Route::post('/appointments/{id}/no-show', [AdminController::class, 'markNoShow'])
-        ->name('appointments.no-show');
-    Route::post('/appointments/{id}/cancel', [AdminController::class, 'cancelAppointment'])
-        ->name('appointments.cancel');
+    Route::post('/appointments/{id}/release-qr', [AdminController::class, 'releaseQRCode'])->name('appointments.release-qr');
+    Route::post('/appointments/{id}/no-show', [AdminController::class, 'markNoShow'])->name('appointments.no-show');
+    Route::post('/appointments/{id}/cancel', [AdminController::class, 'cancelAppointment'])->name('appointments.cancel');
 
-    // 3. Schedule Management
+    // Schedule Management
     Route::post('/schedule/toggle', [AdminController::class, 'toggleDateStatus'])->name('schedule.toggle');
-    
-    // 4. Attendance Logs
-    Route::get('/attendance', [AdminController::class, 'attendance'])->name('attendance');
 
-    // 5. Certificate Management (Admin)
+    // Certificate Management
     Route::get('/certificates', [AdminController::class, 'certificatesIndex'])->name('certificates.index');
     Route::get('/certificates/create/{appointmentId}', [AdminController::class, 'certificatesCreate'])->name('certificates.create');
     Route::post('/certificates', [AdminController::class, 'certificatesStore'])->name('certificates.store');
@@ -182,8 +179,16 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::post('/certificates/{id}/approve', [AdminController::class, 'certificatesApprove'])->name('certificates.approve');
     Route::get('/certificates/{id}/view', [AdminController::class, 'certificatesView'])->name('certificates.view');
     Route::delete('/certificates/{id}', [AdminController::class, 'certificatesDelete'])->name('certificates.delete');
+});
 
-    // 6. Reports (The Summary Report Module)
+// ============================================================================
+// SHARED ROUTES - Staff + Doctor can access Reports & Attendance
+// ============================================================================
+Route::middleware(['auth', 'verified', 'admin', 'role:staff,doctor'])->prefix('admin')->name('admin.')->group(function () {
+    // Attendance Logs
+    Route::get('/attendance', [AdminController::class, 'attendance'])->name('attendance');
+
+    // Reports
     Route::get('/reports', [AdminController::class, 'reports'])->name('reports');
     Route::post('/reports/generate', [AdminController::class, 'generateReport'])->name('reports.generate');
     Route::get('/reports/{id}/anti-rabies', [AdminController::class, 'viewAntiRabiesReport'])->name('reports.anti-rabies');
@@ -192,16 +197,16 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
 });
 
 // ============================================================================
-// SUPER ADMIN ONLY ROUTES - ADDED 'verified' MIDDLEWARE
+// ADMIN-ONLY ROUTES - System logs, Role management (replaces super admin)
 // ============================================================================
-Route::middleware(['auth', 'verified', 'admin', 'superadmin'])->prefix('admin')->name('admin.')->group(function () {
-    // Admin Management (Super Admin Only)
+Route::middleware(['auth', 'verified', 'admin', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
+    // Admin/Role Management
     Route::get('/admins', [AdminController::class, 'adminsIndex'])->name('admins.index');
     Route::get('/admins/create', [AdminController::class, 'adminsCreate'])->name('admins.create');
     Route::post('/admins', [AdminController::class, 'adminsStore'])->name('admins.store');
     Route::put('/admins/{id}', [AdminController::class, 'adminsUpdate'])->name('admins.update');
     Route::delete('/admins/{id}', [AdminController::class, 'adminsDestroy'])->name('admins.destroy');
 
-    // Activity Logs (Super Admin Only)
+    // Activity Logs
     Route::get('/logs', [AdminController::class, 'activityLogs'])->name('logs');
 });

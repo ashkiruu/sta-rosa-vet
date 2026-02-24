@@ -10,7 +10,6 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
         body { font-family: 'Inter', sans-serif; overflow: hidden; }
 
-        /* Custom Scrollbar for a cleaner look */
         .custom-scrollbar::-webkit-scrollbar {
             width: 4px;
         }
@@ -40,14 +39,29 @@
         {{-- Scrollable Navigation Area --}}
         <nav class="flex-1 px-4 space-y-1.5 overflow-y-auto custom-scrollbar">
             @php
+                $role = $adminRole ?? ($currentAdmin->admin_role ?? 'staff');
+                
+                // Dashboard - visible to all roles
                 $navItems = [
-                    ['route' => 'admin.dashboard', 'icon' => 'fas fa-chart-line', 'label' => 'Dashboard', 'desc' => 'Overview'],
-                    ['route' => 'admin.verifications', 'icon' => 'fas fa-user-check', 'label' => 'Verification', 'desc' => 'User Identity'],
-                    ['route' => 'admin.appointment_index', 'icon' => 'fas fa-calendar-alt', 'label' => 'Appointments', 'desc' => 'Schedules'],
-                    ['route' => 'admin.attendance', 'icon' => 'fas fa-clipboard-check', 'label' => 'Attendance', 'desc' => 'Daily Logs'],
-                    ['route' => 'admin.certificates.index', 'icon' => 'fas fa-certificate', 'label' => 'Certificates', 'desc' => 'Records'],
-                    ['route' => 'admin.reports', 'icon' => 'fas fa-file-medical', 'label' => 'Reports', 'desc' => 'Analytics'],
+                    ['route' => 'admin.dashboard', 'icon' => 'fas fa-chart-line', 'label' => 'Dashboard', 'desc' => 'Overview', 'roles' => ['staff', 'doctor', 'admin']],
                 ];
+
+                // Staff-only items
+                if ($role === 'staff') {
+                    $navItems[] = ['route' => 'admin.verifications', 'icon' => 'fas fa-user-check', 'label' => 'Verification', 'desc' => 'User Identity', 'roles' => ['staff']];
+                }
+
+                // Doctor-only items
+                if ($role === 'doctor') {
+                    $navItems[] = ['route' => 'admin.appointment_index', 'icon' => 'fas fa-calendar-alt', 'label' => 'Appointments', 'desc' => 'Schedules', 'roles' => ['doctor']];
+                    $navItems[] = ['route' => 'admin.certificates.index', 'icon' => 'fas fa-certificate', 'label' => 'Certificates', 'desc' => 'Records', 'roles' => ['doctor']];
+                }
+
+                // Shared items (Staff + Doctor)
+                if (in_array($role, ['staff', 'doctor'])) {
+                    $navItems[] = ['route' => 'admin.attendance', 'icon' => 'fas fa-clipboard-check', 'label' => 'Attendance', 'desc' => 'Daily Logs', 'roles' => ['staff', 'doctor']];
+                    $navItems[] = ['route' => 'admin.reports', 'icon' => 'fas fa-file-medical', 'label' => 'Reports', 'desc' => 'Analytics', 'roles' => ['staff', 'doctor']];
+                }
             @endphp
 
             @foreach($navItems as $item)
@@ -63,8 +77,8 @@
                 </a>
             @endforeach
 
-            {{-- Super Admin Section --}}
-            @if(isset($isSuperAdmin) && $isSuperAdmin)
+            {{-- Admin Section (admin role only) --}}
+            @if($role === 'admin')
                 <div class="pt-4 pb-2 space-y-1.5">
                     <p class="px-4 py-1.5 text-[9px] font-black text-gray-400 uppercase tracking-widest">System Management</p>
                     
@@ -72,7 +86,7 @@
                         <div class="w-9 h-9 rounded-lg flex items-center justify-center {{ request()->routeIs('admin.admins.*') ? 'bg-white text-gray-900' : 'bg-gray-100 text-gray-500' }}">
                             <i class="fas fa-users-cog text-xs"></i>
                         </div>
-                        <p class="font-bold text-[13px]">Manage Admins</p>
+                        <p class="font-bold text-[13px]">Manage Roles</p>
                     </a>
 
                     <a href="{{ route('admin.logs') }}" class="flex items-center gap-3 p-2.5 rounded-xl transition group {{ request()->routeIs('admin.logs') ? 'bg-gray-900 border-gray-800 border text-white' : 'hover:bg-gray-50' }}">
@@ -88,12 +102,22 @@
         {{-- Fixed Bottom Profile --}}
         <div class="p-4 border-t border-gray-50 mt-auto">
             <div class="bg-gray-50 rounded-2xl p-3 flex items-center gap-3">
-                <div class="h-9 w-9 rounded-xl {{ (isset($isSuperAdmin) && $isSuperAdmin) ? 'bg-gray-900' : 'bg-red-700' }} flex items-center justify-center text-white font-black shadow-sm shrink-0">
+                @php
+                    $avatarColor = match($role) {
+                        'admin' => 'bg-gray-900',
+                        'doctor' => 'bg-emerald-700',
+                        'staff' => 'bg-red-700',
+                        default => 'bg-red-700',
+                    };
+                @endphp
+                <div class="h-9 w-9 rounded-xl {{ $avatarColor }} flex items-center justify-center text-white font-black shadow-sm shrink-0">
                     {{ substr(Auth::user()->First_Name, 0, 1) }}
                 </div>
                 <div class="flex-1 min-w-0">
                     <p class="text-[11px] font-black text-gray-900 truncate uppercase leading-none">{{ Auth::user()->First_Name }}</p>
-                    <p class="text-[9px] font-bold text-gray-400 uppercase italic">Admin Access</p>
+                    <p class="text-[9px] font-bold text-gray-400 uppercase italic">
+                        {{ match($role) { 'admin' => 'Admin', 'doctor' => 'Vet Doctor', 'staff' => 'Staff', default => 'Staff' } }}
+                    </p>
                 </div>
                 
                 <form action="{{ route('logout') }}" method="POST" class="shrink-0">
@@ -108,7 +132,6 @@
 
     {{-- Content Area --}}
     <div class="flex-1 flex flex-col relative min-w-0">
-        {{-- Header logic remains the same --}}
         <header class="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-8 shrink-0">
             <div>
                 <h1 class="text-xl font-black text-gray-900 uppercase tracking-tight leading-none">@yield('page_title', 'Admin Panel')</h1>
@@ -118,18 +141,20 @@
             <div class="flex items-center gap-3">
                 <div class="flex flex-col items-end mr-2">
                     <span class="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em] leading-none mb-1.5">Access Level</span>
-                    @if(isset($isSuperAdmin) && $isSuperAdmin)
-                        <span class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-50 border border-purple-100 text-[10px] font-black text-purple-700 uppercase tracking-tight shadow-sm">
-                            <i class="fas fa-crown text-[8px]"></i> Super Admin
-                        </span>
-                    @else
-                        <span class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 border border-red-100 text-[10px] font-black text-red-700 uppercase tracking-tight shadow-sm">
-                            <i class="fas fa-shield-alt text-[8px]"></i> Clinic Staff
-                        </span>
-                    @endif
+                    @php
+                        $badgeConfig = match($role) {
+                            'admin' => ['bg' => 'bg-purple-50', 'border' => 'border-purple-100', 'text' => 'text-purple-700', 'icon' => 'fas fa-shield-alt', 'label' => 'Admin'],
+                            'doctor' => ['bg' => 'bg-emerald-50', 'border' => 'border-emerald-100', 'text' => 'text-emerald-700', 'icon' => 'fas fa-stethoscope', 'label' => 'Vet Doctor'],
+                            'staff' => ['bg' => 'bg-red-50', 'border' => 'border-red-100', 'text' => 'text-red-700', 'icon' => 'fas fa-id-badge', 'label' => 'Staff'],
+                            default => ['bg' => 'bg-gray-50', 'border' => 'border-gray-100', 'text' => 'text-gray-700', 'icon' => 'fas fa-user', 'label' => 'Staff'],
+                        };
+                    @endphp
+                    <span class="flex items-center gap-1.5 px-3 py-1 rounded-full {{ $badgeConfig['bg'] }} {{ $badgeConfig['border'] }} border text-[10px] font-black {{ $badgeConfig['text'] }} uppercase tracking-tight shadow-sm">
+                        <i class="{{ $badgeConfig['icon'] }} text-[8px]"></i> {{ $badgeConfig['label'] }}
+                    </span>
                 </div>
                 
-                <div class="h-9 w-9 rounded-xl {{ (isset($isSuperAdmin) && $isSuperAdmin) ? 'bg-gray-900' : 'bg-red-700' }} flex items-center justify-center text-white font-black shadow-sm shrink-0">
+                <div class="h-9 w-9 rounded-xl {{ $avatarColor ?? 'bg-red-700' }} flex items-center justify-center text-white font-black shadow-sm shrink-0">
                     {{ substr(Auth::user()->First_Name, 0, 1) }}
                 </div>
             </div>

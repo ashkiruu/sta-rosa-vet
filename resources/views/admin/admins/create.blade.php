@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('page_title', 'Create Admin Account')
+@section('page_title', 'Assign Role')
 
 @section('content')
 <div class="min-h-screen py-4">
@@ -17,8 +17,8 @@
             {{-- Form Header --}}
             <div class="bg-gray-900 px-10 py-8 flex justify-between items-center">
                 <div>
-                    <h2 class="text-xl font-black text-white uppercase tracking-tight">Privilege Escalation</h2>
-                    <p class="text-[10px] font-bold text-purple-400 uppercase tracking-[0.2em] mt-1">Grant administrative access to verified accounts</p>
+                    <h2 class="text-xl font-black text-white uppercase tracking-tight">Assign Role</h2>
+                    <p class="text-[10px] font-bold text-purple-400 uppercase tracking-[0.2em] mt-1">Grant system access to verified accounts</p>
                 </div>
                 <div class="h-12 w-12 bg-purple-600/20 rounded-2xl flex items-center justify-center border border-purple-500/30">
                     <i class="fas fa-shield-alt text-purple-400"></i>
@@ -33,7 +33,7 @@
                         </div>
                         <h4 class="text-xs font-black text-amber-900 uppercase tracking-widest">No Candidates Available</h4>
                         <p class="text-[10px] font-bold text-amber-700 uppercase mt-2 leading-relaxed italic">
-                            All verified users currently hold admin status, <br>or no verified accounts exist in the registry.
+                            All verified users currently hold a role, <br>or no verified accounts exist in the registry.
                         </p>
                     </div>
                 @else
@@ -64,27 +64,63 @@
                             @enderror
                         </div>
 
-                        {{-- Role Selection - Only Administrator --}}
+                        {{-- Role Selection --}}
                         <div>
                             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 ml-1">
-                                2. Confirm Authority Level
+                                2. Select Role <span class="text-purple-500">*</span>
                             </label>
                             
-                            {{-- Hidden input to always submit 'admin' role --}}
-                            <input type="hidden" name="admin_role" value="admin">
-                            
-                            {{-- Administrator Role Display --}}
-                            <div class="p-6 border-2 border-purple-600 bg-white rounded-[1.5rem] shadow-md">
-                                <div class="flex items-center gap-3 mb-3">
-                                    <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
-                                        <i class="fas fa-user-tie text-xs"></i>
+                            <div class="space-y-3">
+                                {{-- Staff Role --}}
+                                <label class="block cursor-pointer">
+                                    <input type="radio" name="admin_role" value="staff" class="peer hidden" {{ old('admin_role', 'staff') === 'staff' ? 'checked' : '' }}>
+                                    <div class="p-6 border-2 border-gray-200 peer-checked:border-blue-600 bg-white peer-checked:bg-blue-50/30 rounded-[1.5rem] transition-all hover:border-gray-300">
+                                        <div class="flex items-center gap-3 mb-3">
+                                            <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                                                <i class="fas fa-id-badge text-xs"></i>
+                                            </div>
+                                            <span class="text-xs font-black text-gray-900 uppercase tracking-widest">Staff</span>
+                                            <i class="fas fa-check-circle text-blue-600 text-lg ml-auto hidden peer-checked:block"></i>
+                                        </div>
+                                        <p class="text-[9px] font-bold text-gray-400 leading-relaxed uppercase">
+                                            User verification, attendance logs, and report generation. Handles resident identity review and administrative reporting.
+                                        </p>
                                     </div>
-                                    <span class="text-xs font-black text-gray-900 uppercase tracking-widest">Administrator</span>
-                                    <i class="fas fa-check-circle text-purple-600 text-lg ml-auto"></i>
-                                </div>
-                                <p class="text-[9px] font-bold text-gray-400 leading-relaxed uppercase">Full administrative access including verifications, appointments, certificates, reports, and system oversight. All activity is logged and audited.</p>
+                                </label>
+
+                                {{-- Doctor Role --}}
+                                <label class="block cursor-pointer">
+                                    <input type="radio" name="admin_role" value="doctor" class="peer hidden" {{ old('admin_role') === 'doctor' ? 'checked' : '' }}>
+                                    <div class="p-6 border-2 border-gray-200 peer-checked:border-emerald-600 bg-white peer-checked:bg-emerald-50/30 rounded-[1.5rem] transition-all hover:border-gray-300">
+                                        <div class="flex items-center gap-3 mb-3">
+                                            <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                                                <i class="fas fa-stethoscope text-xs"></i>
+                                            </div>
+                                            <span class="text-xs font-black text-gray-900 uppercase tracking-widest">Veterinary Doctor</span>
+                                        </div>
+                                        <p class="text-[9px] font-bold text-gray-400 leading-relaxed uppercase">
+                                            Appointment management, certificate generation, attendance logs, and reports. Handles clinical operations and medical records.
+                                        </p>
+                                    </div>
+                                </label>
+
+                                {{-- Admin Role --}}
+                                <label class="block cursor-pointer">
+                                    <input type="radio" name="admin_role" value="admin" class="peer hidden" {{ old('admin_role') === 'admin' ? 'checked' : '' }}>
+                                    <div class="p-6 border-2 border-gray-200 peer-checked:border-purple-600 bg-white peer-checked:bg-purple-50/30 rounded-[1.5rem] transition-all hover:border-gray-300">
+                                        <div class="flex items-center gap-3 mb-3">
+                                            <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center">
+                                                <i class="fas fa-shield-alt text-xs"></i>
+                                            </div>
+                                            <span class="text-xs font-black text-gray-900 uppercase tracking-widest">Admin</span>
+                                        </div>
+                                        <p class="text-[9px] font-bold text-gray-400 leading-relaxed uppercase">
+                                            System management: role assignment, activity log monitoring, and full oversight of staff and doctor accounts.
+                                        </p>
+                                    </div>
+                                </label>
                             </div>
-                            
+
                             @error('admin_role')
                                 <p class="text-red-500 text-[9px] font-black uppercase mt-2 ml-1 tracking-widest">{{ $message }}</p>
                             @enderror
@@ -94,17 +130,17 @@
                         <div class="bg-purple-50 rounded-2xl p-6 border border-purple-100 relative overflow-hidden">
                             <i class="fas fa-fingerprint absolute -right-2 -bottom-2 text-6xl text-purple-600/5"></i>
                             <h4 class="text-[9px] font-black text-purple-900 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                <i class="fas fa-user-shield"></i> Security Protocol Awareness
+                                <i class="fas fa-user-shield"></i> Security Protocol
                             </h4>
                             <ul class="space-y-2">
                                 <li class="flex items-start gap-2 text-[9px] font-bold text-purple-700/80 uppercase">
                                     <span class="text-purple-400">•</span> Account inherits existing verified credentials.
                                 </li>
                                 <li class="flex items-start gap-2 text-[9px] font-bold text-purple-700/80 uppercase">
-                                    <span class="text-purple-400">•</span> All administrative operations are irreversibly logged.
+                                    <span class="text-purple-400">•</span> All operations are irreversibly logged.
                                 </li>
                                 <li class="flex items-start gap-2 text-[9px] font-bold text-purple-700/80 uppercase">
-                                    <span class="text-purple-400">•</span> Access termination can only be executed by Root Admins.
+                                    <span class="text-purple-400">•</span> Role changes can only be made by Admin accounts.
                                 </li>
                             </ul>
                         </div>
@@ -113,12 +149,12 @@
                         <div class="flex flex-col sm:flex-row items-center justify-end gap-4 pt-4 border-t border-gray-50">
                             <a href="{{ route('admin.admins.index') }}" 
                                class="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-colors">
-                                Abort Transaction
+                                Cancel
                             </a>
                             <button type="submit" 
                                     class="w-full sm:w-auto px-10 py-4 bg-gray-900 hover:bg-purple-600 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-3">
                                 <i class="fas fa-plus-circle"></i>
-                                Provision Account
+                                Assign Role
                             </button>
                         </div>
                     </form>

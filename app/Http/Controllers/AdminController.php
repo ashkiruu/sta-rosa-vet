@@ -64,16 +64,16 @@ class AdminController extends Controller
     public function dashboard()
     {
         $currentAdmin = Admin::find(auth()->id());
-        $isSuperAdmin = $currentAdmin?->isSuperAdmin() ?? false;
+        $adminRole = $currentAdmin?->admin_role ?? 'staff';
         
         $stats = $this->getBaseStats();
         
-        if ($isSuperAdmin) {
-            $stats['total_admins'] = Admin::normalAdmins()->count();
+        if ($currentAdmin?->isAdmin()) {
+            $stats['total_staff'] = Admin::nonAdmins()->count();
             $stats['activity_summary'] = AdminLogService::getActivitySummary();
         }
 
-        return view('admin.dashboard', compact('stats', 'isSuperAdmin'));
+        return view('admin.dashboard', compact('stats', 'adminRole'));
     }
 
     private function getBaseStats(): array
@@ -86,7 +86,7 @@ class AdminController extends Controller
     }
 
     // =====================================================
-    // USER VERIFICATION
+    // USER VERIFICATION (Staff only)
     // =====================================================
 
     public function verifications(Request $request)
@@ -172,12 +172,11 @@ class AdminController extends Controller
     }
 
     // =====================================================
-    // APPOINTMENTS
+    // APPOINTMENTS (Doctor only)
     // =====================================================
 
     public function appointments()
     {
-        // Auto-clean expired pending appointments (scheduled date has passed)
         $this->cleanExpiredPendingAppointments();
 
         $appointments = Appointment::with(['user', 'pet', 'service'])
@@ -397,33 +396,28 @@ class AdminController extends Controller
     }
 
     // =====================================================
-    // CERTIFICATES
+    // CERTIFICATES (Doctor only)
     // =====================================================
 
     public function certificatesIndex(Request $request)
     {
-        // Paginate completed appointments (sidebar) - 10 per page
         $completedAppointments = Appointment::with(['pet', 'user', 'service'])
             ->where('Status', 'Completed')
             ->orderBy('Date', 'desc')
             ->paginate(10, ['*'], 'apt_page');
 
-        // Build certificates query with optional status filter
         $certificatesQuery = \App\Models\Certificate::orderBy('created_at', 'desc');
 
         if ($request->filled('cert_status') && in_array($request->cert_status, ['draft', 'approved'])) {
             $certificatesQuery->where('Status', $request->cert_status);
         }
 
-        // Paginate certificates (main table) - 10 per page
         $certificates = $certificatesQuery->paginate(10, ['*'], 'page');
 
-        // Counts for stats cards
         $totalCertificates = \App\Models\Certificate::count();
         $draftCount = \App\Models\Certificate::where('Status', 'draft')->count();
         $approvedCount = \App\Models\Certificate::where('Status', 'approved')->count();
 
-        // Pending generation = completed appointments that do NOT yet have a certificate
         $pendingGenerationCount = Appointment::where('Status', 'Completed')
             ->whereNotExists(function ($query) {
                 $query->select(\Illuminate\Support\Facades\DB::raw(1))
@@ -441,7 +435,6 @@ class AdminController extends Controller
             'pendingGenerationCount' => $pendingGenerationCount,
         ]);
     }
-
 
     public function certificatesCreate($appointmentId)
     {
@@ -550,7 +543,6 @@ class AdminController extends Controller
         $isCheckup = strpos($serviceTypeLower, 'checkup') !== false || strpos($serviceTypeLower, 'check-up') !== false;
 
         $rules = [
-            // Pet Information
             'pet_name' => [
                 'required',
                 'string',
@@ -583,8 +575,6 @@ class AdminController extends Controller
                 'regex:/^[A-Za-z][A-Za-z\s\,\&\-\']*$/',
             ],
             'pet_dob' => 'nullable|date|before_or_equal:today',
-
-            // Owner Information
             'owner_name' => [
                 'required',
                 'string',
@@ -611,13 +601,9 @@ class AdminController extends Controller
                 'regex:/^[A-Za-z0-9][A-Za-z0-9\s\-\,\.]*$/',
             ],
             'owner_birthdate' => 'nullable|date|before:today',
-
-            // Service Information
             'service_type' => 'required|string|max:255',
             'service_date' => 'required|date|before_or_equal:today',
             'next_service_date' => 'nullable|date|after:service_date',
-
-            // Veterinarian Information
             'veterinarian_name' => [
                 'required',
                 'string',
@@ -636,11 +622,8 @@ class AdminController extends Controller
                 'max:100',
                 'regex:/^[A-Za-z0-9\-]+$/',
             ],
-
-            // Signature is handled separately outside validation (too large for session flash)
         ];
 
-        // Custom error messages
         $messages = [
             'pet_name.regex' => 'Pet name must start with a letter and can only contain letters, numbers, spaces, hyphens, apostrophes, and periods.',
             'animal_type.regex' => 'Animal type must start with a letter and contain only letters, spaces, and hyphens.',
@@ -704,8 +687,6 @@ class AdminController extends Controller
             $rules['appointment_id'] = 'required|integer|exists:appointments,Appointment_ID';
         }
 
-        // Store signature_data separately and remove from request
-        // to prevent the massive base64 string from being flashed to session on validation failure
         $signatureData = $request->input('signature_data');
         $request->request->remove('signature_data');
 
@@ -717,7 +698,6 @@ class AdminController extends Controller
 
         $validated = $validator->validated();
         
-        // Re-attach signature_data to the request for later use
         $request->merge(['signature_data' => $signatureData]);
 
         if ($isVaccination) {
@@ -761,7 +741,7 @@ class AdminController extends Controller
     }
 
     // =====================================================
-    // REPORTS
+    // REPORTS (Staff + Doctor)
     // =====================================================
 
     public function reports()
@@ -896,13 +876,13 @@ class AdminController extends Controller
     }
 
     // =====================================================
-    // ADMIN MANAGEMENT (Super Admin)
+    // ADMIN MANAGEMENT (Admin role only)
     // =====================================================
 
     public function adminsIndex()
     {
         $admins = Admin::with('user', 'creator')
-            ->orderBy('is_super_admin', 'desc')
+            ->orderByRaw("FIELD(admin_role, 'admin', 'doctor', 'staff')")
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -924,7 +904,7 @@ class AdminController extends Controller
     {
         $request->validate([
             'user_id' => 'required|exists:users,User_ID',
-            'admin_role' => 'required|in:staff,admin',
+            'admin_role' => 'required|in:staff,doctor,admin',
         ]);
 
         if (Admin::find($request->user_id)) {
@@ -935,25 +915,31 @@ class AdminController extends Controller
 
         Admin::create([
             'User_ID' => $request->user_id,
-            'is_super_admin' => false,
             'admin_role' => $request->admin_role,
             'created_by' => auth()->id(),
         ]);
 
         AdminLogService::logAdminManagement($request->user_id, 'created', "{$user->First_Name} {$user->Last_Name}");
 
+        $roleDisplay = match($request->admin_role) {
+            'admin' => 'Admin',
+            'doctor' => 'Veterinary Doctor',
+            'staff' => 'Staff',
+        };
+
         return redirect()->route('admin.admins.index')
-            ->with('success', "{$user->First_Name} {$user->Last_Name} added as " . ucfirst($request->admin_role) . ".");
+            ->with('success', "{$user->First_Name} {$user->Last_Name} added as {$roleDisplay}.");
     }
 
     public function adminsUpdate(Request $request, $id)
     {
-        $request->validate(['admin_role' => 'required|in:staff,admin']);
+        $request->validate(['admin_role' => 'required|in:staff,doctor,admin']);
 
         $admin = Admin::with('user')->findOrFail($id);
 
-        if ($admin->isSuperAdmin()) {
-            return back()->with('error', 'Cannot modify super admin accounts.');
+        // Prevent modifying your own role
+        if ($admin->User_ID == auth()->id()) {
+            return back()->with('error', 'You cannot modify your own role.');
         }
 
         $oldRole = $admin->admin_role;
@@ -962,16 +948,12 @@ class AdminController extends Controller
         AdminLogService::logAdminManagement($id, "role_changed_from_{$oldRole}_to_{$request->admin_role}", 
             "{$admin->user->First_Name} {$admin->user->Last_Name}");
 
-        return redirect()->route('admin.admins.index')->with('success', 'Admin role updated.');
+        return redirect()->route('admin.admins.index')->with('success', 'Role updated successfully.');
     }
 
     public function adminsDestroy($id)
     {
         $admin = Admin::with('user')->findOrFail($id);
-
-        if ($admin->isSuperAdmin()) {
-            return back()->with('error', 'Cannot remove super admin accounts.');
-        }
 
         if ($admin->User_ID == auth()->id()) {
             return back()->with('error', 'You cannot remove your own admin privileges.');
@@ -985,14 +967,14 @@ class AdminController extends Controller
     }
 
     // =====================================================
-    // ACTIVITY LOGS (Super Admin)
+    // ACTIVITY LOGS (Admin role only)
     // =====================================================
 
     public function activityLogs(Request $request)
     {
-        $normalAdminIds = Admin::normalAdmins()->pluck('User_ID');
+        $monitoredIds = Admin::nonAdmins()->pluck('User_ID');
 
-        $query = SystemLog::with('user')->whereIn('User_ID', $normalAdminIds);
+        $query = SystemLog::with('user')->whereIn('User_ID', $monitoredIds);
 
         if ($request->filled('admin_id')) {
             $query->where('User_ID', $request->admin_id);
@@ -1009,8 +991,8 @@ class AdminController extends Controller
 
         return view('admin.logs.index', [
             'logs' => $query->orderBy('Timestamp', 'desc')->paginate(25),
-            'admins' => Admin::normalAdmins()->with('user')->get(),
-            'actionTypes' => SystemLog::whereIn('User_ID', $normalAdminIds)->distinct()->pluck('Action'),
+            'admins' => Admin::nonAdmins()->with('user')->get(),
+            'actionTypes' => SystemLog::whereIn('User_ID', $monitoredIds)->distinct()->pluck('Action'),
         ]);
     }
 
@@ -1018,10 +1000,6 @@ class AdminController extends Controller
     // HELPER METHODS
     // =====================================================
 
-    /**
-     * Clean up expired pending appointments (scheduled date has passed without approval).
-     * Notifies affected users and logs the cleanup.
-     */
     private function cleanExpiredPendingAppointments(): void
     {
         $expiredAppointments = Appointment::with(['pet', 'user', 'service'])
