@@ -17,12 +17,22 @@ RUN { \
 
 #RUN echo "LimitRequestBody 0" >> /etc/apache2/apache2.conf
 
+# NOTE: Uncomment this original setup and remove the PostgreSQL block below once Render is discarded
+# RUN apt-get update && apt-get install -y \
+#     git unzip \
+#     libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
+#     libicu-dev libonig-dev libxml2-dev \
+#  && docker-php-ext-configure gd --with-freetype --with-jpeg \
+#  && docker-php-ext-install pdo_mysql zip gd exif intl bcmath mbstring xml opcache \
+#  && rm -rf /var/lib/apt/lists/*
+
+# Render PostgreSQL Active Setup
 RUN apt-get update && apt-get install -y \
-    git unzip \
+    git unzip libpq-dev \
     libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
     libicu-dev libonig-dev libxml2-dev \
  && docker-php-ext-configure gd --with-freetype --with-jpeg \
- && docker-php-ext-install pdo_mysql zip gd exif intl bcmath mbstring xml opcache \
+ && docker-php-ext-install pdo_pgsql pgsql pdo_mysql zip gd exif intl bcmath mbstring xml opcache \
  && rm -rf /var/lib/apt/lists/*
 
 
@@ -78,6 +88,22 @@ RUN sed -i 's/Listen 80/Listen ${PORT}/g' /etc/apache2/ports.conf \
 # =========================
 # SYSTEM DEPENDENCIES (OCR + IMAGE NORMALIZATION)
 # =========================
+# NOTE: Uncomment this original setup and remove the PostgreSQL block below once Render is discarded
+# RUN apt-get update && apt-get install -y \
+#     unzip \
+#     tesseract-ocr \
+#     imagemagick \
+#     libheif1 \
+#     libde265-0 \
+#     heif-gdk-pixbuf \
+#     libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
+#     libicu-dev libonig-dev libxml2-dev \
+#  && docker-php-ext-configure gd --with-freetype --with-jpeg \
+#  && docker-php-ext-install pdo_mysql zip gd exif intl bcmath mbstring xml opcache \
+#  && a2enmod rewrite headers \
+#  && rm -rf /var/lib/apt/lists/*
+
+# Render PostgreSQL Active Setup
 RUN apt-get update && apt-get install -y \
     unzip \
     tesseract-ocr \
@@ -85,10 +111,11 @@ RUN apt-get update && apt-get install -y \
     libheif1 \
     libde265-0 \
     heif-gdk-pixbuf \
+    libpq-dev \
     libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
     libicu-dev libonig-dev libxml2-dev \
  && docker-php-ext-configure gd --with-freetype --with-jpeg \
- && docker-php-ext-install pdo_mysql zip gd exif intl bcmath mbstring xml opcache \
+ && docker-php-ext-install pdo_pgsql pgsql pdo_mysql zip gd exif intl bcmath mbstring xml opcache \
  && a2enmod rewrite headers \
  && rm -rf /var/lib/apt/lists/*
 
