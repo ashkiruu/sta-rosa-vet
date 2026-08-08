@@ -61,7 +61,7 @@ class UserSeeder extends Seeder
         'Email' => 'ccpoblete@mcl.edu.ph',
         'Address' => 'Test Address, Sta. Rosa City',
         'Barangay_ID' => 1,
-        'Verification_Status_ID' => 1,
+        'Verification_Status_ID' => 2,
         'Account_Status_ID' => 1,
         'Registration_Date' => now(),
         'created_at' => now(),

@@ -10,7 +10,6 @@ class AdminLogService
 {
     /**
      * Log an admin action to system_logs table
-     * Only logs actions by staff and doctors (not admins)
      */
     public static function log(string $action, ?string $description = null, ?int $userId = null): ?SystemLog
     {
@@ -20,17 +19,21 @@ class AdminLogService
             return null;
         }
 
-        $admin = Admin::find($userId);
-        
-        // Only log if it's a staff or doctor (not admin role)
-        if (!$admin || $admin->isAdmin()) {
-            return null;
-        }
+        /*
+        |--------------------------------------------------------------------------
+        | PREVIOUS IMPLEMENTATION (Only logged non-admin roles: staff/doctor)
+        | Uncomment if Render / production environment requires excluding Admin activity:
+        |--------------------------------------------------------------------------
+        | $admin = Admin::find($userId);
+        | if (!$admin || $admin->isAdmin()) {
+        |     return null;
+        | }
+        */
 
         return SystemLog::create([
-            'User_ID' => $userId,
-            'Action' => $action,
-            'Timestamp' => now(),
+            'User_ID'     => $userId,
+            'Action'      => $action,
+            'Timestamp'   => now(),
             'Description' => $description,
         ]);
     }
@@ -48,9 +51,9 @@ class AdminLogService
         }
 
         return SystemLog::create([
-            'User_ID' => $userId,
-            'Action' => $action,
-            'Timestamp' => now(),
+            'User_ID'     => $userId,
+            'Action'      => $action,
+            'Timestamp'   => now(),
             'Description' => $description,
         ]);
     }
@@ -133,14 +136,24 @@ class AdminLogService
     }
 
     /**
-     * Get all staff/doctor logs (excluding admin role actions)
+     * Get all logs across all admin/staff accounts
      */
     public static function getAllAdminLogs(int $limit = 100)
     {
-        $monitoredIds = Admin::nonAdmins()->pluck('User_ID');
-        
-        return SystemLog::whereIn('User_ID', $monitoredIds)
-            ->with('user')
+        /*
+        |--------------------------------------------------------------------------
+        | PREVIOUS IMPLEMENTATION (Excluding admin role actions)
+        | Uncomment if Render / production environment requires non-admin filtering:
+        |--------------------------------------------------------------------------
+        | $monitoredIds = Admin::nonAdmins()->pluck('User_ID');
+        | return SystemLog::whereIn('User_ID', $monitoredIds)
+        |     ->with('user')
+        |     ->orderBy('Timestamp', 'desc')
+        |     ->limit($limit)
+        |     ->get();
+        */
+
+        return SystemLog::with('user')
             ->orderBy('Timestamp', 'desc')
             ->limit($limit)
             ->get();
@@ -151,10 +164,21 @@ class AdminLogService
      */
     public static function getLogsByAction(string $action, int $limit = 50)
     {
-        $monitoredIds = Admin::nonAdmins()->pluck('User_ID');
-        
-        return SystemLog::whereIn('User_ID', $monitoredIds)
-            ->where('Action', 'like', "%{$action}%")
+        /*
+        |--------------------------------------------------------------------------
+        | PREVIOUS IMPLEMENTATION (Excluding admin role actions)
+        | Uncomment if Render / production environment requires non-admin filtering:
+        |--------------------------------------------------------------------------
+        | $monitoredIds = Admin::nonAdmins()->pluck('User_ID');
+        | return SystemLog::whereIn('User_ID', $monitoredIds)
+        |     ->where('Action', 'like', "%{$action}%")
+        |     ->with('user')
+        |     ->orderBy('Timestamp', 'desc')
+        |     ->limit($limit)
+        |     ->get();
+        */
+
+        return SystemLog::where('Action', 'like', "%{$action}%")
             ->with('user')
             ->orderBy('Timestamp', 'desc')
             ->limit($limit)
@@ -166,10 +190,20 @@ class AdminLogService
      */
     public static function getLogsForDateRange($startDate, $endDate)
     {
-        $monitoredIds = Admin::nonAdmins()->pluck('User_ID');
-        
-        return SystemLog::whereIn('User_ID', $monitoredIds)
-            ->whereBetween('Timestamp', [$startDate, $endDate])
+        /*
+        |--------------------------------------------------------------------------
+        | PREVIOUS IMPLEMENTATION (Excluding admin role actions)
+        | Uncomment if Render / production environment requires non-admin filtering:
+        |--------------------------------------------------------------------------
+        | $monitoredIds = Admin::nonAdmins()->pluck('User_ID');
+        | return SystemLog::whereIn('User_ID', $monitoredIds)
+        |     ->whereBetween('Timestamp', [$startDate, $endDate])
+        |     ->with('user')
+        |     ->orderBy('Timestamp', 'desc')
+        |     ->get();
+        */
+
+        return SystemLog::whereBetween('Timestamp', [$startDate, $endDate])
             ->with('user')
             ->orderBy('Timestamp', 'desc')
             ->get();
@@ -180,25 +214,37 @@ class AdminLogService
      */
     public static function getActivitySummary(): array
     {
-        $monitoredIds = Admin::nonAdmins()->pluck('User_ID');
-        
-        $todayCount = SystemLog::whereIn('User_ID', $monitoredIds)
-            ->whereDate('Timestamp', today())
-            ->count();
-        
-        $weekCount = SystemLog::whereIn('User_ID', $monitoredIds)
-            ->where('Timestamp', '>=', now()->subDays(7))
-            ->count();
-        
-        $recentLogs = SystemLog::whereIn('User_ID', $monitoredIds)
-            ->with('user')
+        /*
+        |--------------------------------------------------------------------------
+        | PREVIOUS IMPLEMENTATION (Excluding admin role actions)
+        | Uncomment if Render / production environment requires non-admin filtering:
+        |--------------------------------------------------------------------------
+        | $monitoredIds = Admin::nonAdmins()->pluck('User_ID');
+        | $todayCount = SystemLog::whereIn('User_ID', $monitoredIds)
+        |     ->whereDate('Timestamp', today())
+        |     ->count();
+        | $weekCount = SystemLog::whereIn('User_ID', $monitoredIds)
+        |     ->where('Timestamp', '>=', now()->subDays(7))
+        |     ->count();
+        | $recentLogs = SystemLog::whereIn('User_ID', $monitoredIds)
+        |     ->with('user')
+        |     ->orderBy('Timestamp', 'desc')
+        |     ->limit(5)
+        |     ->get();
+        */
+
+        $todayCount = SystemLog::whereDate('Timestamp', today())->count();
+
+        $weekCount = SystemLog::where('Timestamp', '>=', now()->subDays(7))->count();
+
+        $recentLogs = SystemLog::with('user')
             ->orderBy('Timestamp', 'desc')
             ->limit(5)
             ->get();
 
         return [
             'today_count' => $todayCount,
-            'week_count' => $weekCount,
+            'week_count'  => $weekCount,
             'recent_logs' => $recentLogs,
         ];
     }
