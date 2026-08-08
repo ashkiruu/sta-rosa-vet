@@ -882,7 +882,22 @@ class AdminController extends Controller
     public function adminsIndex()
     {
         $admins = Admin::with('user', 'creator')
-            ->orderByRaw("FIELD(admin_role, 'admin', 'doctor', 'staff')")
+            /*
+            |--------------------------------------------------------------------------
+            | PREVIOUS IMPLEMENTATION (MySQL-specific FIELD function)
+            | Uncomment if reverting back to a pure MySQL environment:
+            |--------------------------------------------------------------------------
+            | ->orderByRaw("FIELD(admin_role, 'admin', 'doctor', 'staff')")
+            */
+            // ANSI SQL CASE statement compatible with PostgreSQL (Render) and MySQL
+            ->orderByRaw("
+                CASE admin_role
+                    WHEN 'admin' THEN 1
+                    WHEN 'doctor' THEN 2
+                    WHEN 'staff' THEN 3
+                    ELSE 4
+                END
+            ")
             ->orderBy('created_at', 'desc')
             ->get();
 
