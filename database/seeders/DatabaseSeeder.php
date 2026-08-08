@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             BarangaySeeder::class,
             CertificateTypeSeeder::class,
             UserSeeder::class,
+            SuperAdminSeeder::class,
             ServiceTypeSeeder::class,
             SpeciesSeeder::class,
             CalendarTimeSeeder::class,
