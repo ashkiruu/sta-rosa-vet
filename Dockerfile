@@ -147,15 +147,16 @@ COPY --from=frontend /app/public/build ./public/build
 # =========================
 # Safe defaults for Cloud Run
 # =========================
+# NOTE: Uncomment DB lines below once Render is discarded
+# DB_CONNECTION=sqlite
+# DB_DATABASE=/tmp/database.sqlite
+
 ENV APP_ENV=production \
     APP_DEBUG=false \
     APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= \
     CACHE_STORE=array \
     SESSION_DRIVER=array \
     QUEUE_CONNECTION=sync \
-    # Uncomment this once render is discarded
-    #DB_CONNECTION=sqlite \
-    #DB_DATABASE=/tmp/database.sqlite
 
 RUN touch /tmp/database.sqlite
 
