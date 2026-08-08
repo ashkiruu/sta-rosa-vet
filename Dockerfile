@@ -182,4 +182,5 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 # Bring EXPOSE 8080 back if Render is discarded
 #EXPOSE 8080
 EXPOSE 10000
-CMD ["apache2-foreground"]
+ENTRYPOINT ["docker-entrypoint.sh"]
+#Uncomment Later CMD ["apache2-foreground"]
