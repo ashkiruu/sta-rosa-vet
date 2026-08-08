@@ -49,7 +49,7 @@ class UserSeeder extends Seeder
 
     // Create test user (Juan Dela Cruz)
     DB::table('users')->insertOrIgnore([
-        'User_ID' => 1,
+        #UNCOMMENT LATER 'User_ID' => 1,
         'Username' => 'testuser',
         #UNCOMMENT LATER 'Password' => Hash::make('password'),
         'Password' => Hash::make('Malayan@2026'),
