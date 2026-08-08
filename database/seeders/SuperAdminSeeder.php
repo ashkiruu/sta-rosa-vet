@@ -8,89 +8,89 @@ use App\Models\Admin;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 
-class SuperAdminSeeder extends Seeder
+class AdminSeeder extends Seeder
 {
     /**
      * Run the database seeds.
      * 
-     * This seeder creates or ensures the existence of the super admin account.
-     * Run with: php artisan db:seed --class=SuperAdminSeeder
+     * Creates default administrative accounts (Admin, Doctor, Staff).
+     * Run with: php artisan db:seed --class=AdminSeeder
      */
     public function run(): void
     {
-        $this->createNewSuperAdmin();
+        $this->seedAdminAccounts();
         $this->syncPostgresSequence();
     }
 
     /**
-     * Create or update user as super admin
+     * Seed default administrative users and assign roles.
      */
-    private function createNewSuperAdmin(): void
+    private function seedAdminAccounts(): void
     {
-        $email = 'superadmin@starosa.vet';
-
-        // Upsert superadmin user safely using Eloquent
-        $user = User::updateOrCreate(
-            ['Email' => $email],
+        $accounts = [
             [
-                'Username'               => 'superadmin',
-                'Password'               => Hash::make('SuperAdmin@123'), // CHANGE THIS IN PRODUCTION!
-                'First_Name'             => 'Super',
-                'Middle_Name'            => null,
-                'Last_Name'              => 'Admin',
-                'Contact_Number'         => '09000000000',
-                'Address'                => 'Sta. Rosa Veterinary Clinic',
-                'Barangay_ID'            => 1,
-                'Verification_Status_ID' => 2, // Verified
-                'Account_Status_ID'      => 1, // Active
-                'Registration_Date'      => now(),
-            ]
-        );
-
-        // Upsert admin permissions for the user
-        Admin::updateOrCreate(
-            ['User_ID' => $user->User_ID],
+                'email'       => 'admin@starosa.vet',
+                'username'    => 'admin',
+                'password'    => 'Admin@123',
+                'first_name'  => 'System',
+                'last_name'   => 'Administrator',
+                'admin_role'  => 'admin',
+            ],
             [
-                'is_super_admin' => true,
-                'admin_role'     => 'super_admin',
-                'created_by'     => null,
-            ]
-        );
+                'email'       => 'doctor@starosa.vet',
+                'username'    => 'doctor',
+                'password'    => 'Doctor@123',
+                'first_name'  => 'Duty',
+                'last_name'   => 'Veterinarian',
+                'admin_role'  => 'doctor',
+            ],
+            [
+                'email'       => 'staff@starosa.vet',
+                'username'    => 'staff',
+                'password'    => 'Staff@123',
+                'first_name'  => 'Clinic',
+                'last_name'   => 'Staff',
+                'admin_role'  => 'staff',
+            ],
+        ];
+
+        foreach ($accounts as $acc) {
+            // Upsert User record using Eloquent
+            $user = User::updateOrCreate(
+                ['Email' => $acc['email']],
+                [
+                    'Username'               => $acc['username'],
+                    'Password'               => Hash::make($acc['password']),
+                    'First_Name'             => $acc['first_name'],
+                    'Middle_Name'            => null,
+                    'Last_Name'              => $acc['last_name'],
+                    'Contact_Number'         => '09000000000',
+                    'Address'                => 'Sta. Rosa Veterinary Clinic',
+                    'Barangay_ID'            => 1,
+                    'Verification_Status_ID' => 2, // Verified
+                    'Account_Status_ID'      => 1, // Active
+                    'Registration_Date'      => now(),
+                ]
+            );
+
+            // Upsert Admin role permissions record
+            Admin::updateOrCreate(
+                ['User_ID' => $user->User_ID],
+                [
+                    'admin_role' => $acc['admin_role'],
+                    'created_by' => null,
+                ]
+            );
+        }
 
         if ($this->command) {
             $this->command->info('========================================');
-            $this->command->info('SUPER ADMIN ACCOUNT READY');
+            $this->command->info('ADMINISTRATIVE ACCOUNTS SEEDED');
             $this->command->info('========================================');
-            $this->command->info('Email: ' . $email);
-            $this->command->info('Password: SuperAdmin@123');
+            $this->command->info('1. Admin:  admin@starosa.vet / Admin@123');
+            $this->command->info('2. Doctor: doctor@starosa.vet / Doctor@123');
+            $this->command->info('3. Staff:  staff@starosa.vet / Staff@123');
             $this->command->info('========================================');
-        }
-    }
-
-    /**
-     * Promote an existing user to super admin
-     */
-    public function promoteExistingUser(int $userId): void
-    {
-        $user = User::find($userId);
-
-        if (!$user) {
-            if ($this->command) {
-                $this->command->error("User with ID {$userId} not found.");
-            }
-            return;
-        }
-
-        Admin::updateOrCreate(
-            ['User_ID' => $user->User_ID],
-            [
-                'is_super_admin' => true,
-                'admin_role'     => 'super_admin',
-            ]
-        );
-
-        if ($this->command) {
-            $this->command->info("User '{$user->First_Name} {$user->Last_Name}' has been promoted to super admin.");
         }
     }
 
