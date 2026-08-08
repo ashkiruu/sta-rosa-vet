@@ -66,10 +66,14 @@ RUN { \
   echo "max_input_time=180"; \
 } > /usr/local/etc/php/conf.d/uploads.ini
 
+# Bring this back later if you discard Render
+#ENV PORT=8080
+#RUN sed -i 's/Listen 80/Listen 8080/g' /etc/apache2/ports.conf \
+# && sed -i 's/:80/:8080/g' /etc/apache2/sites-available/000-default.conf
 
-ENV PORT=8080
-RUN sed -i 's/Listen 80/Listen 8080/g' /etc/apache2/ports.conf \
- && sed -i 's/:80/:8080/g' /etc/apache2/sites-available/000-default.conf
+ENV PORT=10000
+RUN sed -i 's/Listen 80/Listen ${PORT}/g' /etc/apache2/ports.conf \
+ && sed -i 's/:80/:${PORT}/g' /etc/apache2/sites-available/000-default.conf
 
 # =========================
 # SYSTEM DEPENDENCIES (OCR + IMAGE NORMALIZATION)
@@ -146,6 +150,7 @@ RUN mkdir -p storage/framework/{cache,sessions,views} bootstrap/cache \
 
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
-EXPOSE 8080
+# Bring EXPOSE 8080 back if Render is discarded
+#EXPOSE 8080
+EXPOSE 10000
 CMD ["apache2-foreground"]
