@@ -153,8 +153,9 @@ ENV APP_ENV=production \
     CACHE_STORE=array \
     SESSION_DRIVER=array \
     QUEUE_CONNECTION=sync \
-    DB_CONNECTION=sqlite \
-    DB_DATABASE=/tmp/database.sqlite
+    # Uncomment this once render is discarded
+    #DB_CONNECTION=sqlite \
+    #DB_DATABASE=/tmp/database.sqlite
 
 RUN touch /tmp/database.sqlite
 
